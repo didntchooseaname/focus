@@ -1,0 +1,9 @@
+wait 400
+select Daily
+focus tree
+key ctrl-v
+wait 800
+key ctrl-v
+wait 800
+shot vault-paste
+quit

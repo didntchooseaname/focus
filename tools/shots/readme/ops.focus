@@ -1,0 +1,8 @@
+open Reporting/Finding template.md
+ops on
+wait 600
+right ops
+bottom journal
+wait 600
+shot ops
+quit

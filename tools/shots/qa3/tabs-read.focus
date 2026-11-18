@@ -1,0 +1,16 @@
+open Live/Onglets.md
+view reading
+wait 500
+shot initial
+goto Titre dans Windows
+wait 600
+shot goto-windows
+goto Section dans Deux
+wait 600
+shot goto-deux
+theme light
+wait 300
+shot light
+lang ar
+wait 400
+shot ar

@@ -1,0 +1,22 @@
+open 00_Home.md
+open Reporting/Severity and CVSS.md
+left files
+right outline
+shot dark
+key ctrl-j
+shot bottom-journal
+key ctrl-j
+key ctrl-b
+shot left-hidden
+key ctrl-alt-b
+shot both-hidden
+key ctrl-b
+key ctrl-alt-b
+theme light
+shot light
+lang fr
+shot fr
+lang ar
+shot ar
+lang zh-CN
+shot zh

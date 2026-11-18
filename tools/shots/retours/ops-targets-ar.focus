@@ -1,0 +1,12 @@
+ops on
+wait 600
+engagement Demo
+wait 800
+palette >hosts
+wait 300
+key enter
+wait 1500
+lang ar
+wait 800
+shot retours-ar-ops-targets
+quit

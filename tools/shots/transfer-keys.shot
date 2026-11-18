@@ -1,0 +1,18 @@
+dialog tidy
+wait 2500
+shot keys-tidy-0
+key pagedown
+shot keys-tidy-1
+key end
+shot keys-tidy-2
+key home
+shot keys-tidy-3
+dialog import
+source target/qa2/skips/many
+wait 1000
+shot keys-import-0
+key ctrl-end
+shot keys-import-1
+key ctrl-home
+shot keys-import-2
+quit

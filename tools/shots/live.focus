@@ -1,0 +1,41 @@
+wait 300
+figure on
+open Rendu/Tout le Markdown.md
+live on
+shot live-before
+liveopen 10
+shot live-paragraph
+type Ajout en tête du paragraphe.
+key enter
+type Une ligne de plus.
+wait 300
+shot live-typed
+livedown
+shot live-down
+liveclose
+wait 300
+shot live-closed
+liveopen 1
+shot live-properties
+liveclose
+click Tâche ouverte
+wait 100
+shot live-click-list
+liveclose
+line 96
+liveopen 98
+shot live-table
+liveclose
+theme light
+line 0
+liveopen 10
+shot live-light
+liveclose
+theme dark
+open Rendu/Langues.md
+wait 300
+lang ar
+line 10
+liveopen 12
+shot live-ar
+quit

@@ -1,0 +1,20 @@
+open Rendu/Tout le Markdown.md
+view source
+focus editor
+key ctrl-end
+key enter
+type éa àù été
+type 你好
+type مرحبا YY
+type é/
+key escape
+type  fin-edit
+wait 1200
+view live
+wait 300
+block 10
+key end
+type  éé àù 你好 مرحبا
+key escape
+wait 1500
+quit

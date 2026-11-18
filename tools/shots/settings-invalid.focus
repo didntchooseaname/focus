@@ -1,0 +1,6 @@
+settings editor
+wait 400
+type 9
+wait 400
+shot settings-invalid
+quit

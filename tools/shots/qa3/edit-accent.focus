@@ -1,0 +1,7 @@
+open Live/Blocs.md
+view source
+wait 400
+focus editor
+type été t
+wait 400
+shot typed

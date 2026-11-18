@@ -1,0 +1,26 @@
+wait 300
+figure on
+open Reference/Callouts.md
+wait 800
+line 76
+wait 800
+shot folds-demo-before
+click #fold 1
+wait 300
+shot folds-demo-folded
+click #fold 1
+wait 300
+shot folds-demo-unfolded
+live on
+click #fold 1
+wait 300
+shot folds-demo-live-folded
+click #fold 1
+wait 300
+live off
+line 0
+wait 300
+click #fold 0
+wait 300
+shot folds-demo-theory-folded
+quit

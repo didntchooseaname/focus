@@ -1,0 +1,5 @@
+ops on
+right ops
+wait 1000
+shot ops-app-sidebar
+quit

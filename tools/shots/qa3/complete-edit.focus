@@ -1,0 +1,10 @@
+open Live/Blocs.md
+view source
+wait 400
+focus editor
+type [[Ci
+wait 600
+shot menu
+key enter
+wait 400
+shot accepted

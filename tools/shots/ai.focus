@@ -1,0 +1,91 @@
+open Red Team/Kerberoasting.md
+focus
+shot ai-empty
+
+nokey
+shot ai-no-key
+
+scenario streaming
+send Summarize the sections of this note
+wait 1600
+toggle 1 0
+wait 300
+shot ai-streaming
+stop
+wait 200
+newconv
+
+scenario answer
+send Summarize this note and suggest a better frontmatter
+settle
+wait 300
+shot ai-answer
+newconv
+
+scenario tools
+send Which notes talk about this technique?
+settle
+toggle 1 1
+wait 200
+shot ai-tools
+newconv
+
+scenario write
+send Add a short detection section to this note
+wait 1800
+shot ai-confirm-write
+apply
+settle
+wait 200
+shot ai-confirm-applied
+newconv
+
+select Any domain user can request a service ticket for an account that has a service principal name.
+focus
+type @Acc
+wait 300
+key enter
+wait 300
+type @Dia
+wait 300
+shot ai-context
+key escape
+menu actions
+wait 200
+shot ai-actions
+menu none
+menu models
+wait 200
+shot ai-models
+menu none
+
+scenario error-key
+send Summarize this note
+settle
+wait 200
+shot ai-error
+newconv
+
+scenario error-rate
+send Summarize this note
+settle
+wait 200
+shot ai-error-rate
+newconv
+
+scenario action
+action refine
+settle
+wait 200
+shot ai-action-replace
+newconv
+
+scenario masking
+send The host is 10.10.11.5 and password=Sup3rS3cret!xQ7, summarize the situation
+settle
+wait 300
+shot ai-masking
+history
+wait 400
+shot ai-history
+quit

@@ -1,0 +1,7 @@
+screen dashboard
+wait 400
+shot ops-dashboard-empty
+screen hosts
+wait 200
+shot ops-hosts-empty
+quit

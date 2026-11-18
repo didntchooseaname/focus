@@ -1,0 +1,6 @@
+wait 1500
+left tags
+shot vault-demo-tags
+bottom broken
+shot vault-demo-broken
+quit

@@ -1,0 +1,9 @@
+open Rendu/Tout le Markdown.md
+view source
+focus editor
+key enter
+key up
+type /
+shot slash-menu
+type tab
+shot slash-filter

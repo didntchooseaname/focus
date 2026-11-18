@@ -1,0 +1,6 @@
+lang ar
+open 00_Home.md
+palette kerb
+wait 400
+shot palette-ar
+quit

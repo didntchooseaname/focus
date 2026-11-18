@@ -1,0 +1,16 @@
+open Red Team/Kerberoasting.md
+view source
+focus editor
+key ctrl-f
+type kerberoast
+wait 300
+shot effect-find-highlights
+key escape
+right info
+view reading
+wait 300
+shot effect-info-rows
+lang ar
+wait 300
+shot effect-right-tabs-ar
+quit

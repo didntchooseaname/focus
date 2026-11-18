@@ -1,0 +1,10 @@
+open 00 Accueil.md
+address smb://fileserver.corp.local/share/payload.desktop
+wait 300
+shot address-confirm
+key escape
+lang ar
+address file:///home/user/.config/autostart/a.desktop
+wait 300
+shot address-confirm-ar
+quit

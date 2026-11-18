@@ -1,0 +1,9 @@
+lang ar
+open Rendu/Langues.md
+view live
+wait 400
+goto العربية
+block 13
+wait 300
+shot live-ar
+quit

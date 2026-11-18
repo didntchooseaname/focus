@@ -1,0 +1,5 @@
+set ai.enabled false
+settings ai
+wait 600
+shot ai-off
+quit

@@ -1,0 +1,11 @@
+open Live/Onglets.md
+view live
+wait 500
+block 3
+wait 300
+shot container-open
+key escape
+block 31
+wait 300
+shot container-mdbook
+key escape

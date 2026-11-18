@@ -1,0 +1,9 @@
+left files
+expand Rendu
+focus tree
+hover tree:Rendu/Liens.md
+key ctrl-m
+type zzzqqq
+key enter
+wait 400
+shot after

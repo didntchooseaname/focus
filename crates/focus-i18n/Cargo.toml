@@ -1,0 +1,15 @@
+[package]
+name = "focus-i18n"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+fluent-bundle = "0.16"
+unic-langid = "0.9"
+fluent-syntax = "0.12"
+intl-memoizer = "0.5"
+parking_lot.workspace = true
+thiserror.workspace = true
+libc = "0.2"

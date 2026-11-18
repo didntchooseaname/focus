@@ -1,0 +1,10 @@
+wait 300
+remote click
+open Images distantes.md
+shot reading-remote-click
+remote never
+shot reading-remote-never
+lang fr
+remote click
+shot reading-remote-fr
+quit

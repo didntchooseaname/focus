@@ -1,0 +1,8 @@
+open Live/Arabe.md
+view source
+wait 400
+focus editor
+key ctrl-end
+type  ZZ مرحبا
+wait 400
+shot typed

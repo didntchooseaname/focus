@@ -1,0 +1,5 @@
+lang ar
+settings ops
+wait 500
+shot settings-ops-ar
+quit

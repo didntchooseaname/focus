@@ -1,0 +1,10 @@
+lang ar
+open Rendu/Langues.md
+open Red Team/Kerberoasting.md
+open Rendu/Langues.md
+view reading
+left files
+right outline
+wait 400
+shot shell-ar
+quit

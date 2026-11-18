@@ -1,0 +1,10 @@
+ops on
+wait 800
+palette >findings
+wait 300
+key enter
+wait 1500
+lang ar
+wait 800
+shot retours-ar-ops-findings
+quit

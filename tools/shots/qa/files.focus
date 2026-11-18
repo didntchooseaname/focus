@@ -1,0 +1,22 @@
+left files
+expand Red Team
+open Red Team/Kerberoasting.md
+hover tree:Red Team/Kerberoasting.md
+shot tree-hover
+focus search
+palette new
+shot palette-new
+key escape
+key f2
+shot f2
+key escape
+open 00 Accueil.md
+shot two-tabs
+hover tab:0
+shot tab-hover
+drop Red Team/assets/capture-exemple.png
+shot attach
+theme light
+shot attach-light
+lang fr
+shot attach-fr

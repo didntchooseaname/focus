@@ -1,0 +1,22 @@
+ops on
+wait 500
+engagement Lab focus
+wait 1500
+right ops
+shot effect-ops-engagement
+open Red Team/Kerberoasting.md
+view reading
+wait 800
+shot effect-ops-variables-before
+set ops.variables DC=10.10.10.5
+open Red Team/Kerberoasting.md
+view reading
+wait 800
+shot effect-ops-variables
+key ctrl-shift-j
+wait 400
+shot effect-journal-quick
+settings ops
+wait 400
+shot effect-settings-engagement
+quit

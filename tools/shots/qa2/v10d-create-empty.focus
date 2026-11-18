@@ -1,0 +1,9 @@
+left files
+focus tree
+hover tree:Rendu
+key ctrl-n
+wait 300
+key backspace
+key enter
+wait 1000
+shot after

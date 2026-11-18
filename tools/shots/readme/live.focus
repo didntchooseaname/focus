@@ -1,0 +1,9 @@
+open Reference/Markdown tour.md
+view live
+left files
+right outline
+wait 400
+block 19
+wait 400
+shot live-block
+quit

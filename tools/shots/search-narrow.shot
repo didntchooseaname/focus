@@ -1,0 +1,8 @@
+width 200
+settle
+focus
+type kerberoast
+shot search-narrow
+key alt-h
+shot search-narrow-help
+quit

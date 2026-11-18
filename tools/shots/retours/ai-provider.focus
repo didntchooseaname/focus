@@ -1,0 +1,5 @@
+set ai.provider 5
+settings ai
+wait 800
+shot ai-provider
+quit

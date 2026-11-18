@@ -1,0 +1,13 @@
+help-menu = مساعدة
+help-agents-guide = ربط وكيل بـ Focus
+help-shortcuts = اختصارات لوحة المفاتيح
+help-search-syntax = صيغة البحث
+help-about = حول Focus
+help-agents-guide-title = ربط وكيل بـ Focus
+help-agents-read-only = للقراءة فقط
+help-agents-write = مع صلاحية الكتابة
+help-agents-command-label = الأمر المطلوب إعلانه في وكيلك
+help-agents-copy-command = نسخ الأمر
+help-agents-sent-to-provider = ما يستقبله مزوّد وكيلك
+help-search-syntax-title = عوامل البحث
+help-search-syntax-example = مثال

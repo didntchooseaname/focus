@@ -1,0 +1,14 @@
+ops on
+right ops
+wait 500
+shot ops-empty
+bottom journal
+shot journal-empty
+key ctrl-shift-j
+shot ctrl-shift-j
+settings ops
+shot settings-ops
+theme light
+shot settings-ops-light
+lang fr
+shot settings-ops-fr

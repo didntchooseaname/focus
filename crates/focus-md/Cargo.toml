@@ -1,0 +1,20 @@
+[package]
+name = "focus-md"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+dunce = "1"
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+pulldown-cmark = { version = "0.13.6", default-features = false }
+mermaid-rs-renderer = { version = "=0.3.1", default-features = false }
+resvg = { version = "=0.45.1", default-features = false, features = ["text"] }
+zip = { version = "9.5.1", default-features = false, features = ["deflate"] }
+base64 = "0.22"
+sha2 = "0.10"
+regex = "1"

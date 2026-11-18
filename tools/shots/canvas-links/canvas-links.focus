@@ -1,0 +1,10 @@
+open Notes/Scope.md
+view reading
+right links
+bottom broken
+wait 600
+shot canvas-links
+lang ar
+wait 400
+shot canvas-links-ar
+quit

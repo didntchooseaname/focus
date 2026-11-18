@@ -1,0 +1,23 @@
+wait 300
+figure on
+open Reference/Embeds and links.md
+live on
+line 64
+wait 500
+shot live-demo-upload
+clickat 700 253
+wait 300
+shot live-demo-upload-open
+liveclose
+open Reference/Code samples.md
+wait 300
+click #nmap
+wait 300
+shot live-demo-tag
+open Reference/Tables.md
+wait 300
+click #tag 1
+altclick #tag 1
+wait 300
+shot live-demo-chip
+quit

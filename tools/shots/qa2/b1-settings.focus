@@ -1,0 +1,6 @@
+settings general
+focus settings-search
+type zzzqq
+key enter
+wait 400
+shot after

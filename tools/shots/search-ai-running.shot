@@ -1,0 +1,7 @@
+settle
+focus
+type kerberoast
+key enter
+wait 5500
+shotnow search-ai-running
+quit

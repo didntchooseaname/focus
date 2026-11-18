@@ -1,0 +1,5 @@
+lang ar
+screen kit
+wait 300
+shot kit-ar
+quit

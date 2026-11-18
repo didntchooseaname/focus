@@ -1,0 +1,9 @@
+open Method/Evidence handling.md
+view reading
+ai fake tools/shots/readme/ai-answer.md
+focus ai
+type What should I check before the evidence leaves my hands?
+key enter
+wait 2500
+shot ai
+quit

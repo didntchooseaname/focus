@@ -1,0 +1,14 @@
+open Method/Evidence handling.md
+right links
+wait 1500
+shot links-local-graph
+graph
+wait 4000
+shot graph-tab
+open 00_Home.md
+view reading
+wait 600
+point AD Checklist
+wait 800
+shot link-preview
+quit

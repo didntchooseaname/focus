@@ -1,0 +1,32 @@
+open Red Team/Kerberoasting.md
+view reading
+wait 400
+shot effect-check-links-on
+set editor.check_links off
+wait 200
+shot effect-check-links-off
+view source
+focus editor
+key ctrl-end
+key enter
+type ZZZ-END (pair
+wait 200
+shot effect-ctrl-end-and-pairs-on
+key end
+set editor.close_pairs off
+key enter
+type no pair (here
+key enter
+type [[
+type acc
+key enter
+wait 300
+shot effect-pairs-off-markdown-link
+set editor.link_style 1
+key enter
+type [[
+type acc
+key enter
+wait 300
+shot effect-wiki-link
+quit

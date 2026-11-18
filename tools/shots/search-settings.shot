@@ -1,0 +1,12 @@
+settle
+focus
+wait 300
+type kerberos
+wait 1000
+shot settings-a-default
+settings 50 0
+wait 500
+shot settings-b-limit
+settings 50 1
+wait 500
+shot settings-c-accents

@@ -1,0 +1,19 @@
+wait 300
+figure on
+open Rendu/Tout le Markdown.md
+variables on
+line 74
+wait 300
+varpicker 74 smbclient
+type rho
+wait 200
+shot reading-vars-picker
+key enter
+varpicker 74 smbclient
+type TARGET
+key enter
+varpicker 74 smbclient
+key escape
+wait 200
+shot reading-vars-closed
+quit

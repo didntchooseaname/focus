@@ -1,0 +1,40 @@
+(document) @primary
+
+(atx_heading (inline) @title)
+(setext_heading (paragraph) @title)
+
+[
+  (atx_h1_marker)
+  (atx_h2_marker)
+  (atx_h3_marker)
+  (atx_h4_marker)
+  (atx_h5_marker)
+  (atx_h6_marker)
+  (setext_h1_underline)
+  (setext_h2_underline)
+  (block_continuation)
+  (block_quote_marker)
+] @punctuation.special
+
+[
+  (indented_code_block)
+  (fenced_code_block)
+] @text.literal
+
+(fenced_code_block_delimiter) @punctuation.delimiter
+(info_string) @label
+
+(link_destination) @link_uri
+(link_label) @link_text
+
+[
+  (list_marker_plus)
+  (list_marker_minus)
+  (list_marker_star)
+  (list_marker_dot)
+  (list_marker_parenthesis)
+  (thematic_break)
+] @punctuation.list_marker
+
+(backslash_escape) @string.escape
+(minus_metadata) @property

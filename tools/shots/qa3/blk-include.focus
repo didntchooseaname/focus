@@ -1,0 +1,14 @@
+open Live/Blocs.md
+view live
+wait 400
+shot before
+block 53
+wait 300
+shot open
+key end
+type  ZZ
+wait 300
+shot typed
+key escape
+wait 1500
+shot closed

@@ -1,0 +1,11 @@
+ops on
+right ops
+wait 500
+shot before
+key ctrl-shift-j
+wait 400
+type Entrée rapide test
+shot typed
+key enter
+wait 600
+shot after

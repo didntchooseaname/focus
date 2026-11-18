@@ -1,0 +1,9 @@
+open Method/Engagement lifecycle.md
+ops on
+wait 400
+palette >Show the hosts
+wait 300
+key enter
+wait 800
+shot ops-hosts
+quit

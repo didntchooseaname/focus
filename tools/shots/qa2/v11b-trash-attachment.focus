@@ -1,0 +1,11 @@
+left files
+expand Rendu
+expand Red Team
+focus tree
+expand Red Team/assets
+hover tree:Red Team/assets/capture-exemple.png
+key delete
+wait 300
+key enter
+wait 1000
+shot after

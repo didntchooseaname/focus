@@ -1,0 +1,17 @@
+wait 300
+open Rendu/Langues.md
+shot reading-rtl
+line 38
+shot reading-rtl-mixed
+line 9
+width 480
+shot reading-rtl-480
+width 240
+shot reading-rtl-240
+width sheet
+line 0
+lang ar
+shot reading-ar
+compact 320
+shot reading-ar-compact
+quit

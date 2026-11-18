@@ -1,0 +1,53 @@
+open Red Team/Kerberoasting.md
+scenario answer
+send Summarize this note
+settle
+newconv
+scenario action
+send Second conversation
+settle
+newconv
+history
+wait 300
+shot ai-history-list
+resume 1
+wait 600
+shot ai-resume
+menu models
+wait 400
+shot ai-models-fetched
+menu none
+newconv
+
+focus
+type @a
+wait 300
+key down
+key down
+wait 200
+shot ai-mention-keys
+key escape
+newconv
+
+scenario tools
+send Which notes talk about this technique?
+settle
+wait 300
+shot ai-links
+newconv
+
+scenario long
+send A long answer please
+settle
+wait 400
+shot ai-long-end
+newconv
+
+lang ar
+width 240
+scenario arabic-wrap
+send سؤال
+settle
+wait 300
+shot ai-ar-wrap
+quit

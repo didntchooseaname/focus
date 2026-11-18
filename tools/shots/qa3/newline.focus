@@ -1,0 +1,10 @@
+open Live/Saut.md
+view live
+wait 400
+shot before
+block end
+wait 300
+type  x
+key escape
+wait 1500
+shot closed

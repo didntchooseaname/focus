@@ -1,0 +1,86 @@
+Focus
+===
+
+Focus itself is under the GNU Affero General Public License, version 3 or any later
+version (LICENSE). This file lists the third party components that are embedded in the
+repository or vendored in it, with the license read in the component's own license
+file or in the metadata of the file when it has no license file. Rust crates that
+Cargo downloads at build time are not copied here: each keeps its license in its
+package (see Cargo.lock for the list).
+
+Fonts (assets/fonts/)
+---------------------
+
+Inter, version 4.001. Copyright 2016 The Inter Project Authors
+(https://github.com/rsms/inter). SIL Open Font License 1.1. Full text in
+assets/fonts/Inter-LICENSE.txt.
+
+Noto Sans Arabic, version 2.013. Copyright 2022 The Noto Project Authors
+(https://github.com/notofonts/arabic). SIL Open Font License 1.1. Full text in
+assets/fonts/NotoSansArabic-LICENSE.txt.
+
+Sora, version 2.000. Copyright 2019 The Sora Project Authors
+(https://github.com/sora-xor/sora-font). SIL Open Font License 1.1. Full text in
+assets/fonts/Sora-LICENSE.txt, copied from OFL.txt of the Sora repository.
+
+JetBrains Mono, version 2.305. Copyright 2020 The JetBrains Mono Project Authors
+(https://github.com/JetBrains/JetBrainsMono). SIL Open Font License 1.1. Full text in
+assets/fonts/JetBrainsMono-LICENSE.txt, copied from OFL.txt of the JetBrains Mono
+repository.
+
+Icons (assets/icons/)
+---------------------
+
+lucide.ttf is a font generated from Lucide icons (https://lucide.dev). Lucide is
+licensed under the ISC License, Copyright (c) 2026 Lucide Icons and Contributors; the
+icons derived from the Feather project are licensed under the MIT License,
+Copyright (c) 2013-present Cole Bemis. Both texts are in assets/icons/Lucide-LICENSE.txt,
+copied from the LICENSE file of https://github.com/lucide-icons/lucide.
+
+focus.svg and focus.png are drawn for Focus.
+
+Vendored Rust crates (vendor/)
+------------------------------
+
+gpui 0.2.2. Copyright 2022 - 2025 Zed Industries, Inc. Apache License 2.0, full text
+in vendor/gpui-0.2.2/LICENSE-APACHE. Source: https://github.com/zed-industries/zed.
+Changes made by Focus are listed in vendor/gpui-0.2.2/FOCUS-PATCHES.md.
+
+gpui-component 0.5.1. Copyright 2024 - 2025 Longbridge
+(https://longbridge.com). Apache License 2.0, full text in
+vendor/gpui-component-0.5.1/LICENSE-APACHE. Source:
+https://github.com/longbridge/gpui-component. Changes made by Focus are listed in
+vendor/gpui-component-0.5.1/FOCUS-PATCHES.md.
+
+mermaid-rs-renderer 0.3.1. Copyright (c) 2026 mermaid-rs-renderer contributors. MIT
+License, full text in vendor/mermaid-rs-renderer-0.3.1/LICENSE. Source:
+https://github.com/1jehuang/mermaid-rs-renderer. Changes made by Focus are listed in
+vendor/mermaid-rs-renderer-0.3.1/FOCUS-PATCHES.md.
+
+proc-macro-error2 2.0.1. Copyright (c) 2019-2020 CreepySkeleton. MIT OR Apache-2.0,
+texts in vendor/proc-macro-error2-2.0.1/LICENSE-MIT and LICENSE-APACHE.
+
+CVSS 4.0 score table (crates/focus-ops/src/cvss4_table.rs)
+--------------------------------------------------------
+
+The score of each CVSS 4.0 macro vector comes from the file cvss_lookup.js of
+https://github.com/FIRSTdotorg/cvss-v4-calculator, fetched on 2026-11-12. License:
+BSD 2-Clause "Simplified", Copyright (c) 2023 FIRST.ORG, Inc., Red Hat, and
+contributors. The text, copied from the LICENSE file of that repository, is in
+crates/focus-ops/src/LICENSE-cvss4.txt, next to the table. The score computation in
+crates/focus-ops/src/cvss.rs follows the reference calculator (cvss_score.js of the same
+repository) and the FIRST CVSS 3.1 and 4.0 specifications; its unit tests use the
+official example vectors published by first.org.
+
+CWE catalog (crates/focus-ops/data/cwe.tsv)
+-----------------------------------------
+
+The identifier and the name of each weakness of view 1000 (Research Concepts) of the
+Common Weakness Enumeration come from the file 1000.csv of
+https://cwe.mitre.org/data/csv/1000.csv.zip, fetched on 2026-11-12 (956 entries). Copyright
+(c) 2006-2026, The MITRE Corporation. CWE and the CWE logo are trademarks of The MITRE
+Corporation. License: the CWE Terms of Use (https://cwe.mitre.org/about/termsofuse.html),
+which allow use for research, development and commercial purposes on the condition that
+the copyright designation and the license are reproduced in any copy. Both are in
+crates/focus-ops/data/CWE-LICENSE.txt, next to the table. The short names that the finding
+sheet searches (`xss`, `sqli`, `ssrf`...) are written by Focus.

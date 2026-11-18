@@ -1,0 +1,5 @@
+open Home.md
+graph
+wait 2500
+shot graph
+quit

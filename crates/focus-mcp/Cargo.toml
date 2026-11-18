@@ -1,0 +1,27 @@
+[package]
+name = "focus-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "focus-mcp"
+path = "src/main.rs"
+
+[dependencies]
+dunce = "1"
+focus-core.workspace = true
+focus-search.workspace = true
+focus-ai.workspace = true
+focus-ops.workspace = true
+focus-md.workspace = true
+serde = { workspace = true }
+anyhow.workspace = true
+libc = "0.2"
+serde_json.workspace = true
+focus-history = { path = "../focus-history" }
+sha2 = "0.10"

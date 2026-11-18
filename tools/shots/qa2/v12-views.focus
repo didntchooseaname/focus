@@ -1,0 +1,10 @@
+open Rendu/Liens.md
+left tags
+wait 500
+shot tags
+bottom tasks
+wait 500
+shot tasks
+bottom broken
+wait 500
+shot broken

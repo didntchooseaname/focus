@@ -1,0 +1,132 @@
+name: release
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_VERSION: "1.100.0"
+
+jobs:
+  plan:
+    name: decide the version
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-26.04
+    outputs:
+      release: ${{ steps.next.outputs.release }}
+      version: ${{ steps.next.outputs.version }}
+      tag: ${{ steps.next.outputs.tag }}
+      commit: ${{ steps.next.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Read the commits since the last release
+        id: next
+        run: python3 tools/release.py next | tee -a "$GITHUB_OUTPUT"
+
+  build:
+    name: build ${{ matrix.system }}
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
+    runs-on: ${{ matrix.image }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - system: linux
+            image: ubuntu-22.04
+            packages: libfontconfig1-dev libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev pkg-config desktop-file-utils file
+          - system: windows-x64
+            image: ubuntu-26.04
+            target: x86_64-pc-windows-msvc
+            packages: clang lld llvm
+          - system: windows-arm64
+            image: ubuntu-26.04
+            target: aarch64-pc-windows-msvc
+            packages: clang lld llvm
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      XWIN_CROSS_COMPILER: clang
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.commit }}
+      - name: Install system packages
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends ${{ matrix.packages }}
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal ${{ matrix.target && format('--target {0}', matrix.target) }}
+          rustup default "$RUST_VERSION"
+      - uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        if: matrix.target
+        with:
+          tool: cargo-xwin@0.23.1
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: release-${{ matrix.system }}
+          cache-directories: ~/.cache/cargo-xwin
+      - name: Write the version into the manifest
+        run: |
+          python3 tools/release.py stamp "$VERSION"
+          cargo update --workspace
+      - name: Build and package
+        run: tools/package.sh "${{ matrix.system }}"
+      - name: Check the version of the Linux files
+        if: matrix.system == 'linux'
+        run: |
+          test "$(target/release/focus --version)" = "focus $VERSION"
+          chmod +x "dist/Focus-$VERSION-x86_64.AppImage"
+          test "$("dist/Focus-$VERSION-x86_64.AppImage" --appimage-extract-and-run --version)" = "focus $VERSION"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.system }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: publish the release
+    needs: [plan, build]
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      COMMIT: ${{ needs.plan.outputs.commit }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.commit }}
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Write the checksums and the notes
+        run: |
+          (cd dist && sha256sum -- * > SHA256SUMS.txt)
+          python3 tools/release.py notes "$VERSION" --assets dist --repository "$GH_REPO" > notes.md
+          cat notes.md
+      - name: Publish
+        run: gh release create "$TAG" dist/* --target "$COMMIT" --title "Focus $VERSION" --notes-file notes.md --latest

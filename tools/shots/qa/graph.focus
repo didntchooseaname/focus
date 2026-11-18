@@ -1,0 +1,19 @@
+open Reporting/Severity and CVSS.md
+graph
+wait 2500
+shot global
+theme light
+wait 500
+shot global-light
+theme dark
+right links
+open Method/Evidence handling.md
+shot links-tab
+lang fr
+graph
+wait 1500
+shot global-fr
+lang ar
+graph
+wait 1500
+shot global-ar

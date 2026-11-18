@@ -1,0 +1,59 @@
+wait 300
+open Reading.md
+shot reading-top
+move [2]
+shot reading-footnote
+move section
+shot reading-preview
+mouse 10 10
+line 9
+shot reading-table
+width 560
+shot reading-table-narrow
+width sheet
+line 39
+shot reading-embed
+line 49
+viewer 0
+shot reading-viewer
+key escape
+line 27
+language 34 plain text
+type py
+shot reading-language
+key escape
+line 0
+dclick longer
+shot reading-selection-word
+tclick Tags such
+shot reading-selection
+drag footnote | Tags such
+shot reading-selection-drag
+fold all
+shot reading-folded
+fold none
+open Ops.md
+decorate on
+shot reading-ops
+open Diagram.md
+wait 100
+diagram 2
+shot reading-mermaid
+mouse 10 10
+figure on
+shot reading-mermaid-sheet
+figure off
+open Reading.md
+compact 240
+shot reading-compact-240
+compact 320
+shot reading-compact-320
+compact 480
+shot reading-compact-480
+compact off
+theme light
+shot reading-light
+theme dark
+lang fr
+shot reading-fr
+quit

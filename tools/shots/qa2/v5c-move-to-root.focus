@@ -1,0 +1,10 @@
+left files
+expand Rendu
+expand Red Team
+focus tree
+hover tree:Archive/Vieux.md
+key ctrl-m
+wait 300
+key enter
+wait 800
+shot after

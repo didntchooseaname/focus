@@ -1,0 +1,6 @@
+dialog import
+source target/import-source
+shot import-preview
+go
+shot import-done
+quit

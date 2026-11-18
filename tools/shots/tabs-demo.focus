@@ -1,0 +1,15 @@
+wait 1500
+figure on
+open Reference/Tabs.md
+wait 600
+line 40
+shot tabs-thr
+tab Linux
+shot tabs-thr-linux
+open Reference/Diagrams.md
+wait 600
+line 30
+shot tabs-diagrams
+tab C
+shot tabs-diagrams-c
+quit

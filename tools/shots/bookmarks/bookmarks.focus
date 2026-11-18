@@ -1,0 +1,9 @@
+open 00 Accueil.md
+open Rendu/Langues.md
+open Red Team/Kerberoasting.md
+bookmark Rendu/Diagrammes.md
+bookmark Red Team/Kerberoasting.md
+left bookmarks
+wait 300
+shot bookmarks
+quit

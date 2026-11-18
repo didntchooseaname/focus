@@ -1,0 +1,40 @@
+open Red Team/Kerberoasting.md
+scenario answer
+send Summarize this note and suggest a better frontmatter
+settle
+wait 300
+width 240
+shot ai-narrow
+width 320
+theme light
+shot ai-light
+theme dark
+newconv
+
+lang fr
+scenario answer
+open Red Team/Kerberoasting.md
+send Résume cette note et propose un meilleur frontmatter
+settle
+wait 300
+shot ai-fr
+menu actions
+wait 200
+shot ai-fr-actions
+menu none
+newconv
+
+lang ar
+scenario answer
+open Red Team/Kerberoasting.md
+send لخّص هذه الملاحظة واقترح واجهة أمامية أفضل
+settle
+wait 300
+shot ai-ar
+menu actions
+wait 200
+shot ai-ar-actions
+menu none
+theme light
+shot ai-ar-light
+quit

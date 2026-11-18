@@ -1,0 +1,24 @@
+[package]
+name = "focus-view-history"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+focus-kit.workspace = true
+focus-core.workspace = true
+focus-history = { path = "../focus-history" }
+focus-view-reading = { path = "../focus-view-reading" }
+focus-i18n.workspace = true
+gpui.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+gpui-component.workspace = true
+focus-md.workspace = true
+
+[[example]]
+name = "history-demo"
+path = "examples/demo.rs"

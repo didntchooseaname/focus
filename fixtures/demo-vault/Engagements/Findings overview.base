@@ -1,0 +1,35 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - or:
+        - 'file.inFolder("Method")'
+        - 'file.inFolder("Reporting")'
+        - 'file.inFolder("Certification")'
+properties:
+  note.status:
+    displayName: Status
+  note.type:
+    displayName: Type
+  note.last_verified:
+    displayName: Verified
+views:
+  - type: table
+    name: "Needs work"
+    filters:
+      or:
+        - 'status == "draft"'
+        - 'status == "stale"'
+    order:
+      - file.name
+      - note.type
+      - note.status
+      - note.last_verified
+  - type: table
+    name: "Ready"
+    filters:
+      and:
+        - 'status == "ready"'
+    order:
+      - file.name
+      - note.type
+      - note.last_verified

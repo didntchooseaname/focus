@@ -1,0 +1,10 @@
+open Method/Engagement lifecycle.md
+view reading
+left files
+right outline
+wait 400
+shot hero-dark
+theme light
+wait 300
+shot hero-light
+quit

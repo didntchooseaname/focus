@@ -1,0 +1,26 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - 'file.inFolder("Labs/Network")'
+    - 'type != "index"'
+properties:
+  note.hostname:
+    displayName: Hôte
+  note.ip_address:
+    displayName: Adresse IP
+  note.status:
+    displayName: Statut
+  note.user_flag:
+    displayName: User
+  note.root_flag:
+    displayName: Root
+views:
+  - type: table
+    name: "Cibles"
+    order:
+      - file.name
+      - note.hostname
+      - note.ip_address
+      - note.status
+      - note.user_flag
+      - note.root_flag

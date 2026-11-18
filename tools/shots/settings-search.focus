@@ -1,0 +1,6 @@
+settings general
+focus settings-search
+type font
+wait 600
+shot settings-search
+quit

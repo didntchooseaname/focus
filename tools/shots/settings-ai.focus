@@ -1,0 +1,4 @@
+settings ai
+wait 600
+shot settings-ai
+quit

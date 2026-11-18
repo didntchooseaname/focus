@@ -1,0 +1,28 @@
+open Rendu/Tout le Markdown.md
+view source
+scroll 0.3
+key end
+key enter
+key enter
+type /
+type codebl
+key enter
+type pow
+wait 300
+shot slash-language
+key enter
+key down
+key down
+key end
+key enter
+key enter
+type /
+type wiki
+key enter
+type kerb
+wait 300
+shot slash-note-link
+key enter
+wait 300
+shot slash-note-linked
+quit

@@ -1,0 +1,7 @@
+# {name}
+
+## Machine
+
+## Objectifs
+
+## Notes

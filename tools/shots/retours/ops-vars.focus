@@ -1,0 +1,9 @@
+ops on
+wait 800
+right ops
+palette >command library
+wait 300
+key enter
+wait 1500
+shot retours-ops-vars
+quit

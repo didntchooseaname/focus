@@ -1,0 +1,6 @@
+wait 300
+select Suivi.base
+key enter
+wait 200
+shot vault-openfile
+quit

@@ -1,0 +1,53 @@
+lang en
+open Notes.md
+view live
+wait 800
+pointer down plain services|0
+pointer move plain services|14
+pointer up plain services|14
+wait 400
+shot selection-bar-above-@LANG@
+bar type
+wait 300
+shot selection-bar-menu-@LANG@
+key escape
+key escape
+key escape
+wait 300
+goto Next steps
+wait 400
+pointer down Next steps|0
+pointer move Next steps|10
+pointer up Next steps|10
+wait 400
+shot selection-bar-below-@LANG@
+key escape
+key escape
+scroll 0
+wait 300
+click Rotate the keys|0
+key escape
+wait 300
+handle point Credentials were reused
+wait 300
+shot selection-bar-handle-@LANG@
+handle Credentials were reused
+handle move below Write the report
+wait 300
+shot selection-bar-drag-@LANG@
+key escape
+wait 300
+handle point Check the web server
+wait 300
+shot selection-bar-handle-item-@LANG@
+view source
+wait 400
+focus editor
+key ctrl-home
+key down
+key down
+key end
+key shift-home
+wait 400
+shot selection-bar-edit-@LANG@
+quit

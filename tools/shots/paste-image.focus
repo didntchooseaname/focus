@@ -1,0 +1,8 @@
+open Red Team/Kerberoasting.md
+view source
+focus editor
+goto Cassage
+drop Red Team/assets/capture-exemple.png
+wait 800
+shot paste-image
+quit

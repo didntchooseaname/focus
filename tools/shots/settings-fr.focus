@@ -1,0 +1,7 @@
+lang fr
+settings ai
+focus settings-search
+type clé
+wait 600
+shot settings-fr
+quit

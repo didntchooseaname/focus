@@ -1,0 +1,26 @@
+[package]
+name = "focus-view-reading"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+focus-core.workspace = true
+focus-md.workspace = true
+focus-bases = { path = "../focus-bases" }
+libc = "0.2"
+focus-kit.workspace = true
+focus-view-media = { path = "../focus-view-media" }
+focus-i18n.workspace = true
+gpui.workspace = true
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
+gpui-component.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+
+[[example]]
+name = "demo"
+path = "examples/demo/main.rs"

@@ -1,0 +1,49 @@
+[package]
+name = "focus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "focus"
+path = "src/main.rs"
+
+[dependencies]
+focus-core.workspace = true
+focus-search.workspace = true
+focus-md.workspace = true
+focus-ai.workspace = true
+focus-ops.workspace = true
+focus-history = { path = "../crates/focus-history" }
+focus-kit.workspace = true
+focus-i18n.workspace = true
+focus-view-reading = { path = "../crates/focus-view-reading" }
+focus-view-search = { path = "../crates/focus-view-search" }
+focus-view-ai = { path = "../crates/focus-view-ai" }
+focus-view-graph = { path = "../crates/focus-view-graph" }
+focus-view-ops = { path = "../crates/focus-view-ops" }
+focus-view-transfer = { path = "../crates/focus-view-transfer" }
+focus-view-history = { path = "../crates/focus-view-history" }
+focus-view-vault = { path = "../crates/focus-view-vault" }
+focus-view-media = { path = "../crates/focus-view-media" }
+focus-mcp.workspace = true
+gpui.workspace = true
+gpui-component.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true
+smol = "2"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+libc = "0.2"
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+notify = { version = "7", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }

@@ -1,0 +1,104 @@
+set editor.edit_in_place off
+open Rendu/Tout le Markdown.md
+view live
+wait 400
+shot live-before
+block 10
+wait 300
+shot live-paragraph
+key end
+type  Ajout en Live.
+wait 400
+shot live-typed
+key escape
+wait 400
+shot live-closed
+goto Listes
+block 29
+wait 300
+shot live-list
+key escape
+goto Code
+block 75
+wait 300
+shot live-code
+key escape
+goto Tableaux
+block 97
+wait 300
+shot live-table
+key escape
+goto Citations et callouts
+block 53
+wait 300
+shot live-callout
+key escape
+scroll 0
+block 1
+wait 300
+shot live-properties
+key down
+key down
+key down
+key down
+key down
+key down
+wait 300
+shot live-down
+key escape
+open 00 Accueil.md
+view live
+wait 300
+block end
+wait 300
+shot live-end
+type /
+wait 100
+type tabs
+wait 300
+shot live-slash-tabs
+key enter
+type Linux
+key down
+type ls -la
+key down
+key end
+type Windows
+key down
+type dir
+wait 300
+shot live-tabs-source
+key escape
+wait 400
+shot live-tabs
+block 32
+wait 300
+shot live-tab-block
+key escape
+theme light
+block 12
+wait 300
+shot live-light
+key escape
+theme dark
+open Rendu/Tout le Markdown.md
+view live
+wait 300
+click Élément avec sous-liste
+wait 300
+shot live-click-list
+key up
+key up
+key up
+key up
+key up
+key up
+wait 300
+shot live-up
+click Premier
+wait 300
+shot live-click-other
+focus tree
+wait 300
+shot live-click-outside
+quit

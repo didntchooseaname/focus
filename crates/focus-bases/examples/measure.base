@@ -1,0 +1,36 @@
+# The view `examples/measure.rs` times by default: two filters, one of them on a formula, a
+# formula column, a sort on that column. The properties are those of the generated vaults of
+# `tools/bench/`.
+filters:
+  and:
+    - 'file.ext == "md"'
+    - 'status != "review"'
+formulas:
+  label: 'file.basename.lower() + " (" + status.title() + ", " + file.tags.length + " tags)"'
+  heavy: 'file.size / 1024 > 2'
+views:
+  - type: table
+    name: Filter and formula
+    filters: 'formula.heavy && type.containsAny("lab", "writeup")'
+    order:
+      - file.name
+      - note.status
+      - formula.label
+      - file.mtime
+    sort:
+      - property: formula.label
+        direction: ASC
+  - type: table
+    name: Grouped
+    filters: 'file.hasTag("web") || file.links.length > 3'
+    order:
+      - file.name
+      - formula.label
+      - file.size
+    groupBy:
+      property: note.status
+      direction: ASC
+    summaries:
+      file.name: Filled
+      formula.label: Unique
+      file.size: Average

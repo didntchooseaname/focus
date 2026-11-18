@@ -1,0 +1,38 @@
+wait 200
+measure overview
+shot graph-overview
+find Home
+key escape
+zoom 1.6
+measure close-up
+shot graph-zoom
+hover Home
+shot graph-hover
+hover
+zoom fit
+tags on
+shot graph-tags
+tags off
+filter tag:#reporting
+shot graph-filter
+filter
+controls open
+shot graph-controls
+folder Reference off
+folder Daily off
+wait 200
+shot graph-folders
+folder Reference on
+folder Daily on
+controls closed
+local Home.md
+shot graph-local
+theme light
+shot graph-light
+theme dark
+lang fr
+controls open
+shot graph-fr
+lang ar
+shot graph-ar
+quit

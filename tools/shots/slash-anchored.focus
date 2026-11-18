@@ -1,0 +1,8 @@
+open Rendu/Tout le Markdown.md
+view source
+scroll 1
+key end
+key enter
+key enter
+type /
+shot slash-anchored

@@ -1,0 +1,51 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - 'type != "index"'
+    - or:
+        - 'file.inFolder("Red")'
+        - 'file.inFolder("Labs")'
+        - 'file.inFolder("Blue")'
+properties:
+  note.status:
+    displayName: Statut
+  note.type:
+    displayName: Type
+  note.domain:
+    displayName: Domaine
+  note.last_verified:
+    displayName: Vérifiée le
+  file.mtime:
+    displayName: Modifiée le
+views:
+  - type: table
+    name: "À traiter"
+    filters:
+      or:
+        - 'status == "draft"'
+        - 'status == "historical"'
+    order:
+      - file.name
+      - note.status
+      - note.type
+      - note.domain
+      - file.mtime
+  - type: table
+    name: "Prêtes"
+    filters:
+      or:
+        - 'status == "ready"'
+        - 'status == "complete"'
+    order:
+      - file.name
+      - note.status
+      - note.domain
+      - note.last_verified
+  - type: table
+    name: "Références"
+    filters: 'status == "reference"'
+    order:
+      - file.name
+      - note.type
+      - note.domain
+      - file.mtime

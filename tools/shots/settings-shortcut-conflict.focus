@@ -1,0 +1,6 @@
+settings shortcuts
+wait 400
+key ctrl-b
+wait 400
+shot settings-shortcut-conflict
+quit

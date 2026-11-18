@@ -1,0 +1,30 @@
+wait 300
+figure on
+open Rendu/Onglets.md
+wait 300
+shot tabs-fixture
+tab Windows
+shot tabs-windows
+tab Notes
+shot tabs-notes
+line 15
+shot tabs-reveal
+line 50
+shot tabs-directives
+live on
+line 0
+liveopen 15
+shot tabs-live-inner
+liveclose
+line 70
+liveopen 70
+shot tabs-live-details
+liveclose
+live off
+lang ar
+line 0
+shot tabs-ar
+lang en
+compact 340
+shot tabs-compact
+quit

@@ -1,0 +1,9 @@
+lang ar
+ops on
+wait 800
+palette >النتائج
+wait 300
+key enter
+wait 1200
+shot ops-app-findings-ar-sm
+quit

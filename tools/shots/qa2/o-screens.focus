@@ -1,0 +1,57 @@
+ops on
+right ops
+palette >Show the engagement dashboard
+wait 300
+key enter
+wait 800
+shot dashboard
+palette >Show the hosts
+wait 300
+key enter
+wait 800
+shot hosts
+palette >Show the findings
+wait 300
+key enter
+wait 800
+shot findings
+palette >Show the credentials
+wait 300
+key enter
+wait 800
+shot credentials
+palette >Show the command library
+wait 300
+key enter
+wait 800
+shot commands
+palette >Show the report
+wait 300
+key enter
+wait 1500
+shot report
+theme light
+shot report-light
+palette >Show the findings
+wait 300
+key enter
+wait 800
+shot findings-light
+lang fr
+palette >Afficher les constats
+wait 300
+key enter
+wait 800
+shot findings-fr
+lang ar
+palette >عرض النتائج
+wait 300
+key enter
+wait 800
+shot hosts-ar
+lang zh-CN
+palette >显示主机
+wait 300
+key enter
+wait 800
+shot hosts-zh

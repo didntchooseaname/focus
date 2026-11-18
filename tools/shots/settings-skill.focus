@@ -1,0 +1,6 @@
+settings ai
+focus settings-search
+type Claude Code skill
+wait 600
+shot settings-skill
+quit

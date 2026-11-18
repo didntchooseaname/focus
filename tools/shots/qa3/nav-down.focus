@@ -1,0 +1,16 @@
+open Live/Blocs.md
+view live
+wait 400
+block 9
+wait 300
+key down
+type  L2
+key down
+wait 300
+shot next
+type  N12
+wait 300
+shot typed
+key escape
+wait 1500
+shot closed

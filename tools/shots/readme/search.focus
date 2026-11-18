@@ -1,0 +1,9 @@
+open Reporting/Severity and CVSS.md
+view reading
+left search
+wait 300
+focus search
+type tag:cvss severity
+wait 600
+shot search
+quit

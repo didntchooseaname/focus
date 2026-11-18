@@ -1,0 +1,13 @@
+left files
+expand Rendu
+expand Red Team
+focus tree
+hover tree:Red Team/Kerberoasting.md
+key ctrl-m
+wait 300
+shot dialog
+type Archive
+wait 200
+key enter
+wait 1200
+shot after

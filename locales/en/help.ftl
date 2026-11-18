@@ -1,0 +1,13 @@
+help-menu = Help
+help-agents-guide = Connect an agent to Focus
+help-shortcuts = Keyboard shortcuts
+help-search-syntax = Search syntax
+help-about = About Focus
+help-agents-guide-title = Connect an agent to Focus
+help-agents-read-only = Read only
+help-agents-write = With write access
+help-agents-command-label = Command to declare in your agent
+help-agents-copy-command = Copy the command
+help-agents-sent-to-provider = What your agent's provider receives
+help-search-syntax-title = Search operators
+help-search-syntax-example = Example

@@ -1,0 +1,21 @@
+Common Weakness Enumeration, view 1000 (Research Concepts), file 1000.csv of
+https://cwe.mitre.org/data/csv/1000.csv.zip, fetched on 2026-11-12. Only the identifier and
+the name of each weakness are kept, in cwe.tsv.
+
+Copyright (c) 2006-2026, The MITRE Corporation. CWE, CWSS, CWRAF, and the CWE logo are
+trademarks of The MITRE Corporation.
+
+Terms of use, copied from https://cwe.mitre.org/about/termsofuse.html on 2026-11-12:
+
+CWE is free to use by any organization or individual for any research, development,
+and/or commercial purposes, per these CWE Terms of Use. Accordingly, The MITRE Corporation
+hereby grants you a non-exclusive, royalty-free license to use CWE for research,
+development, and commercial purposes. Any copy you make for such purposes is authorized on
+the condition that you reproduce MITRE's copyright designation and this license in any such
+copy. CWE is a trademark of The MITRE Corporation. Please contact cwe@mitre.org if you
+require further clarification on this issue.
+
+DISCLAIMERS: the information is provided on an "as is" basis only without warranty of any
+kind, express or implied, including but not limited to implied warranties of
+merchantability, availability, accuracy, noninfringement, or fitness for a particular
+purpose. Use of the information is at the user's own risk.

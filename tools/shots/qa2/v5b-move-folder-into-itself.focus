@@ -1,0 +1,11 @@
+left files
+expand Rendu
+expand Red Team
+focus tree
+hover tree:Archive
+key ctrl-m
+wait 300
+type Sous
+key enter
+wait 800
+shot after

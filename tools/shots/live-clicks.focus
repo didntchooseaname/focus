@@ -1,0 +1,86 @@
+wait 300
+figure on
+open Rendu/Tout le Markdown.md
+live on
+wait 300
+move barré
+wait 100
+shot live-clicks-hover
+click barré
+wait 300
+shot live-clicks-open
+type X
+wait 200
+shot live-clicks-caret
+clickat 700 200
+type W
+wait 200
+shot live-clicks-in-block
+liveclose
+click mot composé
+wait 300
+type Y
+wait 200
+shot live-clicks-wrapped
+liveclose
+click markdown/inline
+click l'accueil
+altclick l'accueil
+wait 300
+liveclose
+click #tag 0
+altclick #tag 0
+wait 300
+liveclose
+click Paragraphe avec @-40
+wait 300
+shot live-clicks-margin
+liveclose
+click Tout le Markdown
+wait 300
+shot live-clicks-title
+liveclose
+line 38
+click Tâche ouverte
+liveclose
+click #task 0
+altclick #task 0
+wait 300
+liveclose
+line 74
+wait 300
+click smbclient @60
+wait 300
+type Z
+wait 200
+shot live-clicks-code
+liveclose
+line 102
+wait 800
+move #image 0
+wait 200
+shot live-clicks-image-hover
+click #image 0
+wait 300
+shot live-clicks-image
+liveclose
+line 115
+wait 300
+click approx 1
+wait 300
+liveclose
+line 123
+click Texte de la note
+wait 300
+shot live-clicks-footnote
+liveclose
+open Live/Onglets.md
+wait 300
+live off
+line 10
+wait 300
+shot live-clicks-tab-heading
+line 40
+wait 300
+shot live-clicks-tab-section
+quit

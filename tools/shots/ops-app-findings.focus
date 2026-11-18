@@ -1,0 +1,8 @@
+ops on
+wait 800
+palette >findings
+wait 300
+key enter
+wait 1200
+shot ops-app-findings
+quit

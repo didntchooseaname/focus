@@ -1,0 +1,43 @@
+wait 200
+measure overview
+shot graph-animate-before
+animate
+wait 2500
+snap graph-animate-early
+measure-replay replay-1x 3
+speed 4
+measure-replay replay-4x 3
+snap graph-animate-mid
+animate pause
+progress
+wait 600
+progress
+snap graph-animate-paused
+animate play
+hidden on
+wait 300
+progress
+wait 600
+progress
+hidden off
+animate play
+wait 500
+progress
+animate end
+shot graph-animate-full
+reduce on
+snap graph-animate-reduced
+reduce off
+animate
+speed 4
+wait 9000
+progress
+snap graph-animate-ended
+lang fr
+animate
+wait 1500
+snap graph-animate-fr
+lang ar
+snap graph-animate-ar
+animate end
+quit

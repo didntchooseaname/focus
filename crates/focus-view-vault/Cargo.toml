@@ -1,0 +1,20 @@
+[package]
+name = "focus-view-vault"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+focus-core.workspace = true
+focus-kit.workspace = true
+focus-i18n.workspace = true
+gpui.workspace = true
+gpui-component.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+
+[[example]]
+name = "demo"
+path = "examples/demo/main.rs"

@@ -1,0 +1,10 @@
+ops on
+wait 600
+palette >new engagement
+wait 300
+key enter
+wait 800
+type Hello
+wait 400
+shot dialog-typed
+quit

@@ -1,0 +1,26 @@
+screen kit
+shot kit-noir
+theme light
+shot kit-blanc
+screen workspace
+open 00_Home.md
+open Method/Evidence handling.md
+open Reporting/Severity and CVSS.md
+view source
+left files
+right outline
+shot shell-blanc
+theme dark
+shot shell-noir
+key ctrl-k
+type kerb
+key down
+key down
+shot palette
+key escape
+settings appearance
+shot settings
+key escape
+key ctrl-b
+key ctrl-alt-b
+shot sidebars-hidden

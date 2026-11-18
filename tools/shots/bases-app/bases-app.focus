@@ -1,0 +1,7 @@
+open Suivi des notes.md
+view reading
+wait 300
+click tableau des notes
+wait 800
+shot base-page
+quit

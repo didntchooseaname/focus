@@ -1,0 +1,6 @@
+open Home.md
+view reading
+palette incident
+wait 500
+shot palette
+quit

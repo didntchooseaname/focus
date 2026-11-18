@@ -1,0 +1,9 @@
+left files
+focus tree
+key ctrl-f
+type zzzqq
+wait 300
+shot filter
+key enter
+wait 400
+shot after

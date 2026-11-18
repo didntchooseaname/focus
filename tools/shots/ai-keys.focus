@@ -1,0 +1,13 @@
+open Red Team/Kerberoasting.md
+scenario answer
+focus
+type first line
+key shift-enter
+type second line
+wait 200
+shot ai-keys-multiline
+key enter
+settle
+wait 200
+shot ai-keys-sent
+quit

@@ -1,0 +1,89 @@
+engagement ACME
+screen dashboard
+settle
+shot ops-dashboard
+
+screen hosts
+settle
+shot ops-hosts
+paste-scan
+wait 300
+shot ops-import-nmap-paste
+import-run
+wait 800
+shot ops-import-nmap
+
+screen findings
+finding 0
+wait 700
+shot ops-finding-sheet
+edit-finding
+wait 300
+shot ops-finding-edit
+calculator
+wait 300
+shot ops-findings
+new-finding
+type Exposed backup share
+wait 200
+shot ops-finding-new
+key escape
+
+screen credentials
+reveal 0
+wait 200
+shot ops-credentials
+
+screen hosts
+host 1
+wait 300
+shot ops-host-sheet
+
+screen report
+report-build
+wait 600
+shot ops-report
+report-write
+wait 600
+shot ops-report-written
+
+var JUMPBOX 10.10.14.99
+wait 400
+evidence
+wait 200
+shot ops-sidebar-evidence
+
+screen dashboard
+journal on
+wait 300
+shot ops-journal
+focus journal
+type smb
+wait 300
+shot ops-journal-filter
+journal off
+
+screen commands
+wait 800
+shot ops-commands
+focus search
+type smb
+wait 300
+shot ops-commands-search
+
+dialog open
+wait 300
+type Phishing campaign
+shot ops-new-engagement
+dialog close
+
+engagement OSCP
+screen dashboard
+exam-item 0
+wait 400
+exam-item 1
+wait 400
+exam-item 6
+wait 600
+shot ops-exam
+quit

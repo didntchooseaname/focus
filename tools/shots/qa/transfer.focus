@@ -1,0 +1,34 @@
+open Rendu/Tout le Markdown.md
+palette >export the note
+wait 300
+shot commands-export
+key enter
+wait 800
+shot export-dialog
+key escape
+palette >import
+wait 300
+key enter
+wait 800
+shot import-dialog
+key escape
+theme light
+palette >export the note
+wait 300
+key enter
+wait 800
+shot export-light
+key escape
+lang fr
+palette >export
+wait 300
+key enter
+wait 800
+shot export-fr
+key escape
+lang ar
+palette >تصدير
+wait 300
+key enter
+wait 800
+shot export-ar

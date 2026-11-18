@@ -1,0 +1,21 @@
+settle
+focus
+wait 300
+shot search-empty
+type kerberoast
+shot search-typing
+key escape
+type tag:#reporting path:Certification severity
+shot search-operators
+key escape
+key alt-r
+type Kerb\w+oast
+shot search-regex
+key escape
+key alt-r
+type zzzqqxxnotfound
+shot search-none
+key escape
+key alt-h
+shot search-help
+quit

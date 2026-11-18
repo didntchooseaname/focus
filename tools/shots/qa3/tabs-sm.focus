@@ -1,0 +1,7 @@
+open Live/Onglets.md
+view reading
+wait 500
+shot reading
+view live
+wait 400
+shot live

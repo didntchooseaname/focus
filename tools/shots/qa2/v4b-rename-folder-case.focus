@@ -1,0 +1,11 @@
+left files
+expand Rendu
+expand Red Team
+focus tree
+hover tree:Red Team
+key f2
+wait 200
+type red team
+key enter
+wait 1200
+shot after

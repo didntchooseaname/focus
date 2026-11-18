@@ -1,0 +1,5 @@
+palette zzzqq
+wait 300
+key enter
+wait 400
+shot after

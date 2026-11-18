@@ -1,0 +1,33 @@
+open Board.md
+view reading
+wait 800
+shot bases-groups-embed
+scroll 1
+wait 300
+shot bases-groups-embed-end
+scroll 0
+wait 300
+click work table
+wait 800
+shot bases-groups-page
+right outline
+wait 300
+shot bases-groups-page-outline
+click #fold 1
+wait 300
+shot bases-groups-page-folded
+goto todo
+wait 300
+shot bases-groups-page-goto
+open Board.md
+wait 300
+click other views
+wait 800
+shot bases-groups-views
+goto Same status
+wait 300
+shot bases-groups-views-this
+open Today.md
+wait 800
+shot bases-groups-this-embed
+quit

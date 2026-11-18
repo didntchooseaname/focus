@@ -1,0 +1,14 @@
+open Tables.md
+view reading
+wait 800
+shot edges-notes
+open Arabic.md
+view reading
+wait 500
+shot edges-arabic
+open Tables.md
+wait 300
+click page of the base
+wait 800
+shot edges-page
+quit

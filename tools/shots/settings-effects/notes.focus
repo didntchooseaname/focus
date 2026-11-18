@@ -1,0 +1,17 @@
+set general.daily_folder Journal
+set general.daily_format YYYY-MM-DD [daily]
+palette >open today
+wait 300
+key enter
+wait 800
+shot effect-daily-note
+set general.templates Modeles
+palette >new note from a template
+wait 300
+key enter
+wait 300
+shot effect-template-list
+key enter
+wait 800
+shot effect-template-note
+quit

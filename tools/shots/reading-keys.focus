@@ -1,0 +1,41 @@
+wait 300
+figure on
+open Rendu/Tout le Markdown.md
+wait 300
+click Paragraphe avec
+key pagedown
+wait 200
+shot reading-keys-page
+key end
+wait 300
+shot reading-keys-end
+key home
+wait 200
+shot reading-keys-home
+live on
+liveopen 10
+key pagedown
+wait 200
+shot reading-keys-live-open
+liveclose
+line 74
+wait 300
+copied 74
+wait 100
+shot reading-copied-code
+wait 1700
+shot reading-copied-code-after
+language 74 smbclient
+wait 200
+shot reading-picker-open
+key escape
+wait 200
+shot reading-picker-escape
+open Rendu/Diagrammes.md
+wait 800
+line 0
+wait 300
+copied 9
+wait 100
+shot reading-copied-diagram
+quit

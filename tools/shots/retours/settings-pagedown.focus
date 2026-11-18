@@ -1,0 +1,9 @@
+settings general
+wait 600
+key pagedown
+wait 300
+shot retours-settings-pagedown
+key end
+wait 300
+shot retours-settings-end
+quit

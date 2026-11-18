@@ -1,0 +1,17 @@
+open Live/Long.md
+view live
+wait 1500
+mark opened
+shot before
+block 6000
+wait 500
+mark block-open
+key end
+type  ZZ
+mark typed
+wait 300
+shot typed
+key escape
+wait 1500
+mark closed
+shot closed

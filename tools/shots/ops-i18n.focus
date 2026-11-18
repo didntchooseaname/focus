@@ -1,0 +1,26 @@
+engagement ACME
+screen dashboard
+theme light
+wait 300
+shot ops-light
+theme dark
+lang fr
+screen findings
+finding 0
+wait 400
+shot ops-fr
+screen hosts
+wait 300
+shot ops-fr-hosts
+lang ar
+screen dashboard
+wait 400
+shot ops-ar
+screen hosts
+wait 300
+shot ops-ar-hosts
+screen findings
+finding 0
+wait 300
+shot ops-ar-findings
+quit

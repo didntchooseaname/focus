@@ -1,0 +1,22 @@
+# Journal
+
+- 2026-11-09 09:10:12 Kickoff with the sponsor and the technical contact, scope confirmed in writing. ^j-20261109-091012
+- 2026-11-09 10:42:30 Scope table copied into the README. Backup appliance and payroll site excluded. ^j-20261109-104230
+- 2026-11-09 11:05:48 [198.51.100.0/24] Host discovery started on the office range, 41 live addresses. ^j-20261109-110548
+- 2026-11-09 14:20:03 [198.51.100.10] Directory server answers on the expected ports, notes added to the host page. ^j-20261109-142003
+- 2026-11-09 15:33:19 [198.51.100.30] Intranet web server answers on 80 and 443, certificate subject matches the name. ^j-20261109-153319
+- 2026-11-09 17:52:41 End of day. Inventory 60 percent complete, nothing unusual. ^j-20261109-175241
+- 2026-11-10 08:31:09 [198.51.100.20] File server lists three shares, read access only for the audit account. ^j-20261110-083109
+- 2026-11-10 10:14:27 [198.51.100.40] Print server web page reachable, login page shows the vendor name. ^j-20261110-101427
+- 2026-11-10 10:47:55 [198.51.100.40] Vendor default password accepted on the administration page. Finding F-001 opened, evidence saved. ^j-20261110-104755
+- 2026-11-10 11:20:02 Phoned the technical contact about F-001 because it is critical. Acknowledged. ^j-20261110-112002
+- 2026-11-10 13:58:36 [198.51.100.30] Intranet search returns documents the audit account should not see. Finding F-003 drafted. ^j-20261110-135836
+- 2026-11-10 16:41:14 [198.51.100.30] TLS configuration still offers an old protocol version. Finding F-005 drafted. ^j-20261110-164114
+- 2026-11-11 08:45:50 [198.51.100.20] Permissions of a service folder allow modification by ordinary users. Finding F-002 opened. ^j-20261111-084550
+- 2026-11-11 10:30:21 [198.51.100.30] Error page repeats a request parameter in its output. Finding F-004 drafted. ^j-20261111-103021
+- 2026-11-11 14:02:09 Status update sent to the sponsor: five findings, one critical. ^j-20261111-140209
+- 2026-11-11 16:17:33 [198.51.100.10] Directory password policy reviewed against the client standard, no deviation. ^j-20261111-161733
+- 2026-11-12 09:05:40 Evidence review: every finding has a screenshot and a time in this journal. ^j-20261112-090540
+- 2026-11-12 11:48:26 [198.51.100.40] Client changed the print server password. Retest scheduled for next week. ^j-20261112-114826
+- 2026-11-12 15:22:58 Report skeleton created from the findings, executive summary still to write. ^j-20261112-152258
+- 2026-11-12 17:40:05 End of day. Remaining: retest F-001, write summary, review the report. ^j-20261112-174005

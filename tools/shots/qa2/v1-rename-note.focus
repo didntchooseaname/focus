@@ -1,0 +1,14 @@
+left files
+expand Rendu
+expand Red Team
+focus tree
+open Red Team/Kerberoasting.md
+focus tree
+hover tree:Red Team/Kerberoasting.md
+key f2
+wait 300
+shot editing
+type Kerberoasting renamed
+key enter
+wait 1200
+shot after

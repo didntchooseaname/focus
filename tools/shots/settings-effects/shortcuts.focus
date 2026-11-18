@@ -1,0 +1,9 @@
+open Red Team/Kerberoasting.md
+set shortcuts.overrides {"ui-cmd-toggle-bottom": ["ctrl-shift-y"]}
+key ctrl-j
+wait 300
+shot effect-shortcut-old-key
+key ctrl-shift-y
+wait 300
+shot effect-shortcut-new-key
+quit

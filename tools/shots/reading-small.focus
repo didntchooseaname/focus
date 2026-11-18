@@ -1,0 +1,13 @@
+wait 300
+figure on
+open Rendu/Tout le Markdown.md
+wait 300
+click #crumb 0
+decorate on
+line 74
+wait 300
+shot reading-secret-masked
+secrets 74
+wait 200
+shot reading-secret-clear
+quit

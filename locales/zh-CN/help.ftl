@@ -1,0 +1,13 @@
+help-menu = 帮助
+help-agents-guide = 将代理连接到 Focus
+help-shortcuts = 键盘快捷键
+help-search-syntax = 搜索语法
+help-about = 关于 Focus
+help-agents-guide-title = 将代理连接到 Focus
+help-agents-read-only = 只读
+help-agents-write = 含写入权限
+help-agents-command-label = 在代理中声明的命令
+help-agents-copy-command = 复制命令
+help-agents-sent-to-provider = 代理的服务商会收到的内容
+help-search-syntax-title = 搜索运算符
+help-search-syntax-example = 示例

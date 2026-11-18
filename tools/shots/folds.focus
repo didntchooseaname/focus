@@ -1,0 +1,37 @@
+wait 300
+figure on
+open Rendu/Tout le Markdown.md
+wait 300
+shot folds-read-before
+click #fold 0
+wait 200
+shot folds-read-folded
+click #fold 0
+wait 200
+shot folds-read-unfolded
+click #fold 5
+wait 200
+shot folds-read-lists-folded
+open Rendu/Diagrammes.md
+wait 300
+open Rendu/Tout le Markdown.md
+wait 300
+shot folds-read-kept
+line 39
+wait 300
+shot folds-read-goto-unfolds
+line 0
+wait 200
+live on
+click #fold 0
+wait 300
+shot folds-live-folded
+click #fold 0
+wait 300
+shot folds-live-unfolded
+live off
+fold all
+wait 200
+shot folds-all
+fold none
+quit

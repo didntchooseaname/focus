@@ -1,0 +1,91 @@
+search-placeholder = 搜索库
+search-searching = 正在搜索…
+search-no-results = 没有结果。
+search-results-count =
+    { $count ->
+       *[other] { $count } 条结果，分布在 { $files ->
+           *[other] { $files } 篇笔记
+        }中
+    }
+search-results-truncated = 结果已截断为 { $limit } 篇笔记。请缩小查询范围。
+search-elapsed = { $duration }
+search-option-case = 区分大小写
+search-option-word = 全字匹配
+search-option-regex = 正则表达式
+search-sort-relevance = 相关度
+search-sort-path = 路径
+search-sort-newest = 最新优先
+search-sort-oldest = 最早优先
+search-ai-toggle = AI
+search-ai-queries = 模型生成的查询
+search-ai-answer = 回答
+search-ai-citation = 来源 { $number }
+search-op-tag = 带有此标签的笔记
+search-op-path = 路径包含该文本的笔记
+search-op-file = 文件名包含该文本的笔记
+search-op-title = 标题包含该文本的笔记
+search-op-heading = 含有包含该文本的标题的笔记
+search-op-task = 含有包含该文本的任务的笔记
+search-op-prop = frontmatter 属性匹配的笔记
+search-op-exclude = 排除该词
+search-op-phrase = 精确短语
+search-op-or = 任一词
+search-op-regex = 斜杠之间的正则表达式
+search-tags-empty = 这个库中没有标签。
+search-tag-count =
+    { $count ->
+       *[other] { $count } 篇笔记
+    }
+search-index-building = 正在建立索引：{ $done } / { $total } 篇笔记
+search-index-ready = 索引已就绪：{ $count } 篇笔记
+search-empty-title = 搜索你的笔记
+search-empty-hint = 输入词语、引号中的短语，或 tag:、path: 之类的运算符。
+search-none-hint = 减少关键词，或关闭区分大小写和全词匹配。
+search-clear = 清除搜索
+search-help-toggle = 搜索语法
+search-help-insert = 插入此示例
+search-sort = 排序结果
+search-collapse = 折叠笔记
+search-expand = 展开笔记
+search-hint-open = 打开
+search-hint-new-tab = 新标签页
+search-hint-clear = 清除
+search-hint-ask = 询问助手
+search-diag-unclosed-quote = 引号未闭合
+search-diag-invalid-regex = 正则表达式无效：{ $detail }
+search-diag-unknown-operator = 未知运算符 { $name }：按文本搜索
+search-diag-missing-value = { $operator } 需要一个值
+search-diag-unclosed-parenthesis = 括号未闭合
+search-diag-unmatched-parenthesis = 右括号没有对应的左括号
+search-ai-toggle-tip = 辅助搜索
+search-ai-intent = 理解为
+search-ai-stop = 停止
+search-ai-stage-expanding = 正在撰写查询…
+search-ai-stage-searching = 正在搜索库…
+search-ai-stage-ranking = 正在为笔记排序…
+search-ai-stage-answering = 正在撰写回答…
+search-ai-stopped = 已停止
+search-ai-nothing = 没有笔记匹配生成的查询。
+search-ai-cost = 约 { $amount } 美元
+search-ai-query-add = 添加查询
+search-ai-query-edit = 编辑此查询
+search-ai-query-remove = 移除此查询
+search-ai-query-placeholder = 新查询
+search-ai-failed-missing-key = 没有 API 密钥。请在设置 › AI 中添加。
+search-ai-failed-invalid-key = DeepSeek 拒绝了 API 密钥（401）。请在设置 › AI 中检查。
+search-ai-failed-balance = DeepSeek 余额不足（402）。请为账户充值。
+search-ai-failed-rate-limit = 已达到 DeepSeek 速率限制。请在 { $seconds } 秒后重试。
+search-ai-failed-network = 无法连接 DeepSeek。已保留本地结果。
+search-ai-failed-other = 助手运行失败。已保留本地结果。
+search-replace-toggle = 在整个库中替换
+search-replace-placeholder = 替换为
+search-replace-reading = 正在读取笔记…
+search-replace-summary = 待修改 { $lines } 行，涉及 { $files } 篇笔记
+search-replace-kept = 保留 { $lines } 行，涉及 { $files } 篇笔记
+search-replace-apply = 应用
+search-replace-no-terms = 查询中没有可替换的文本。
+search-replace-done = 已替换 { $count } 处，涉及 { $files } 篇笔记
+search-replace-failed = { $count } 篇笔记未写入
+search-replace-changed = 预览后已在磁盘上被修改
+search-replace-write-error = 无法写入（{ $detail }）
+search-replace-unreadable = { $count } 篇笔记因不是有效的 UTF-8 而被跳过

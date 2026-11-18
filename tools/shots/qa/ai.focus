@@ -1,0 +1,17 @@
+ai fake
+open Red Team/Kerberoasting.md
+right ai
+shot empty
+focus ai
+type Résume cette note
+key enter
+wait 2500
+shot answer
+theme light
+shot answer-light
+lang fr
+shot answer-fr
+lang ar
+shot answer-ar
+lang zh-CN
+shot answer-zh

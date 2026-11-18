@@ -1,0 +1,7 @@
+open Method/Evidence handling.md
+palette >export the note
+wait 300
+key enter
+wait 800
+shot export-dialog
+quit

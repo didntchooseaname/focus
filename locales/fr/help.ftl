@@ -1,0 +1,13 @@
+help-menu = Aide
+help-agents-guide = Brancher un agent sur Focus
+help-shortcuts = Raccourcis clavier
+help-search-syntax = Syntaxe de recherche
+help-about = À propos de Focus
+help-agents-guide-title = Brancher un agent sur Focus
+help-agents-read-only = Lecture seule
+help-agents-write = Avec écriture
+help-agents-command-label = Commande à déclarer dans votre agent
+help-agents-copy-command = Copier la commande
+help-agents-sent-to-provider = Ce que reçoit le fournisseur de votre agent
+help-search-syntax-title = Opérateurs de recherche
+help-search-syntax-example = Exemple

@@ -1,0 +1,4 @@
+settings about
+wait 500
+shot settings-about
+quit

@@ -1,0 +1,12 @@
+wait 1500
+figure on
+open 00_Home.md
+wait 800
+shot bases-demo-home
+scroll 0.4
+shot bases-demo-home-2
+basepage Operations.base
+wait 800
+scroll 0
+shot bases-demo-page
+quit

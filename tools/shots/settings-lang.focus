@@ -1,0 +1,9 @@
+settings appearance
+wait 300
+shot settings-en
+key escape
+lang ar
+settings appearance
+wait 300
+shot settings-ar
+quit

@@ -1,0 +1,9 @@
+left files
+focus tree
+hover tree:Archive
+key ctrl-shift-n
+wait 300
+type Dossier neuf
+key enter
+wait 1000
+shot after

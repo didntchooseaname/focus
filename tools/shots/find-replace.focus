@@ -1,0 +1,13 @@
+open Rendu/Tout le Markdown.md
+view source
+focus editor
+key ctrl-h
+type niveau
+key tab
+type level
+wait 300
+shot find-replace
+key enter
+wait 300
+shot find-replaced
+quit

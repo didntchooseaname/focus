@@ -1,0 +1,7 @@
+open Rendu/Liens.md
+palette zzzqq
+wait 300
+focus palette
+key enter
+wait 400
+shot after

@@ -1,0 +1,138 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_VERSION: "1.100.0"
+  LINUX_PACKAGES: libfontconfig1-dev libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev pkg-config
+
+jobs:
+  text:
+    name: format, text and commit messages
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal --component rustfmt
+          rustup default "$RUST_VERSION"
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Check characters and language
+        run: tools/check.sh chars french
+      - name: Check commit messages
+        env:
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ -n "$BASE" ]; then
+            range="$BASE..$HEAD"
+          elif [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            range="$BEFORE..HEAD"
+          else
+            range="origin/$DEFAULT_BRANCH..HEAD"
+          fi
+          python3 tools/release.py lint "$range"
+
+  lint:
+    name: clippy
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install system packages
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends $LINUX_PACKAGES
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal --component clippy
+          rustup default "$RUST_VERSION"
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: clippy
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  test:
+    name: tests
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install system packages
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends $LINUX_PACKAGES
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal
+          rustup default "$RUST_VERSION"
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: test
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Run the tests of the workspace
+        run: cargo test --workspace --no-fail-fast --locked
+
+  windows:
+    name: windows ${{ matrix.arch }} type check
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+    env:
+      XWIN_CROSS_COMPILER: clang
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install system packages
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends clang lld llvm
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal --target "${{ matrix.arch }}-pc-windows-msvc"
+          rustup default "$RUST_VERSION"
+      - uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+        with:
+          tool: cargo-xwin@0.23.1
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: windows-${{ matrix.arch }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-directories: ~/.cache/cargo-xwin
+      - name: Type check for Windows
+        run: cargo xwin check --locked --target "${{ matrix.arch }}-pc-windows-msvc" -p focus -p focus-mcp
+
+  audit:
+    name: dependency audit
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install cargo-deny
+        env:
+          VERSION: "0.21.0"
+          SHA256: a2170b854ff697e79e39c4c538981c9c1bdd803addbae6719a4cb66b4585a903
+        run: |
+          name="cargo-deny-$VERSION-x86_64-unknown-linux-musl"
+          curl --fail --silent --show-error --location --output cargo-deny.tar.gz \
+            "https://github.com/EmbarkStudios/cargo-deny/releases/download/$VERSION/$name.tar.gz"
+          echo "$SHA256  cargo-deny.tar.gz" | sha256sum --check --quiet
+          tar --extract --gzip --file cargo-deny.tar.gz --strip-components 1 --directory "$HOME/.cargo/bin" "$name/cargo-deny"
+          rm cargo-deny.tar.gz
+      - name: Check advisories, licenses and sources
+        run: cargo deny check

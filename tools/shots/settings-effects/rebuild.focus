@@ -1,0 +1,5 @@
+open Red Team/Kerberoasting.md
+action search.rebuild
+wait 2500
+shot effect-index-rebuilt
+quit

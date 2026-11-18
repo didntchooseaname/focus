@@ -1,0 +1,6 @@
+sleep 5; python3 - "$1" <<'PY'
+import sys
+p=sys.argv[1]+'/Live/Blocs.md'
+t=open(p,encoding='utf-8').read().replace('Deuxième ligne du même paragraphe.','Deuxième ligne MODIFIEE EXTERNE.')
+open(p,'w',encoding='utf-8').write(t)
+PY

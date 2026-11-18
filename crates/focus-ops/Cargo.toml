@@ -1,0 +1,23 @@
+[package]
+name = "focus-ops"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+focus-ai.workspace = true
+focus-history = { path = "../focus-history" }
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+libc = "0.2"
+roxmltree = "0.20"
+regex = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_Networking_WinSock",
+] }

@@ -1,0 +1,29 @@
+open Kerberos.md
+view reading
+right links
+mentions
+wait 500
+shot mentions-read-en
+view live
+wait 300
+shot query-live-en
+block 8
+wait 300
+shot query-live-open-en
+key escape
+lang ar
+view reading
+wait 300
+shot mentions-read-ar
+view live
+wait 300
+shot query-live-ar
+lang en
+view reading
+wait 300
+front
+click #query 2
+wait 800
+front
+shot query-click-en
+quit

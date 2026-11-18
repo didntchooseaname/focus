@@ -1,0 +1,12 @@
+left files
+expand Rendu
+expand Red Team
+focus tree
+expand Red Team/assets
+hover tree:Red Team/assets/capture-exemple.png
+key f2
+wait 200
+type nouvelle.png
+key enter
+wait 1000
+shot after

@@ -1,0 +1,12 @@
+open Live/Vide.md
+view live
+wait 400
+shot before
+block end
+wait 300
+shot open
+type  x
+wait 300
+key escape
+wait 1500
+shot closed

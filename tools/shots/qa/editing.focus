@@ -1,0 +1,34 @@
+open Rendu/Tout le Markdown.md
+view source
+focus editor
+key ctrl-end
+key enter
+type /
+shot slash-open
+type tab
+shot slash-filter
+key escape
+key enter
+type - item un
+key enter
+type item deux
+shot list-continue
+key ctrl-b
+type gras
+shot bold
+key ctrl-f
+shot find
+type markdown
+shot find-typed
+key escape
+view live
+shot split
+theme light
+shot split-light
+lang fr
+focus editor
+type /
+shot slash-fr
+key escape
+lang ar
+shot split-ar

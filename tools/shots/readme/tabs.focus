@@ -1,0 +1,7 @@
+open Reference/Tabs.md
+view reading
+left files
+right outline
+wait 400
+shot note-tabs
+quit

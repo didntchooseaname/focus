@@ -1,0 +1,15 @@
+open Live/Blocs.md
+view live
+wait 400
+block 9
+wait 300
+key end
+type   [[Ci
+wait 500
+shot menu
+key enter
+wait 300
+shot inserted
+key escape
+wait 1500
+shot closed

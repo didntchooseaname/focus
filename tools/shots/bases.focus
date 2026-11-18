@@ -1,0 +1,13 @@
+wait 300
+figure on
+open Tableau de bord.md
+wait 500
+shot bases-embed
+basepage Suivi.base
+wait 500
+shot bases-page
+lang fr
+open Tableau de bord.md
+wait 500
+shot bases-embed-fr
+quit

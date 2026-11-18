@@ -1,0 +1,4 @@
+settings ops
+wait 500
+shot settings-ops
+quit

@@ -1,0 +1,12 @@
+settle
+focus
+type kerberoast
+key enter
+settle
+editquery 1
+key ctrl-a
+type GetUserSPNs -request
+shotnow search-ai-edit
+key enter
+shot search-ai-edited
+quit

@@ -1,0 +1,11 @@
+dialog export Home.md
+settle
+shot export-note
+format pdf
+nopdf
+shot export-pdf-missing
+format html
+destination target/transfer-out
+go
+shot export-done
+quit

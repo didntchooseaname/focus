@@ -1,0 +1,10 @@
+open Rendu/Tout le Markdown.md
+view source
+scroll 0.3
+key end
+key enter
+key enter
+type /
+wait 300
+shot slash-rows
+quit

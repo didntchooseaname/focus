@@ -1,0 +1,8 @@
+lang ar
+open Home.md
+view reading
+left files
+right outline
+wait 400
+shot arabic
+quit

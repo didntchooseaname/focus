@@ -1,0 +1,10 @@
+wait 300
+shot welcome
+lang ar
+wait 200
+shot welcome-ar
+lang en
+key enter
+wait 300
+shot vault-picker
+quit

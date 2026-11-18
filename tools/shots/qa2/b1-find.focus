@@ -1,0 +1,9 @@
+open Rendu/Liens.md
+view source
+focus editor
+key ctrl-f
+type zzzqq
+key enter
+key enter
+wait 400
+shot after

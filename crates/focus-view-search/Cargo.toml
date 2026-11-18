@@ -1,0 +1,24 @@
+[package]
+name = "focus-view-search"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+focus-kit.workspace = true
+focus-core.workspace = true
+focus-search.workspace = true
+focus-ai.workspace = true
+focus-view-reading = { path = "../focus-view-reading" }
+focus-i18n.workspace = true
+gpui.workspace = true
+gpui-component.workspace = true
+anyhow.workspace = true
+smol = "2"
+regex = "1"
+
+
+[[example]]
+name = "search-demo"
+path = "examples/demo.rs"

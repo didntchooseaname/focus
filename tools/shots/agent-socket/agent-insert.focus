@@ -1,0 +1,8 @@
+open Rendu/Langues.md
+view source
+key ctrl-end
+agent insert AGENT TEXT
+wait 300
+shot agent-insert
+wait 400
+quit

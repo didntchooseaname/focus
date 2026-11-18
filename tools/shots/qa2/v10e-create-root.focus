@@ -1,0 +1,8 @@
+left files
+focus tree
+key ctrl-n
+wait 300
+type Racine
+key enter
+wait 1000
+shot after

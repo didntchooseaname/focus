@@ -1,0 +1,71 @@
+lang ar
+open Properties.md
+view reading
+wait 400
+shot properties-ar-read
+view live
+wait 300
+caret 6:9
+wait 300
+shot properties-ar-live-date
+type x
+wait 200
+shot properties-ar-live-refused
+key escape
+click #property 4
+wait 300
+shot properties-ar-menu
+key escape
+click #property 8
+wait 300
+shot properties-ar-menu-obsidian
+key escape
+caret 15:5
+wait 300
+shot properties-ar-live-empty
+type x
+wait 200
+shot properties-ar-live-empty-refused
+type 2021-03-04
+wait 300
+shot properties-ar-live-empty-filled
+view reading
+wait 400
+click One property of each type|25
+wait 300
+type , edited in Read
+wait 300
+shot properties-ar-read-edit
+key enter
+click #field 9
+wait 300
+type x
+wait 200
+shot properties-ar-read-refused
+type 42
+key enter
+click #field 11
+type abc
+key backspace
+key backspace
+key backspace
+key escape
+wait 300
+open Tags.md
+view reading
+wait 400
+shot properties-ar-tags-empty
+click #field 0
+wait 300
+type recipe
+wait 300
+type .
+wait 200
+shot properties-ar-tags-refused
+key enter
+type cooking
+key enter
+key enter
+wait 300
+shot properties-ar-tags-filled
+quit

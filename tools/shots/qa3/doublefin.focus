@@ -1,0 +1,10 @@
+open Live/DoubleFin.md
+view live
+wait 400
+block 3
+wait 300
+key end
+type  ZZ
+key escape
+wait 1500
+shot closed

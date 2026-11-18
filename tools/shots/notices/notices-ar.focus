@@ -1,0 +1,21 @@
+lang ar
+open Rendu/Diagrammes.md
+left files
+expand Rendu
+focus tree
+hover tree:Rendu/Diagrammes.md
+key f2
+wait 200
+type Langues
+key enter
+wait 300
+shot notice-ar-error
+key escape
+hover tree:Rendu/Diagrammes.md
+key f2
+wait 200
+type Diagrammes renamed
+key enter
+wait 600
+shot notice-ar-stack
+quit

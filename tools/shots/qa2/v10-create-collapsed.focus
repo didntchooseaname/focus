@@ -1,0 +1,9 @@
+left files
+focus tree
+hover tree:Archive
+key ctrl-n
+wait 300
+type Nouvelle
+key enter
+wait 1000
+shot after

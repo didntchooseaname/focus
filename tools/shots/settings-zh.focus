@@ -1,0 +1,5 @@
+lang zh-CN
+settings ai
+wait 600
+shot settings-zh
+quit

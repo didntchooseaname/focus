@@ -1,0 +1,7 @@
+wait 300
+open Reference/Diagrams.md
+shot reading-demo
+measure-open Reference/Math.md
+measure-open Method/Risk rating overview.md
+measure-scroll 60
+quit

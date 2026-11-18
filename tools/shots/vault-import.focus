@@ -1,0 +1,8 @@
+wait 400
+import / | target/import-src/Lab | target/import-src/single.md
+wait 800
+import / | target/import-src/single.md
+wait 800
+select Lab/deep/b.md
+shot vault-import
+quit

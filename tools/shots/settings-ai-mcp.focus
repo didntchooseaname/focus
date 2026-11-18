@@ -1,0 +1,6 @@
+settings ai
+focus settings-search
+type MCP servers
+wait 600
+shot settings-ai-mcp
+quit

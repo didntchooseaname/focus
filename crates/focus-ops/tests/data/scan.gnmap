@@ -1,0 +1,7 @@
+# Nmap 7.94 scan initiated Thu Nov 12 10:00:00 2026 as: nmap -sV -oG scan.gnmap 192.0.2.0/29
+Host: 192.0.2.5 (srv-web.example.test)	Status: Up
+Host: 192.0.2.5 (srv-web.example.test)	Ports: 22/open/tcp//ssh//OpenSSH 8.9p1 Ubuntu 3ubuntu0.1 (Ubuntu Linux; protocol 2.0)/, 80/open/tcp//http//nginx 1.18.0/, 443/open/tcp//ssl|http//nginx 1.18.0/, 8080/filtered/tcp//http-proxy///	Ignored State: closed (996)
+Host: 192.0.2.6 ()	Status: Up
+Host: 192.0.2.6 ()	Ports: 445/open/tcp//microsoft-ds//Windows Server 2019 microsoft-ds/, 161/open|filtered/udp//snmp///	Ignored State: closed (998)
+Host: 192.0.2.7 ()	Status: Down
+# Nmap done at Thu Nov 12 10:00:50 2026 -- 8 IP addresses (2 hosts up) scanned in 50.00 seconds

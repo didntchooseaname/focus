@@ -1,0 +1,2 @@
+^app/src/settings/schema\.rs:
+^crates/focus-ai/src/prompts\.rs:

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" width="1280" height="320" role="img" aria-label="Focus">
+  <defs>
+    <pattern id="hatch" width="12" height="12" patternUnits="userSpaceOnUse">
+      <path d="M0 12L12 0M-3 3L3 -3M9 15L15 9" stroke="#e4e4e7" stroke-width="1" fill="none"/>
+    </pattern>
+  </defs>
+  <rect width="1280" height="320" fill="#ffffff"/>
+  <rect width="1280" height="320" fill="url(#hatch)"/>
+  <rect x="320" width="640" height="320" fill="#ffffff"/>
+  <path d="M320.5 0V320M960.5 0V320" stroke="#d6d6da" stroke-width="1"/>
+  <text x="640" y="168" text-anchor="middle" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="88" font-weight="600" letter-spacing="-2" fill="#0b0b0c">Focus</text>
+  <text x="640" y="222" text-anchor="middle" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" font-size="20" fill="#4b4b52">Markdown notes, search, graph, assistant and Ops mode</text>
+</svg>

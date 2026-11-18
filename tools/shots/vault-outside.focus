@@ -1,0 +1,4 @@
+wait 300
+select Red Team/Secret.md
+shot vault-outside-skipped
+quit

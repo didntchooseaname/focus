@@ -1,0 +1,6 @@
+settings ai
+focus settings-search
+type Custom actions
+wait 600
+shot settings-ai-actions
+quit

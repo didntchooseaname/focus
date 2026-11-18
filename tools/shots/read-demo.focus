@@ -1,0 +1,6 @@
+open Home.md
+view reading
+shot read-demo-1
+open Reporting/Severity and CVSS.md
+view reading
+shot read-demo-2

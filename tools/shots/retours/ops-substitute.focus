@@ -1,0 +1,8 @@
+ops on
+wait 600
+engagement Demo
+wait 800
+right ops
+wait 800
+shot retours-ops-substitute
+quit

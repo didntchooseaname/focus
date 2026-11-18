@@ -1,0 +1,4 @@
+open Rendu/Diagrammes.md
+view reading
+zoom 1
+shot read-mermaid-zoom

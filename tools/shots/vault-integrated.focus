@@ -1,0 +1,42 @@
+open Red Team/Kerberoasting.md
+view reading
+left files
+focus tree
+hover tree:Red Team/Kerberoasting.md
+key shift-f10
+wait 300
+shot vault-menu
+key escape
+key f2
+wait 200
+type Kerberoasting renamed
+wait 200
+shot vault-rename
+key enter
+wait 600
+shot vault-renamed
+hover tree:Rendu
+key ctrl-n
+wait 300
+type Note created here
+key enter
+wait 600
+shot vault-created
+hover tree:Rendu/Note created here.md
+key delete
+wait 300
+shot vault-delete-confirm
+key enter
+wait 600
+shot vault-deleted
+left tags
+expand Rendu
+wait 300
+shot vault-tags
+bottom tasks
+wait 400
+shot vault-tasks
+bottom broken
+wait 400
+shot vault-broken
+quit

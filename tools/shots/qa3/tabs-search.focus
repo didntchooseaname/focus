@@ -1,0 +1,12 @@
+open Live/Onglets.md
+view reading
+wait 400
+left search
+focus search
+type mot-rare-cache
+wait 800
+shot results
+key down
+key enter
+wait 800
+shot opened

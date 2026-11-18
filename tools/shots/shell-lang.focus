@@ -1,0 +1,12 @@
+open 00_Home.md
+open Method/Evidence handling.md
+view reading
+wait 500
+shot shell-en
+lang fr
+wait 300
+shot shell-fr
+lang zh-CN
+wait 300
+shot shell-zh
+quit

@@ -1,0 +1,25 @@
+wait 300
+open Rendu/Diagrammes.md
+line 8
+shot reading-diagram-fit
+width 480
+shot reading-diagram-fit-480
+width sheet
+open Rendu/Tout le Markdown.md
+line 104
+shot reading-image-room
+fold all
+open Rendu/Langues.md
+lang ar
+scroll 0
+shot reading-tags-ar-chips
+line 30
+shot reading-tags-ar
+lang en
+open Rendu/Tout le Markdown.md
+shot reading-folds-restored
+fold none
+fonts Noto Sans | Noto Sans Mono
+line 60
+shot reading-fonts
+quit

@@ -1,0 +1,17 @@
+left files
+expand Rendu
+expand Red Team
+focus tree
+open Red Team/Kerberoasting.md
+view source
+focus editor
+type MODIF
+key escape
+focus tree
+hover tree:Red Team/Kerberoasting.md
+key delete
+wait 300
+shot confirm
+key enter
+wait 2500
+shot after

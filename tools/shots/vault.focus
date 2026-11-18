@@ -1,0 +1,90 @@
+wait 300
+select Red Team/assets/capture-exemple.png
+shot vault-attachments
+select Red Team/Kerberoasting.md
+shot vault-tree
+key shift-f10
+shot vault-tree-menu
+key escape
+key f2
+type Kerberoasting SPN
+shot vault-rename
+key enter
+wait 200
+shot vault-renamed
+key f2
+type a/b
+key enter
+wait 200
+shot vault-name-refused
+select Red Team
+key ctrl-n
+type Plan de test
+key enter
+wait 200
+shot vault-new-note
+select Red Team/Plan de test.md
+key ctrl-d
+wait 200
+key ctrl-d
+wait 200
+shot vault-duplicate-twice
+key ctrl-m
+type Rendu
+shot vault-move
+key enter
+wait 200
+select Rendu/Plan de test 2.md
+key delete
+shot vault-trash
+key enter
+wait 200
+focus filter
+type kerb
+shot vault-filter
+key ctrl-a
+key backspace
+focus tree
+left tags
+shot vault-tags
+bottom tasks
+shot vault-tasks
+toggle 0
+taskfilter all
+shot vault-tasks-all
+bottom broken
+shot vault-broken
+create 0
+wait 200
+shot vault-broken-created
+exclude Modeles
+bottom tasks
+shot vault-tasks-excluded
+exclude
+left files
+select Red Team/Kerberoasting SPN.md
+bookmark Rendu/Langues.md
+key shift-f10
+shot vault-bookmark-menu
+key escape
+bookmark Red Team/Kerberoasting SPN.md
+open 00 Accueil.md
+open Rendu/Diagrammes.md
+left bookmarks
+focus bookmarks
+key down
+key down
+shot vault-bookmarks
+left files
+bottom tasks
+theme light
+shot vault-light
+theme dark
+lang fr
+select Red Team/Kerberoasting SPN.md
+key shift-f10
+shot vault-fr
+key escape
+lang ar
+shot vault-ar
+quit

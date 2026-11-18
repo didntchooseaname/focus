@@ -1,0 +1,23 @@
+ops on
+right ops
+wait 800
+shot sidebar
+bottom journal
+wait 500
+shot journal
+open Engagements/Acme interne/Hosts/DC01.md
+shot host-note
+open Engagements/Acme interne/Findings/F-001-Kerberoastable service account.md
+shot finding-note
+open Engagements/Acme interne/Journal.md
+view reading
+shot journal-note
+open Engagements/Acme interne/README.md
+view reading
+shot readme
+theme light
+shot readme-light
+lang fr
+shot readme-fr
+lang ar
+shot readme-ar

@@ -1,0 +1,10 @@
+palette Secret
+wait 400
+shot outside-skipped
+key escape
+set files.follow_external_links true
+wait 1500
+palette Secret
+wait 400
+shot outside-followed
+quit

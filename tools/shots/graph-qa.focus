@@ -1,0 +1,9 @@
+wait 200
+find SUMMARY
+shot graph-summary-label
+key escape
+zoom fit
+nodesize 200
+labels 0
+shot graph-nodesize-labels
+quit

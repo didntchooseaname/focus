@@ -1,0 +1,41 @@
+history-title = { $note } 的历史版本
+history-close = 关闭
+history-loading = 正在读取版本…
+history-empty = 这篇笔记还没有历史版本
+history-empty-hint = 写入替换笔记内容时，Focus 会保留原内容，最多每 5 分钟一次。请先修改笔记，再回到这里。
+history-off-hint = 历史记录已关闭。请在设置的“文件与链接”中打开。
+history-kind-edit = 编辑
+history-kind-bulk = 跨笔记更改
+history-kind-restore = 恢复前
+history-kind-external = 由其他程序写入
+history-kind-unsaved = 你未保存的文本
+history-kind-reload = 从磁盘重新载入前
+history-copy-syncthing = Syncthing 冲突副本
+history-copy-syncthing-device = Syncthing 冲突副本，设备 { $device }
+history-copy-obsidian = Obsidian Sync 冲突副本
+history-copy-obsidian-device = Obsidian Sync 冲突副本，{ $device }
+history-tab-changes = 更改
+history-tab-rendered = 渲染
+history-same = 此版本与当前文本相同。
+history-copy-same = 此副本与当前文本相同。
+history-count-added = 新增
+history-count-removed = 移除
+history-copy = 复制
+history-restore = 恢复
+history-copied = 已复制版本
+history-restored = 已恢复版本
+history-delete-copy = 删除副本
+history-copy-text-copied = 已复制副本文本
+history-copy-restored = 已恢复副本
+history-copy-deleted = 已删除副本
+history-folded =
+    { $count ->
+       *[other] { $count } 行未更改
+    }
+history-error-unavailable = 这个库的历史记录不可用。请重启 Focus 或检查数据文件夹。
+history-error-unknown-note = 这篇笔记已不在库中。
+history-error-gone = 此版本已不存在，列表已重新加载。
+history-error-damaged = 此版本的存储副本已损坏，无法读取。
+history-error-io = 无法读取或写入历史记录（{ $path }）。请检查其权限。
+history-error-conflict = 笔记在磁盘上已更改。列表和更改已重新加载：请检查后再恢复。
+history-error-other = 无法写入笔记：{ $detail }

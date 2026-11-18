@@ -1,0 +1,11 @@
+settle
+focus
+type golden ticket
+replace on
+replacement Golden Ticket
+settle
+key down
+key down
+key alt-t
+shot search-replace
+quit

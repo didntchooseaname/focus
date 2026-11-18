@@ -1,0 +1,4 @@
+open Live/Onglets.md
+view source
+wait 500
+shot source

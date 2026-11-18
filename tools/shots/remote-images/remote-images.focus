@@ -1,0 +1,12 @@
+open Rendu/Image distante.md
+view reading
+set appearance.remote_images 0
+wait 400
+shot remote-never
+set appearance.remote_images 1
+wait 400
+shot remote-click
+set appearance.remote_images 2
+wait 1500
+shot remote-always
+quit

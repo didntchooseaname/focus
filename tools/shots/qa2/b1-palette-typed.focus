@@ -1,0 +1,7 @@
+open Rendu/Liens.md
+key ctrl-k
+type zzzqq
+wait 300
+key enter
+wait 400
+shot after

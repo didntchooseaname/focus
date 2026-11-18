@@ -1,0 +1,6 @@
+left search
+focus search
+type zzzqqxx
+key enter
+wait 400
+shot after

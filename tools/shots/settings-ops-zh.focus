@@ -1,0 +1,5 @@
+lang zh-CN
+settings ops
+wait 600
+shot settings-ops-zh
+quit

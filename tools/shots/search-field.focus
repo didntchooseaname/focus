@@ -1,0 +1,7 @@
+left search
+wait 300
+shot search-field-empty
+focus search
+type x
+wait 400
+shot search-field-short

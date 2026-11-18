@@ -1,0 +1,5 @@
+dialog tidy
+shot attachments-tidy
+dialog orphans
+shot attachments-orphans
+quit

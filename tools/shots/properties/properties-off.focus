@@ -1,0 +1,15 @@
+set editor.edit_in_place off
+open Properties.md
+view reading
+wait 400
+click #checkbox 1
+wait 300
+click #field 9
+wait 300
+type 7
+wait 300
+shot properties-off-read-edit
+key enter
+wait 1200
+shot properties-off-read
+quit

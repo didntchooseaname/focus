@@ -1,0 +1,16 @@
+wait 300
+figure on
+open Rendu/Tout le Markdown.md
+wait 300
+live on
+liveopen 121
+wait 800
+shot live-reveal-end
+type  Ajout.
+wait 300
+shot live-reveal-typed
+liveclose
+liveopen 10
+wait 300
+shot live-reveal-top
+quit

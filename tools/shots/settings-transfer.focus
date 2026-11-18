@@ -1,0 +1,4 @@
+settings transfer
+wait 400
+shot settings-transfer
+quit

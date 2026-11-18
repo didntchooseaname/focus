@@ -1,0 +1,19 @@
+set general.templates Modeles
+open Rendu/Tout le Markdown.md
+bottom tasks
+wait 400
+shot vault-tasks-before
+task 1
+wait 600
+shot vault-task-checked
+bottom broken
+wait 400
+shot vault-broken-before
+create-broken 1
+wait 600
+shot vault-broken-created
+set files.hide_templates false
+bottom tasks
+wait 400
+shot vault-tasks-with-templates
+quit

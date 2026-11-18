@@ -1,0 +1,11 @@
+left files
+expand Rendu
+expand Red Team
+focus tree
+hover tree:Rendu
+key ctrl-n
+wait 300
+type zzz
+key escape
+wait 800
+shot after

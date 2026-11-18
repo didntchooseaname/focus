@@ -1,0 +1,10 @@
+open Rendu/Tout le Markdown.md
+view live
+wait 400
+ai fake
+select surligné
+wait 200
+aiaction summarize
+wait 1500
+shot ai-selection-live
+quit

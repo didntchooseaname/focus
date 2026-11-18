@@ -1,0 +1,21 @@
+open Red Team/Kerberoasting.md
+view live
+wait 400
+crumb 0
+wait 300
+shot crumb-vault
+key escape
+crumb 1
+wait 300
+shot crumb-folder
+key escape
+left search
+crumb note
+wait 300
+shot crumb-note
+palette >Graph of the whole vault
+wait 300
+key enter
+wait 1500
+shot graph-vault
+quit

@@ -1,0 +1,13 @@
+engagement ACME
+dialog open
+wait 300
+type Enter test
+key enter
+wait 900
+shot ops-dialog-enter
+dialog open
+wait 300
+key escape
+wait 400
+shot ops-dialog-escape
+quit

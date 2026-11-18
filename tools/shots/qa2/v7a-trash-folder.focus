@@ -1,0 +1,11 @@
+left files
+expand Rendu
+expand Red Team
+focus tree
+hover tree:Archive
+key delete
+wait 300
+shot confirm
+key enter
+wait 1000
+shot after

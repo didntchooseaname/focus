@@ -1,0 +1,10 @@
+settings general
+wait 600
+shot retours-menu-open
+key escape
+wait 400
+shot retours-menu-closed
+key escape
+wait 400
+shot retours-window-closed
+quit

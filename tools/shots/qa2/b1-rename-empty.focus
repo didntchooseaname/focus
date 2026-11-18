@@ -1,0 +1,10 @@
+left files
+expand Rendu
+focus tree
+hover tree:Rendu/Liens.md
+key f2
+wait 200
+key backspace
+key enter
+wait 500
+shot after

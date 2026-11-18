@@ -1,0 +1,19 @@
+settle
+focus
+wait 300
+type kerberos
+wait 1000
+shot keys-0-results
+key pagedown
+shot keys-1-page-down
+key pagedown
+shot keys-2-page-down-again
+key pageup
+shot keys-3-page-up
+key ctrl-end
+shot keys-4-last
+key ctrl-home
+shot keys-5-first
+key end
+shot keys-6-end-in-field
+quit

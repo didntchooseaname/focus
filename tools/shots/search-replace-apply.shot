@@ -1,0 +1,12 @@
+settle
+focus
+type red team
+replace on
+replacement Equipe Rouge
+settle
+shotnow search-replace-before
+apply
+settle
+wait 300
+shot search-replace-done
+quit

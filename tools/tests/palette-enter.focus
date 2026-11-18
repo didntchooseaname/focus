@@ -1,0 +1,12 @@
+open 00 Accueil.md
+palette zzqqxxnothing
+wait 300
+key enter
+key enter
+wait 300
+shot palette-no-result
+key ctrl-p
+type also-nothing
+key enter
+wait 300
+quit
