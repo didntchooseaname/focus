@@ -28,6 +28,7 @@ focus-view-history = { path = "../crates/focus-view-history" }
 focus-view-vault = { path = "../crates/focus-view-vault" }
 focus-view-media = { path = "../crates/focus-view-media" }
 focus-mcp.workspace = true
+focus-update.workspace = true
 gpui.workspace = true
 gpui-component.workspace = true
 anyhow.workspace = true

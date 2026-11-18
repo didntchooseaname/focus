@@ -59,7 +59,9 @@ impl Shell {
         let search_forced = self.forced("titlebar.search");
         if matches!(
             self.screen,
-            crate::shell::Screen::Welcome { .. } | crate::shell::Screen::Vaults
+            crate::shell::Screen::Welcome { .. }
+                | crate::shell::Screen::Updates { .. }
+                | crate::shell::Screen::Vaults
         ) {
             return div()
                 .flex_none()
@@ -317,7 +319,9 @@ impl Shell {
         let (file_path, file_items) = self.render_file_status(cx);
         if matches!(
             self.screen,
-            crate::shell::Screen::Welcome { .. } | crate::shell::Screen::Vaults
+            crate::shell::Screen::Welcome { .. }
+                | crate::shell::Screen::Updates { .. }
+                | crate::shell::Screen::Vaults
         ) {
             return div()
                 .flex_none()

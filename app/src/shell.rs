@@ -124,6 +124,7 @@ pub enum Screen {
     Workspace,
     Kit(Entity<Gallery>),
     Welcome { selected: usize },
+    Updates { offered: bool },
     Vaults,
 }
 
@@ -192,6 +193,7 @@ pub struct Shell {
     pub files: crate::media::Files,
     pub import: Option<focus_view_vault::ImportStatus>,
     pub history_error: Option<String>,
+    pub updates: crate::update::Updates,
     applied_history: Option<focus_core::HistoryConfig>,
     pub _subscriptions: Vec<Subscription>,
 }
@@ -321,6 +323,7 @@ impl Shell {
             files: Default::default(),
             import: None,
             history_error: None,
+            updates: Default::default(),
             applied_history: None,
             _subscriptions: subscriptions,
         };
@@ -364,6 +367,7 @@ impl Shell {
         if let Some(root) = vault {
             shell.load_vault(root, window, cx);
         }
+        shell.watch_updates(crate::update::AT_LAUNCH, cx);
         shell
     }
 
@@ -1499,6 +1503,9 @@ impl Shell {
                     this.close_overlay(window, cx);
                     this.rebuild_index(window, cx);
                 }
+                SettingsEvent::Action(crate::update::CHECK_NOW) => {
+                    this.check_updates(true, cx).detach()
+                }
                 SettingsEvent::Action(_) => {}
             },
         );
@@ -1586,6 +1593,7 @@ impl Shell {
                     });
                 }
             }
+            crate::update::OFFERED => self.watch_updates(std::time::Duration::ZERO, cx),
             "ai.key" => {
                 if let Some(Value::Text(key)) = prefs.get(key).cloned() {
                     self.store_ai_key(key.to_string(), window, cx);
@@ -1759,6 +1767,9 @@ impl Shell {
         cx: &mut Context<Self>,
     ) -> gpui::Stateful<gpui::Div> {
         self.bind_media_actions(root, cx)
+            .on_action(
+                cx.listener(|this, _: &CheckUpdates, _, cx| this.check_updates(true, cx).detach()),
+            )
             .on_action(cx.listener(|this, _: &ToggleLeft, _, cx| {
                 this.layout.left_open = !this.layout.left_open;
                 cx.notify();
@@ -2165,6 +2176,10 @@ impl Render for Shell {
                 let selected = *selected;
                 self.render_welcome(selected, cx)
             }
+            Screen::Updates { offered } => {
+                let offered = *offered;
+                self.render_updates(offered, cx)
+            }
             Screen::Vaults => self.render_vaults(cx),
         };
         let overlay = match &self.overlay {
@@ -2262,6 +2277,7 @@ impl Render for Shell {
                 }),
             )
             .child(self.render_titlebar(window, cx))
+            .children(self.render_update(cx))
             .child(body)
             .child(self.render_statusbar(cx))
             .children(overlay)

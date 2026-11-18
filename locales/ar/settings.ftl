@@ -104,6 +104,11 @@ settings-general-capture-format-label = سطر الالتقاط السريع
 settings-general-capture-format-desc = شكل السطر المضاف: { "{{text}}" } هو النص، مع { "{{date}}" } و{ "{{time}}" } و{ "{{title}}" } كما في القوالب.
 settings-general-confirm-delete-label = التأكيد قبل الحذف
 settings-general-confirm-delete-desc = يطلب تأكيدًا قبل نقل ملاحظة إلى السلة.
+settings-general-update-check-label = اقتراح التحديثات
+settings-general-update-check-desc = يسأل GitHub عن أحدث إصدار عند التشغيل ثم كل ساعة، ويعرض شريطًا عند صدور إصدار جديد. لا يُثبَّت شيء دون نقرة منك.
+settings-general-update-now-label = البحث عن تحديث
+settings-general-update-now-desc = يسأل GitHub مرة واحدة الآن، سواء كانت التحديثات مقترحة أم لا.
+settings-general-update-now-action = تحقق الآن
 
 settings-appearance-theme-label = السمة
 settings-appearance-theme-desc = داكن وفاتح، أو اتباع إعداد النظام.

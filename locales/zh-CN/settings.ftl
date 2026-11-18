@@ -99,6 +99,11 @@ settings-general-capture-format-label = 快速记录行
 settings-general-capture-format-desc = 添加行的格式：{ "{{text}}" } 为文本，{ "{{date}}" }、{ "{{time}}" } 和 { "{{title}}" } 与模板中相同。
 settings-general-confirm-delete-label = 删除前确认
 settings-general-confirm-delete-desc = 将笔记移到回收站前先询问。
+settings-general-update-check-label = 提示更新
+settings-general-update-check-desc = 在启动时以及之后每小时向 GitHub 查询最新版本，有新版本时显示提示条。未经你点击，不会安装任何内容。
+settings-general-update-now-label = 检查更新
+settings-general-update-now-desc = 立即向 GitHub 查询一次，无论是否开启更新提示。
+settings-general-update-now-action = 立即检查
 
 settings-appearance-theme-label = 主题
 settings-appearance-theme-desc = 深色或浅色，或跟随系统设置。

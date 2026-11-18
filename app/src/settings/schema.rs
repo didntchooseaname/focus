@@ -319,6 +319,19 @@ pub const SETTINGS: &[Setting] = &[
         Some(V::Bool(true))
     ),
     setting!(
+        "general.update_check",
+        General,
+        Toggle,
+        Some(V::Bool(false))
+    ),
+    setting!("general.update_now", General, Action, None),
+    setting!(
+        "general.update_skipped",
+        General,
+        Stored,
+        Some(V::Text(Cow::Borrowed("")))
+    ),
+    setting!(
         "appearance.theme",
         Appearance,
         Choice(&[

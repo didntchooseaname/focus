@@ -66,6 +66,7 @@ pub enum Step {
         source: std::path::PathBuf,
     },
     Banner(BannerAction),
+    Update(UpdateAction),
     Click {
         target: String,
         alt: bool,
@@ -136,6 +137,16 @@ pub enum BannerAction {
     Keep,
     Both,
     Merge,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UpdateAction {
+    Print,
+    Check,
+    Download,
+    Cancel,
+    Restart,
+    Dismiss,
 }
 
 fn script_error(line: usize, message: &str) -> String {
@@ -294,6 +305,15 @@ pub fn parse(text: &str) -> Result<Vec<(usize, Step)>, String> {
                 "both" => BannerAction::Both,
                 "merge" => BannerAction::Merge,
                 _ => return Err(fail("expected: banner reload|keep|both|merge")),
+            }),
+            "update" => Step::Update(match rest {
+                "" => UpdateAction::Print,
+                "check" => UpdateAction::Check,
+                "download" => UpdateAction::Download,
+                "cancel" => UpdateAction::Cancel,
+                "restart" => UpdateAction::Restart,
+                "dismiss" => UpdateAction::Dismiss,
+                _ => return Err(fail("expected: update [check|download|cancel|restart|dismiss]")),
             }),
             "bookmark" => Step::Bookmark(need("note path")?),
             "openpath" => Step::OpenPath(
@@ -1395,6 +1415,21 @@ impl Shell {
                     BannerAction::Both => editor.keep_both(window, cx),
                     BannerAction::Merge => editor.merge(window, cx),
                 });
+            }
+            Step::Update(action) => {
+                use crate::update::Stage;
+                let stage = self.updates.offer.as_ref().map(|offer| offer.stage.clone());
+                match (action, stage) {
+                    (UpdateAction::Print, _) => println!("update: {}", self.update_line()),
+                    (UpdateAction::Check, _) => self.check_updates(true, cx).detach(),
+                    (UpdateAction::Download, Some(Stage::Offered | Stage::Failed(_))) => {
+                        self.download_update(window, cx)
+                    }
+                    (UpdateAction::Cancel, Some(Stage::Downloading(_))) => self.cancel_update(),
+                    (UpdateAction::Restart, Some(Stage::Installed)) => self.restart_updated(cx),
+                    (UpdateAction::Dismiss, Some(_)) => self.dismiss_update(cx),
+                    _ => return Err("the update banner does not offer that".into()),
+                }
             }
             Step::Restore => {
                 let dialog = self

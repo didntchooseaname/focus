@@ -100,6 +100,11 @@ settings-general-capture-format-label = Quick capture line
 settings-general-capture-format-desc = Form of the added line: { "{{text}}" } is the text, with { "{{date}}" }, { "{{time}}" } and { "{{title}}" } as in templates.
 settings-general-confirm-delete-label = Confirm before deleting
 settings-general-confirm-delete-desc = Asks for confirmation before sending a note to the trash.
+settings-general-update-check-label = Offer updates
+settings-general-update-check-desc = Asks GitHub for the latest version at launch and every hour, and shows a banner when a new one is out. Nothing is installed without your click.
+settings-general-update-now-label = Check for an update
+settings-general-update-now-desc = Asks GitHub once, now, whether or not updates are offered.
+settings-general-update-now-action = Check now
 
 settings-appearance-theme-label = Theme
 settings-appearance-theme-desc = Dark and Light, or follow the system setting.

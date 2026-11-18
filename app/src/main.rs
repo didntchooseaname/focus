@@ -43,6 +43,7 @@ mod shell;
 mod slash;
 mod templates;
 mod transfer;
+mod update;
 mod vault_views;
 mod versions;
 mod welcome;
@@ -242,5 +243,6 @@ fn main() -> anyhow::Result<()> {
             }
         }
     });
+    update::relaunch();
     Ok(())
 }

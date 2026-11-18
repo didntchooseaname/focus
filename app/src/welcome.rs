@@ -30,7 +30,7 @@ impl Shell {
         self.apply_language(codes[index], window, cx);
     }
 
-    pub fn welcome_confirm(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub fn welcome_confirm(&mut self, cx: &mut Context<Self>) {
         let Screen::Welcome { selected } = self.screen else {
             return;
         };
@@ -42,11 +42,26 @@ impl Shell {
         self.set_pref("general.language", Value::Choice(choice), cx);
         self.store.settings.language = Some(code.to_string());
         self.schedule_save(cx);
-        if self.vault_root.is_some() {
-            self.screen = Screen::Workspace;
+        self.screen = Screen::Updates { offered: true };
+        cx.notify();
+    }
+
+    pub fn updates_select(&mut self, offered: bool, cx: &mut Context<Self>) {
+        self.screen = Screen::Updates { offered };
+        cx.notify();
+    }
+
+    pub fn updates_confirm(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Screen::Updates { offered } = self.screen else {
+            return;
+        };
+        self.screen = if self.vault_root.is_some() {
+            Screen::Workspace
         } else {
-            self.screen = Screen::Vaults;
-        }
+            Screen::Vaults
+        };
+        self.set_pref(crate::update::OFFERED, Value::Bool(offered), cx);
+        self.schedule_save(cx);
         self.focus_content(window, cx);
         cx.notify();
     }
@@ -54,45 +69,15 @@ impl Shell {
     pub fn render_welcome(&mut self, selected: usize, cx: &mut Context<Self>) -> AnyElement {
         let t = *cx.tokens();
         let rows = languages().into_iter().enumerate().map(|(index, code)| {
-            let current = index == selected;
             let name = focus_i18n::t(&format!("ui-language-name-{}", code.to_lowercase()));
-            div()
-                .id(("language", index))
-                .relative()
-                .flow_row()
-                .items_center()
-                .gap(size::S3)
-                .h(px(ROW))
-                .px(size::S4)
-                .cursor_pointer()
-                .ui_lg()
-                .text_color(if current { t.ink } else { t.ink_2 })
-                .when(current, |row| {
-                    row.bg(t.card_3).child(
-                        div()
-                            .absolute()
-                            .start_at(px(0.))
-                            .top_0()
-                            .bottom_0()
-                            .w(px(2.))
-                            .bg(t.ink),
-                    )
-                })
-                .when(!current, |row| {
-                    row.hover(move |s| s.bg(t.card_2).text_color(t.ink))
-                })
-                .on_click(
-                    cx.listener(move |this, event: &gpui::ClickEvent, window, cx| {
-                        this.welcome_select(index, window, cx);
-                        if event.click_count() > 1 {
-                            this.welcome_confirm(window, cx);
-                        }
-                    }),
-                )
-                .child(div().flex_1().min_w_0().text_start().child(name))
-                .when(current, |row| {
-                    row.child(icon(Icon::CHECK, size::ICON).text_color(t.ink))
-                })
+            choice(&t, ("language", index), name, index == selected).on_click(cx.listener(
+                move |this, event: &gpui::ClickEvent, window, cx| {
+                    this.welcome_select(index, window, cx);
+                    if event.click_count() > 1 {
+                        this.welcome_confirm(cx);
+                    }
+                },
+            ))
         });
         centered(
             div()
@@ -120,8 +105,61 @@ impl Shell {
                         Button::new("welcome-continue", focus_i18n::t("ui-welcome-continue"))
                             .kind(ButtonKind::Primary)
                             .large(true)
+                            .on_click(cx.listener(|this, _, _, cx| this.welcome_confirm(cx))),
+                    ),
+                ),
+        )
+    }
+
+    pub fn render_updates(&mut self, offered: bool, cx: &mut Context<Self>) -> AnyElement {
+        let t = *cx.tokens();
+        let rows = [(true, "ui-updates-yes"), (false, "ui-updates-no")]
+            .into_iter()
+            .enumerate()
+            .map(|(index, (answer, label))| {
+                choice(
+                    &t,
+                    ("updates", index),
+                    focus_i18n::t(label),
+                    answer == offered,
+                )
+                .on_click(cx.listener(
+                    move |this, event: &gpui::ClickEvent, window, cx| {
+                        this.updates_select(answer, cx);
+                        if event.click_count() > 1 {
+                            this.updates_confirm(window, cx);
+                        }
+                    },
+                ))
+            });
+        centered(
+            div()
+                .flex()
+                .flex_col()
+                .w(px(WIDTH * 1.4))
+                .max_w_full()
+                .gap(size::S6)
+                .child(heading(
+                    &t,
+                    focus_i18n::t("ui-updates-title"),
+                    focus_i18n::t("ui-updates-subtitle"),
+                ))
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .border_t_1()
+                        .border_b_1()
+                        .border_color(t.line)
+                        .children(rows),
+                )
+                .child(
+                    div().flow_row().child(
+                        Button::new("updates-continue", focus_i18n::t("ui-welcome-continue"))
+                            .kind(ButtonKind::Primary)
+                            .large(true)
                             .on_click(
-                                cx.listener(|this, _, window, cx| this.welcome_confirm(window, cx)),
+                                cx.listener(|this, _, window, cx| this.updates_confirm(window, cx)),
                             ),
                     ),
                 ),
@@ -221,6 +259,44 @@ impl Shell {
                 }),
         )
     }
+}
+
+fn choice(
+    t: &focus_kit::Tokens,
+    id: (&'static str, usize),
+    label: String,
+    current: bool,
+) -> gpui::Stateful<gpui::Div> {
+    let t = *t;
+    div()
+        .id(id)
+        .relative()
+        .flow_row()
+        .items_center()
+        .gap(size::S3)
+        .h(px(ROW))
+        .px(size::S4)
+        .cursor_pointer()
+        .ui_lg()
+        .text_color(if current { t.ink } else { t.ink_2 })
+        .when(current, |row| {
+            row.bg(t.card_3).child(
+                div()
+                    .absolute()
+                    .start_at(px(0.))
+                    .top_0()
+                    .bottom_0()
+                    .w(px(2.))
+                    .bg(t.ink),
+            )
+        })
+        .when(!current, |row| {
+            row.hover(move |s| s.bg(t.card_2).text_color(t.ink))
+        })
+        .child(div().flex_1().min_w_0().text_start().child(label))
+        .when(current, |row| {
+            row.child(icon(Icon::CHECK, size::ICON).text_color(t.ink))
+        })
 }
 
 fn heading(t: &focus_kit::Tokens, title: String, subtitle: String) -> gpui::Div {

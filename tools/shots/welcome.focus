@@ -6,5 +6,8 @@ shot welcome-ar
 lang en
 key enter
 wait 300
+shot welcome-updates
+key enter
+wait 300
 shot vault-picker
 quit

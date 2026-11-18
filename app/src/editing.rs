@@ -352,7 +352,17 @@ impl Shell {
             match keystroke.key.as_str() {
                 "down" if plain => self.welcome_select((selected + 1) % count, window, cx),
                 "up" if plain => self.welcome_select((selected + count - 1) % count, window, cx),
-                "enter" if plain => self.welcome_confirm(window, cx),
+                "enter" if plain => self.welcome_confirm(cx),
+                _ => return false,
+            }
+            return true;
+        }
+        if let crate::shell::Screen::Updates { offered } = self.screen
+            && matches!(self.overlay, crate::shell::Overlay::None)
+        {
+            match keystroke.key.as_str() {
+                "down" | "up" if plain => self.updates_select(!offered, cx),
+                "enter" if plain => self.updates_confirm(window, cx),
                 _ => return false,
             }
             return true;

@@ -183,7 +183,7 @@ Every push runs `.github/workflows/ci.yml`: formatting, clippy with warnings den
 
 ## Install
 
-Each [release](https://github.com/didntchooseaname/focus/releases/latest) carries four files and `SHA256SUMS.txt`:
+Each [release](https://github.com/didntchooseaname/focus/releases/latest) carries four files, `SHA256SUMS.txt` and its signature:
 
 | System | File | Use |
 |---|---|---|
@@ -195,6 +195,17 @@ Each [release](https://github.com/didntchooseaname/focus/releases/latest) carrie
 The Linux files are built on Ubuntu 22.04 and need glibc 2.35 or newer, a Wayland compositor or an X server and a Vulkan capable driver. The AppImage carries libxkbcommon; fontconfig and the Vulkan loader come from the system. `focus --version` prints the version.
 
 A release is published from `main` when the commits since the last one hold a feature, a fix, a performance change or a breaking change; its number comes from those commit types (`tools/release.py`).
+
+`SHA256SUMS.txt.minisig` is the [minisign](https://jedisct1.github.io/minisign/) signature of the list of sums, made with the key of `assets/release.pub`. To check a download by hand:
+
+```
+minisign -Vm SHA256SUMS.txt -p assets/release.pub
+sha256sum --check --ignore-missing SHA256SUMS.txt
+```
+
+### Updates
+
+Focus can offer its own updates. The first launch asks, the answer is off until you say yes, and Settings › General › "Offer updates" changes it. When on, Focus asks GitHub for the latest release 10 seconds after launch and every hour, and shows a banner with the running version, the new one, a link to the release notes and "Download". The release is offered only if its list of sums carries a valid signature of the release key; "Download" fetches the file of the package you run (the AppImage, the Linux archive, the Windows zip of your architecture), checks it against that list, replaces `focus` and `focus-mcp` where they are, and offers to restart. Nothing is replaced when a check fails. Where Focus cannot write its own folder, the banner says so and the release page has the files.
 
 ## Build and run
 
@@ -259,7 +270,7 @@ The help note "Connect an agent to Focus" (Help menu) gives the command for each
 
 ## Security
 
-Focus has no telemetry and makes no network call at start. Provider keys stay in the environment or the system keyring (the DeepSeek key may also be in a file of mode 0600), never in the settings. Writes proposed by the assistant wait for confirmation.
+Focus has no telemetry and makes no network call at start unless you turned update offers on: it then requests the list of the latest release from GitHub, with no identifier. Provider keys stay in the environment or the system keyring (the DeepSeek key may also be in a file of mode 0600), never in the settings. Writes proposed by the assistant wait for confirmation.
 
 ## Architecture
 
@@ -276,6 +287,7 @@ Service crates have no dependency on GPUI.
 | `focus-ops` | engagements, hosts, findings, CVSS, journal, checklists, exam profiles |
 | `focus-mcp` | the vault tools shared by the assistant and the `focus-mcp` program |
 | `focus-i18n` | Fluent translations, language, direction, number and date formats |
+| `focus-update` | latest release, signature and checksum verification, replacement of the programs in place |
 | `focus-kit` | design tokens, embedded fonts, icons, base components, mirroring helpers |
 | `focus-view-*` | reading, search, graph, AI, Ops, transfer and vault screens |
 | `app` | the `focus` binary: window, shell, tabs, editor, palette, settings |

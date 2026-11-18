@@ -100,6 +100,11 @@ settings-general-capture-format-label = Ligne de la capture rapide
 settings-general-capture-format-desc = Forme de la ligne ajoutée : { "{{text}}" } est le texte, avec { "{{date}}" }, { "{{time}}" } et { "{{title}}" } comme dans les gabarits.
 settings-general-confirm-delete-label = Confirmer avant de supprimer
 settings-general-confirm-delete-desc = Demande une confirmation avant d'envoyer une note à la corbeille.
+settings-general-update-check-label = Proposer les mises à jour
+settings-general-update-check-desc = Interroge GitHub au lancement puis toutes les heures, et affiche un bandeau quand une nouvelle version est publiée. Rien n'est installé sans votre clic.
+settings-general-update-now-label = Rechercher une mise à jour
+settings-general-update-now-desc = Interroge GitHub une fois, maintenant, que les mises à jour soient proposées ou non.
+settings-general-update-now-action = Vérifier maintenant
 
 settings-appearance-theme-label = Thème
 settings-appearance-theme-desc = Noir et Blanc, ou suivre le réglage du système.
