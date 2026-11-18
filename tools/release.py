@@ -124,6 +124,19 @@ def sha256(path):
     return digest.hexdigest()
 
 
+def signature_note():
+    key = pathlib.Path(__file__).resolve().parent.parent / "assets" / "release.pub"
+    if not key.is_file():
+        return []
+    public = key.read_text().split("\n")[1].strip()
+    return [
+        "`SHA256SUMS.txt.minisig` signs that file with the release key of the repository "
+        f"(`assets/release.pub`): `minisign -Vm SHA256SUMS.txt -P {public}`. Focus checks it "
+        "before it offers or installs an update.",
+        "",
+    ]
+
+
 def notes(version, assets, repository):
     tag = f"v{version}"
     until = tag if git("tag", "--list", tag).strip() else "HEAD"
@@ -154,6 +167,7 @@ def notes(version, assets, repository):
                 "",
                 "`SHA256SUMS.txt` holds the same sums: `sha256sum --check --ignore-missing SHA256SUMS.txt`.",
                 "",
+                *signature_note(),
                 "The Windows files are compiled on Linux and are not run before publication. They are "
                 "not signed: Windows asks for a confirmation at the first launch.",
                 "",

@@ -128,5 +128,19 @@ jobs:
           (cd dist && sha256sum -- * > SHA256SUMS.txt)
           python3 tools/release.py notes "$VERSION" --assets dist --repository "$GH_REPO" > notes.md
           cat notes.md
+      - name: Sign the checksums
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          if [ -z "$RELEASE_SIGNING_KEY" ]; then
+            echo "::error::the RELEASE_SIGNING_KEY secret is not set"
+            exit 1
+          fi
+          sudo apt-get update && sudo apt-get install --yes --no-install-recommends minisign
+          key=$(mktemp)
+          printf '%s\n' "$RELEASE_SIGNING_KEY" > "$key"
+          minisign -S -s "$key" -m dist/SHA256SUMS.txt -t "Focus $VERSION"
+          rm -f "$key"
+          minisign -V -p assets/release.pub -m dist/SHA256SUMS.txt
       - name: Publish
         run: gh release create "$TAG" dist/* --target "$COMMIT" --title "Focus $VERSION" --notes-file notes.md --latest
