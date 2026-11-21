@@ -144,7 +144,8 @@ impl Shell {
                 MouseButton::Left,
                 cx.listener(|this, _, window, cx| this.close_overlay(window, cx)),
             )
-            .child(
+            .child(focus_kit::fade_in(
+                "fade-crumb-menu",
                 menu(&t)
                     .id("crumb-menu")
                     .absolute()
@@ -156,7 +157,8 @@ impl Shell {
                     .children(rows)
                     .child(menu_separator(&t))
                     .child(reveal),
-            )
+                cx,
+            ))
             .into_any_element()
     }
 }

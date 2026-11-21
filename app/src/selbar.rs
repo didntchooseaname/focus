@@ -355,13 +355,8 @@ fn prepaint(shell: &WeakEntity<Shell>, window: &mut Window, cx: &mut App) -> Vec
         return Vec::new();
     }
     let facts = facts(&entity, &target, cx);
-    let (ai, animate) = {
-        let prefs = entity.read(cx).prefs.read(cx);
-        (
-            prefs.bool("ai.enabled"),
-            !entity.read(cx).scripted && !prefs.bool("appearance.reduce_motion"),
-        )
-    };
+    let ai = entity.read(cx).prefs.read(cx).bool("ai.enabled");
+    let animate = focus_kit::fade::animates(cx);
     let since = entity.update(cx, |shell, _| {
         let bar = &mut shell.selbar;
         bar.placed = Some((target.first, target.last));
@@ -671,10 +666,13 @@ fn render_menu(
                 .into_any_element()
         })
         .collect();
-    menu(&t)
-        .id("selection-bar-menu")
-        .occlude()
-        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-        .children(rows)
-        .into_any_element()
+    focus_kit::fade_in(
+        "fade-selbar-menu",
+        menu(&t)
+            .id("selection-bar-menu")
+            .occlude()
+            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .children(rows),
+        cx,
+    )
 }

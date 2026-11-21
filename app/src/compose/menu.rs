@@ -26,13 +26,13 @@ enum Command {
 impl Command {
     fn row(self) -> (&'static str, &'static str, Option<&'static str>) {
         match self {
-            Command::Cut => ("editor-menu-cut", "ui-editor-cut", Some("Ctrl X")),
-            Command::Copy => ("editor-menu-copy", "ui-action-copy", Some("Ctrl C")),
-            Command::Paste => ("editor-menu-paste", "ui-editor-paste", Some("Ctrl V")),
+            Command::Cut => ("editor-menu-cut", "ui-editor-cut", Some("ctrl-x")),
+            Command::Copy => ("editor-menu-copy", "ui-action-copy", Some("ctrl-c")),
+            Command::Paste => ("editor-menu-paste", "ui-editor-paste", Some("ctrl-v")),
             Command::SelectAll => (
                 "editor-menu-select-all",
                 "ui-editor-select-all",
-                Some("Ctrl A"),
+                Some("ctrl-a"),
             ),
             Command::Extract => ("editor-menu-extract", "ui-cmd-extract-selection", None),
             Command::AskAi => ("editor-menu-ask-ai", "ui-cmd-ask-ai", None),
@@ -144,7 +144,7 @@ impl Render for EditorMenu {
                         }
                     }));
                 items.push(match keys {
-                    Some(keys) => row.shortcut(keys).into_any_element(),
+                    Some(keys) => row.shortcut(focus_i18n::keys_text(keys)).into_any_element(),
                     None => row.into_any_element(),
                 });
                 rank += 1;
@@ -168,13 +168,18 @@ impl Render for EditorMenu {
                 cx.listener(|_, _, _, cx| cx.emit(MenuEvent::Close)),
             )
             .child(gpui::deferred(
-                gpui::anchored().position(self.at).snap_to_window().child(
-                    menu(&t)
-                        .id("editor-menu")
-                        .occlude()
-                        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                        .children(items),
-                ),
+                gpui::anchored()
+                    .position(self.at)
+                    .snap_to_window()
+                    .child(focus_kit::fade_in(
+                        "fade-editor-menu",
+                        menu(&t)
+                            .id("editor-menu")
+                            .occlude()
+                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                            .children(items),
+                        cx,
+                    )),
             ))
     }
 }

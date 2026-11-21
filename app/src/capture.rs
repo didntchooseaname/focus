@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use focus_kit::{ActiveTokens, Button, ButtonKind, Field, Flow as _, Type, size};
 use gpui::{
-    AnyElement, AppContext as _, Context, Entity, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, Styled, Subscription, Window, div, px,
+    AnyElement, AppContext as _, Context, Entity, InteractiveElement, MouseButton, ParentElement,
+    Styled, Subscription, Window, div, px,
 };
 use gpui_component::input::{InputEvent, InputState};
 
@@ -315,58 +315,64 @@ impl Shell {
         } else {
             focus_i18n::t_args("ui-capture-to-note", &[("path", note.trim().into())])
         };
-        div()
-            .id("capture-veil")
-            .absolute()
-            .inset_0()
-            .flow_row()
-            .items_start()
-            .justify_center()
-            .pt(px(160.))
-            .bg(t.veil)
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(|this, _, window, cx| this.close_overlay(window, cx)),
-            )
-            .child(
-                focus_kit::floating(&t)
-                    .id("capture-dialog")
-                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .flex()
-                    .flex_col()
-                    .gap(size::S3)
-                    .p(size::S4)
-                    .w(px(560.))
-                    .max_w_full()
-                    .child(
-                        div()
-                            .display_sm()
-                            .text_color(t.ink)
-                            .child(focus_i18n::t("ui-cmd-quick-capture")),
-                    )
-                    .child(div().ui_sm().text_color(t.ink_3).child(target))
-                    .child(Field::new(&input))
-                    .child(
-                        div()
-                            .flow_row()
-                            .justify_end()
-                            .gap(size::S2)
-                            .child(
-                                Button::new("capture-cancel", focus_i18n::t("ui-action-cancel"))
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.close_overlay(window, cx)
-                                    })),
-                            )
-                            .child(
-                                Button::new("capture-add", focus_i18n::t("ui-capture-add"))
-                                    .kind(ButtonKind::Primary)
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.submit_capture(window, cx)
-                                    })),
-                            ),
-                    ),
-            )
-            .into_any_element()
+        focus_kit::fade_in(
+            "fade-capture",
+            div()
+                .id("capture-veil")
+                .absolute()
+                .inset_0()
+                .flow_row()
+                .items_start()
+                .justify_center()
+                .pt(px(160.))
+                .bg(t.veil)
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _, window, cx| this.close_overlay(window, cx)),
+                )
+                .child(
+                    focus_kit::floating(&t)
+                        .id("capture-dialog")
+                        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                        .flex()
+                        .flex_col()
+                        .gap(size::S3)
+                        .p(size::S4)
+                        .w(px(560.))
+                        .max_w_full()
+                        .child(
+                            div()
+                                .display_sm()
+                                .text_color(t.ink)
+                                .child(focus_i18n::t("ui-cmd-quick-capture")),
+                        )
+                        .child(div().ui_sm().text_color(t.ink_3).child(target))
+                        .child(Field::new(&input))
+                        .child(
+                            div()
+                                .flow_row()
+                                .justify_end()
+                                .gap(size::S2)
+                                .child(
+                                    Button::new(
+                                        "capture-cancel",
+                                        focus_i18n::t("ui-action-cancel"),
+                                    )
+                                    .on_click(cx.listener(
+                                        |this, _, window, cx| this.close_overlay(window, cx),
+                                    )),
+                                )
+                                .child(
+                                    Button::new("capture-add", focus_i18n::t("ui-capture-add"))
+                                        .kind(ButtonKind::Primary)
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.submit_capture(window, cx)
+                                        })),
+                                ),
+                        ),
+                ),
+            cx,
+        )
     }
 }
 

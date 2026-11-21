@@ -395,7 +395,8 @@ impl Shell {
                 MouseButton::Right,
                 cx.listener(|this, _, window, cx| this.close_overlay(window, cx)),
             )
-            .child(
+            .child(focus_kit::fade_in(
+                "fade-tab-menu",
                 focus_kit::menu(&t)
                     .id("tab-menu")
                     .absolute()
@@ -405,7 +406,8 @@ impl Shell {
                     .child(split)
                     .when(in_vault, |menu| menu.child(versions))
                     .child(close),
-            )
+                cx,
+            ))
             .into_any_element()
     }
 

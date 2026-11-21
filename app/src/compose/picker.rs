@@ -3,13 +3,13 @@ use std::sync::Arc;
 
 use focus_core::{NoteId, Placement};
 use focus_kit::Flow as _;
-use focus_kit::{ActiveTokens, Icon, Kbd, Type, ellipsis, floating, icon, motion, size};
+use focus_kit::{ActiveTokens, Icon, Kbd, Type, ellipsis, floating, icon, size};
 use focus_search::FuzzyScope;
 use gpui::{
-    Animation, AnimationExt as _, AppContext, Context, Entity, EventEmitter, FocusHandle,
-    Focusable, FontWeight, HighlightStyle, InteractiveElement, IntoElement, KeyDownEvent,
-    ParentElement, Render, ScrollStrategy, SharedString, StatefulInteractiveElement, Styled,
-    Subscription, UniformListScrollHandle, Window, div, prelude::FluentBuilder, px, uniform_list,
+    AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, FontWeight, HighlightStyle,
+    InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Render, ScrollStrategy,
+    SharedString, StatefulInteractiveElement, Styled, Subscription, UniformListScrollHandle,
+    Window, div, prelude::FluentBuilder, px, uniform_list,
 };
 use gpui_component::input::{Input, InputEvent, InputState};
 
@@ -47,7 +47,6 @@ pub struct NotePicker {
     selected: usize,
     scroll: UniformListScrollHandle,
     focus: FocusHandle,
-    animate: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -79,7 +78,6 @@ impl NotePicker {
         source: NoteId,
         recent: Vec<NoteId>,
         placeholder: String,
-        animate: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -104,7 +102,6 @@ impl NotePicker {
             selected: 0,
             scroll: UniformListScrollHandle::new(),
             focus: cx.focus_handle(),
-            animate,
             _subscriptions: subscriptions,
         };
         picker.refilter(cx);
@@ -212,8 +209,8 @@ impl NotePicker {
                 )
             })
             .when(!current, |row| {
-                let hover = t.card_2;
-                row.hover(move |s| s.bg(hover))
+                let (hover, press) = (t.card_2, t.card_3);
+                row.hover(move |s| s.bg(hover)).active(move |s| s.bg(press))
             })
             .on_click(cx.listener(move |this, _, _, cx| {
                 this.selected = i;
@@ -402,15 +399,6 @@ impl Render for NotePicker {
                 cx.listener(|_, _, _, cx| cx.emit(PickerEvent::Close)),
             )
             .child(body);
-        if self.animate {
-            veil.with_animation(
-                "note-picker-fade",
-                Animation::new(motion::FADE),
-                |veil, delta| veil.opacity(delta),
-            )
-            .into_any_element()
-        } else {
-            veil.into_any_element()
-        }
+        focus_kit::fade_in("fade-note-picker", veil, cx)
     }
 }

@@ -76,10 +76,6 @@ impl NoteEditor {
 }
 
 impl Shell {
-    fn compose_animate(&self, cx: &gpui::App) -> bool {
-        !self.scripted && !self.prefs.read(cx).bool("appearance.reduce_motion")
-    }
-
     fn show_compose<V, E>(
         &mut self,
         view: Entity<V>,
@@ -150,10 +146,9 @@ impl Shell {
         let Some(library) = self.library.clone() else {
             return;
         };
-        let animate = self.compose_animate(cx);
         let vault = library.vault().clone();
         let tag = tag.to_string();
-        let dialog = cx.new(|cx| TagRenameDialog::new(vault, tag, animate, window, cx));
+        let dialog = cx.new(|cx| TagRenameDialog::new(vault, tag, window, cx));
         window.on_next_frame(|window, cx| {
             if let Ok(select_all) = gpui::Keystroke::parse("ctrl-a") {
                 window.dispatch_keystroke(select_all, cx);
@@ -243,9 +238,7 @@ impl Shell {
             Purpose::Extract(_) => focus_i18n::t("ui-extract-placeholder"),
         };
         let recent: Vec<NoteId> = self.history.iter().rev().copied().collect();
-        let animate = self.compose_animate(cx);
-        let picker =
-            cx.new(|cx| NotePicker::new(library, source, recent, placeholder, animate, window, cx));
+        let picker = cx.new(|cx| NotePicker::new(library, source, recent, placeholder, window, cx));
         let purpose = std::cell::RefCell::new(Some(purpose));
         self.show_compose(
             picker,
@@ -350,7 +343,6 @@ impl Shell {
                 (path, true, count)
             }
         };
-        let animate = self.compose_animate(cx);
         let trash = self.tree_settings(cx).trash;
         let dialog = cx.new(|cx| {
             MergeDialog::new(
@@ -360,7 +352,6 @@ impl Shell {
                 new_note,
                 trash,
                 count,
-                animate,
                 cx,
             )
         });

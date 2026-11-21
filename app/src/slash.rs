@@ -486,6 +486,7 @@ pub fn render(
     scroll: &ScrollHandle,
     on_pick: impl Fn(usize, &mut gpui::Window, &mut gpui::App) + Clone + 'static,
     on_dismiss: impl Fn(&mut gpui::Window, &mut gpui::App) + 'static,
+    cx: &gpui::App,
 ) -> AnyElement {
     let grouped = grouped && query.trim().is_empty();
     let shown = hits.len().clamp(1, VISIBLE as usize);
@@ -623,7 +624,8 @@ pub fn render(
         })
         .top(top)
         .w(WIDTH)
-        .child(
+        .child(focus_kit::fade_in(
+            "fade-slash-menu",
             floating(t)
                 .id("slash-menu")
                 .occlude()
@@ -634,7 +636,8 @@ pub fn render(
                 .track_scroll(scroll)
                 .py(size::S1)
                 .children(rows),
-        )
+            cx,
+        ))
         .into_any_element()
 }
 

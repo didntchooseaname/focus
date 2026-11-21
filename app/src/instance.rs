@@ -11,8 +11,7 @@ use std::time::Duration;
 use focus_kit::Flow as _;
 use focus_kit::{ActiveTokens, Button, ButtonKind, Type, size};
 use gpui::{
-    AnyElement, Context, InteractiveElement, IntoElement, MouseButton, ParentElement, Styled,
-    Window, div, px,
+    AnyElement, Context, InteractiveElement, MouseButton, ParentElement, Styled, Window, div, px,
 };
 #[cfg(unix)]
 use serde_json::{Value, json};
@@ -387,64 +386,67 @@ impl Shell {
             .or_else(|| self.vault_root.as_deref().map(vault_name))
             .unwrap_or_default();
         let to = vault_name(&switch.to);
-        div()
-            .id("switch-veil")
-            .absolute()
-            .inset_0()
-            .flow_row()
-            .items_center()
-            .justify_center()
-            .bg(t.veil)
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(|this, _, window, cx| this.close_overlay(window, cx)),
-            )
-            .child(
-                focus_kit::floating(&t)
-                    .id("switch-dialog")
-                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .flex()
-                    .flex_col()
-                    .gap(size::S3)
-                    .p(size::S4)
-                    .w(px(480.))
-                    .child(div().ui().text_color(t.ink).child(focus_i18n::t_args(
-                        "ui-switch-title",
-                        &[("to", to.as_str().into())],
-                    )))
-                    .child(div().ui_sm().text_color(t.ink_3).child(focus_i18n::t_args(
-                        "ui-switch-why",
-                        &[("from", from.as_str().into()), ("to", to.as_str().into())],
-                    )))
-                    .child(
-                        div()
-                            .mono_sm()
-                            .text_color(t.ink)
-                            .bg(t.card_2)
-                            .p(size::S2)
-                            .child(switch.to.display().to_string()),
-                    )
-                    .child(
-                        div()
-                            .flow_row()
-                            .justify_end()
-                            .gap(size::S2)
-                            .child(
-                                Button::new("switch-cancel", focus_i18n::t("ui-action-cancel"))
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.close_overlay(window, cx)
-                                    })),
-                            )
-                            .child(
-                                Button::new("switch-open", focus_i18n::t("ui-switch-open"))
-                                    .kind(ButtonKind::Primary)
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.confirm_vault_switch(window, cx)
-                                    })),
-                            ),
-                    ),
-            )
-            .into_any_element()
+        focus_kit::fade_in(
+            "fade-switch",
+            div()
+                .id("switch-veil")
+                .absolute()
+                .inset_0()
+                .flow_row()
+                .items_center()
+                .justify_center()
+                .bg(t.veil)
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _, window, cx| this.close_overlay(window, cx)),
+                )
+                .child(
+                    focus_kit::floating(&t)
+                        .id("switch-dialog")
+                        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                        .flex()
+                        .flex_col()
+                        .gap(size::S3)
+                        .p(size::S4)
+                        .w(px(480.))
+                        .child(div().ui().text_color(t.ink).child(focus_i18n::t_args(
+                            "ui-switch-title",
+                            &[("to", to.as_str().into())],
+                        )))
+                        .child(div().ui_sm().text_color(t.ink_3).child(focus_i18n::t_args(
+                            "ui-switch-why",
+                            &[("from", from.as_str().into()), ("to", to.as_str().into())],
+                        )))
+                        .child(
+                            div()
+                                .mono_sm()
+                                .text_color(t.ink)
+                                .bg(t.card_2)
+                                .p(size::S2)
+                                .child(switch.to.display().to_string()),
+                        )
+                        .child(
+                            div()
+                                .flow_row()
+                                .justify_end()
+                                .gap(size::S2)
+                                .child(
+                                    Button::new("switch-cancel", focus_i18n::t("ui-action-cancel"))
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.close_overlay(window, cx)
+                                        })),
+                                )
+                                .child(
+                                    Button::new("switch-open", focus_i18n::t("ui-switch-open"))
+                                        .kind(ButtonKind::Primary)
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.confirm_vault_switch(window, cx)
+                                        })),
+                                ),
+                        ),
+                ),
+            cx,
+        )
     }
 }
 

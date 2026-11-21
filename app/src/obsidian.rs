@@ -3,8 +3,8 @@ use std::path::{Component, Path, PathBuf};
 use focus_core::{LinkTarget, NoteId, Vault, VaultError};
 use focus_kit::{ActiveTokens, Button, ButtonKind, Flow as _, Type, size};
 use gpui::{
-    AnyElement, AppContext as _, Context, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
+    AnyElement, AppContext as _, Context, InteractiveElement, MouseButton, ParentElement,
+    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 
 use crate::shell::{Overlay, Shell};
@@ -895,83 +895,89 @@ impl Shell {
         };
         let label = |key: &str| div().ui_sm().text_color(t.ink_3).child(focus_i18n::t(key));
         let replaced = plan.before.clone().filter(|_| plan.mode == Mode::Overwrite);
-        div()
-            .id("obsidian-veil")
-            .absolute()
-            .inset_0()
-            .flow_row()
-            .items_center()
-            .justify_center()
-            .bg(t.veil)
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(|this, _, window, cx| this.close_overlay(window, cx)),
-            )
-            .child(
-                focus_kit::floating(&t)
-                    .id("obsidian-dialog")
-                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .flex()
-                    .flex_col()
-                    .gap(size::S3)
-                    .p(size::S4)
-                    .w(px(560.))
-                    .max_w_full()
-                    .child(
-                        div()
-                            .display_sm()
-                            .text_color(t.ink)
-                            .child(focus_i18n::t(title)),
-                    )
-                    .child(label("ui-obsidian-why"))
-                    .child(
-                        div()
-                            .mono_sm()
-                            .text_left()
-                            .text_color(t.ink)
-                            .child(path.clone()),
-                    )
-                    .child(label("ui-obsidian-text"))
-                    .child(block(
-                        "obsidian-added",
-                        if plan.added.is_empty() {
-                            focus_i18n::t("ui-obsidian-empty")
-                        } else {
-                            plan.added.clone()
-                        },
-                    ))
-                    .when_some(replaced, |this, before| {
-                        this.child(div().ui_sm().text_color(t.ink_2).child(focus_i18n::t_args(
-                            "ui-obsidian-replaces",
-                            &[("lines", before.lines().count().into())],
-                        )))
-                        .child(block("obsidian-before", before))
-                    })
-                    .child(
-                        div()
-                            .flow_row()
-                            .justify_end()
-                            .gap(size::S2)
-                            .child(
-                                Button::new("obsidian-cancel", focus_i18n::t("ui-action-cancel"))
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.close_overlay(window, cx)
-                                    })),
-                            )
-                            .child(
-                                Button::new("obsidian-confirm", focus_i18n::t(verb))
-                                    .kind(if plan.mode == Mode::Overwrite {
-                                        ButtonKind::Danger
-                                    } else {
-                                        ButtonKind::Primary
-                                    })
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.confirm_obsidian_write(window, cx)
-                                    })),
-                            ),
-                    ),
-            )
-            .into_any_element()
+        focus_kit::fade_in(
+            "fade-obsidian",
+            div()
+                .id("obsidian-veil")
+                .absolute()
+                .inset_0()
+                .flow_row()
+                .items_center()
+                .justify_center()
+                .bg(t.veil)
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _, window, cx| this.close_overlay(window, cx)),
+                )
+                .child(
+                    focus_kit::floating(&t)
+                        .id("obsidian-dialog")
+                        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                        .flex()
+                        .flex_col()
+                        .gap(size::S3)
+                        .p(size::S4)
+                        .w(px(560.))
+                        .max_w_full()
+                        .child(
+                            div()
+                                .display_sm()
+                                .text_color(t.ink)
+                                .child(focus_i18n::t(title)),
+                        )
+                        .child(label("ui-obsidian-why"))
+                        .child(
+                            div()
+                                .mono_sm()
+                                .text_left()
+                                .text_color(t.ink)
+                                .child(path.clone()),
+                        )
+                        .child(label("ui-obsidian-text"))
+                        .child(block(
+                            "obsidian-added",
+                            if plan.added.is_empty() {
+                                focus_i18n::t("ui-obsidian-empty")
+                            } else {
+                                plan.added.clone()
+                            },
+                        ))
+                        .when_some(replaced, |this, before| {
+                            this.child(div().ui_sm().text_color(t.ink_2).child(focus_i18n::t_args(
+                                "ui-obsidian-replaces",
+                                &[("lines", before.lines().count().into())],
+                            )))
+                            .child(block("obsidian-before", before))
+                        })
+                        .child(
+                            div()
+                                .flow_row()
+                                .justify_end()
+                                .gap(size::S2)
+                                .child(
+                                    Button::new(
+                                        "obsidian-cancel",
+                                        focus_i18n::t("ui-action-cancel"),
+                                    )
+                                    .on_click(cx.listener(
+                                        |this, _, window, cx| this.close_overlay(window, cx),
+                                    )),
+                                )
+                                .child(
+                                    Button::new("obsidian-confirm", focus_i18n::t(verb))
+                                        .kind(if plan.mode == Mode::Overwrite {
+                                            ButtonKind::Danger
+                                        } else {
+                                            ButtonKind::Primary
+                                        })
+                                        .on_click(cx.listener(|this, _, window, cx| {
+                                            this.confirm_obsidian_write(window, cx)
+                                        })),
+                                ),
+                        ),
+                ),
+            cx,
+        )
     }
 }
 

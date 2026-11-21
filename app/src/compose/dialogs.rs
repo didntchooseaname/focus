@@ -5,12 +5,12 @@ use focus_core::{Placement, TrashKind, Vault};
 use focus_kit::Flow as _;
 use focus_kit::{
     ActiveTokens, Button, ButtonKind, Field, Icon, IconButton, Tokens, Type, ellipsis, floating,
-    motion, size,
+    size,
 };
 use gpui::{
-    Animation, AnimationExt as _, AnyElement, AppContext, Context, Entity, EventEmitter,
-    FocusHandle, Focusable, InteractiveElement, IntoElement, ParentElement, Render, SharedString,
-    Styled, Subscription, Task, Window, div, prelude::FluentBuilder, px, relative,
+    AnyElement, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable,
+    InteractiveElement, IntoElement, ParentElement, Render, SharedString, Styled, Subscription,
+    Task, Window, div, prelude::FluentBuilder, px, relative,
 };
 use gpui_component::input::{InputEvent, InputState};
 
@@ -28,10 +28,10 @@ fn modal(
     t: &Tokens,
     id: &'static str,
     title: String,
-    animate: bool,
     on_close: impl Fn(&mut Window, &mut gpui::App) + 'static,
     body: impl IntoElement,
     footer: impl IntoElement,
+    cx: &gpui::App,
 ) -> AnyElement {
     let on_close = std::rc::Rc::new(on_close);
     let close = on_close.clone();
@@ -103,16 +103,7 @@ fn modal(
             on_close(window, cx)
         })
         .child(card);
-    if animate {
-        veil.with_animation(
-            "compose-fade",
-            Animation::new(motion::FADE),
-            |veil, delta| veil.opacity(delta),
-        )
-        .into_any_element()
-    } else {
-        veil.into_any_element()
-    }
+    focus_kit::fade_in("fade-compose", veil, cx)
 }
 
 fn section(t: &Tokens, label: String, content: impl IntoElement) -> impl IntoElement {
@@ -157,7 +148,10 @@ fn path_row(t: &Tokens, label: String, path: String) -> impl IntoElement {
                 .flex_none()
                 .ui_sm()
                 .text_color(t.ink_3)
-                .child(ellipsis(label)),
+                .child(focus_kit::truncated(
+                    gpui::ElementId::Name(format!("path-label-{label}").into()),
+                    label,
+                )),
         )
         .child(
             div()
@@ -183,7 +177,6 @@ pub struct TagRenameDialog {
     existing: bool,
     generation: u64,
     _preview: Option<Task<()>>,
-    animate: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -199,7 +192,6 @@ impl TagRenameDialog {
     pub fn new(
         vault: Arc<Vault>,
         from: String,
-        animate: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -220,7 +212,6 @@ impl TagRenameDialog {
             existing: false,
             generation: 0,
             _preview: None,
-            animate,
             _subscriptions: subscriptions,
         };
         dialog.preview(cx);
@@ -351,12 +342,12 @@ impl Render for TagRenameDialog {
                 &t,
                 "tag-rename-dialog",
                 focus_i18n::t_args("ui-tag-rename-title", &[("tag", self.from.as_str().into())]),
-                self.animate,
                 move |_, cx| {
                     let _ = entity.update(cx, |_, cx| cx.emit(DialogEvent::Close));
                 },
                 body,
                 footer,
+                cx,
             ))
     }
 }
@@ -369,7 +360,6 @@ pub struct MergeDialog {
     pub trash: TrashKind,
     links: Option<Result<usize, String>>,
     focus: FocusHandle,
-    animate: bool,
     _count: Option<Task<()>>,
 }
 
@@ -390,7 +380,6 @@ impl MergeDialog {
         new_note: bool,
         trash: TrashKind,
         count: Task<Result<usize, String>>,
-        animate: bool,
         cx: &mut Context<Self>,
     ) -> Self {
         let task = cx.spawn(async move |this, cx| {
@@ -408,7 +397,6 @@ impl MergeDialog {
             trash,
             links: None,
             focus: cx.focus_handle(),
-            animate,
             _count: Some(task),
         }
     }
@@ -514,12 +502,12 @@ impl Render for MergeDialog {
                 &t,
                 "merge-dialog",
                 focus_i18n::t("ui-merge-title"),
-                self.animate,
                 move |_, cx| {
                     let _ = entity.update(cx, |_, cx| cx.emit(DialogEvent::Close));
                 },
                 body,
                 footer,
+                cx,
             ))
     }
 }

@@ -4,21 +4,21 @@ use std::sync::Arc;
 use focus_core::NoteId;
 use focus_search::{CancelToken, FuzzyScope, SearchOptions};
 use gpui::{
-    Action, Animation, AnimationExt as _, AppContext, Context, Entity, EventEmitter, FontWeight,
-    HighlightStyle, InteractiveElement, IntoElement, ParentElement, Render, ScrollStrategy,
-    SharedString, StatefulInteractiveElement, Styled, Subscription, UniformListScrollHandle,
-    Window, div, prelude::FluentBuilder, px, uniform_list,
+    Action, AppContext, Context, Entity, EventEmitter, FontWeight, HighlightStyle,
+    InteractiveElement, IntoElement, ParentElement, Render, ScrollStrategy, SharedString,
+    StatefulInteractiveElement, Styled, Subscription, UniformListScrollHandle, Window, div,
+    prelude::FluentBuilder, px, uniform_list,
 };
 use gpui_component::RopeExt as _;
 use gpui_component::input::{Input, InputEvent, InputState};
 
 use crate::library::Library;
 use focus_kit::Flow as _;
-use focus_kit::{ActiveTokens, Icon, Kbd, Type, ellipsis, floating, icon, motion, size};
+use focus_kit::{ActiveTokens, Icon, Kbd, Type, ellipsis, floating, icon, size};
 
 use crate::actions::{
     COMMANDS, ConfirmNewTab, SelectFirst, SelectLast, SelectNext, SelectPageDown, SelectPageUp,
-    SelectPrev, display,
+    SelectPrev,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -123,7 +123,6 @@ pub struct Palette {
     mode: Mode,
     selected: usize,
     scroll: UniformListScrollHandle,
-    animate: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -151,7 +150,6 @@ impl Palette {
         ops: bool,
         ai: bool,
         initial: &str,
-        animate: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -189,7 +187,6 @@ impl Palette {
             mode: Mode::Notes,
             selected: 0,
             scroll: UniformListScrollHandle::new(),
-            animate,
             _subscriptions: subscriptions,
         };
         palette.refilter(cx);
@@ -358,7 +355,7 @@ impl Palette {
                             label: label.into(),
                             keys: crate::actions::keys_of(c.label, false)
                                 .first()
-                                .map(|k| display(k))
+                                .map(|k| focus_i18n::keys_text(k))
                                 .unwrap_or_default()
                                 .into(),
                             matched,
@@ -630,6 +627,7 @@ impl Render for Palette {
                                                     })
                                                     .when(!current, |row| {
                                                         row.hover(move |s| s.bg(t.card_2))
+                                                            .active(move |s| s.bg(t.card_3))
                                                     })
                                                     .on_click(cx.listener(
                                                         move |this, _, _, cx| {
@@ -911,16 +909,7 @@ impl Render for Palette {
                 cx.listener(|_, _, _, cx| cx.emit(PaletteEvent::Close)),
             )
             .child(body);
-        if self.animate {
-            veil.with_animation(
-                "palette-fade",
-                Animation::new(motion::FADE),
-                |veil, delta| veil.opacity(delta),
-            )
-            .into_any_element()
-        } else {
-            veil.into_any_element()
-        }
+        focus_kit::fade_in("fade-palette", veil, cx)
     }
 }
 

@@ -217,6 +217,11 @@ impl Shell {
             prefs.load(values);
             prefs
         });
+        focus_kit::fade::set_animate(
+            !scripted && !prefs.read(cx).bool("appearance.reduce_motion"),
+            cx,
+        );
+        focus_kit::size::set_compact(prefs.read(cx).choice("appearance.density") == 1);
         let first_launch = store.first_launch();
         let reopen = !first_launch && vault.is_none();
         let vault = vault.or_else(|| {
@@ -1395,13 +1400,12 @@ impl Shell {
 
     pub fn open_palette(&mut self, initial: &str, window: &mut Window, cx: &mut Context<Self>) {
         let note = self.active_editor().map(|e| e.read(cx).id);
-        let animate = !self.scripted && !self.prefs.read(cx).bool("appearance.reduce_motion");
         let recent: Vec<NoteId> = self.history.iter().rev().copied().collect();
         let library = self.library.clone();
         let ops = self.prefs.read(cx).bool("ops.enabled");
         let ai = self.prefs.read(cx).bool("ai.enabled");
         let palette =
-            cx.new(|cx| Palette::new(library, note, recent, ops, ai, initial, animate, window, cx));
+            cx.new(|cx| Palette::new(library, note, recent, ops, ai, initial, window, cx));
         if let Some(pages) = self.front_pdf().map(|pdf| pdf.read(cx).page_count()) {
             palette.update(cx, |palette, cx| palette.set_pages(pages, cx));
         }
@@ -1688,6 +1692,14 @@ impl Shell {
         }
         if !matches!(self.screen, Screen::Welcome { .. }) {
             self.schedule_save(cx);
+        }
+        if key == "appearance.reduce_motion" {
+            let reduce = self.prefs.read(cx).bool(key);
+            focus_kit::fade::set_animate(!self.scripted && !reduce, cx);
+        }
+        if key == "appearance.density" {
+            focus_kit::size::set_compact(self.prefs.read(cx).choice(key) == 1);
+            window.refresh();
         }
         if key == "appearance.reduce_motion"
             && let Some(graph) = self.graph.clone()
@@ -2013,40 +2025,43 @@ impl Shell {
                 .child(message)
                 .into_any_element(),
         };
-        div()
-            .id("zoom-veil")
-            .absolute()
-            .inset_0()
-            .flow_row()
-            .items_center()
-            .justify_center()
-            .bg(t.veil)
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(|this, _, window, cx| this.close_overlay(window, cx)),
-            )
-            .child(
-                focus_kit::floating(&t)
-                    .flex()
-                    .flex_col()
-                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .child(
-                        div()
-                            .flow_row()
-                            .items_center()
-                            .h(px(28.))
-                            .px(size::S3)
-                            .border_b_1()
-                            .border_color(t.line)
-                            .ui_sm()
-                            .text_color(t.ink_3)
-                            .child(focus_i18n::t("reading-diagram"))
-                            .child(div().flex_1())
-                            .child(focus_kit::Kbd::new(crate::actions::display("escape"))),
-                    )
-                    .child(div().p(size::S6).bg(t.bg).child(body)),
-            )
-            .into_any_element()
+        focus_kit::fade_in(
+            "fade-zoom",
+            div()
+                .id("zoom-veil")
+                .absolute()
+                .inset_0()
+                .flow_row()
+                .items_center()
+                .justify_center()
+                .bg(t.veil)
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _, window, cx| this.close_overlay(window, cx)),
+                )
+                .child(
+                    focus_kit::floating(&t)
+                        .flex()
+                        .flex_col()
+                        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                        .child(
+                            div()
+                                .flow_row()
+                                .items_center()
+                                .h(px(28.))
+                                .px(size::S3)
+                                .border_b_1()
+                                .border_color(t.line)
+                                .ui_sm()
+                                .text_color(t.ink_3)
+                                .child(focus_i18n::t("reading-diagram"))
+                                .child(div().flex_1())
+                                .child(focus_kit::Kbd::new(focus_i18n::keys_text("escape"))),
+                        )
+                        .child(div().p(size::S6).bg(t.bg).child(body)),
+                ),
+            cx,
+        )
     }
 }
 
@@ -2135,6 +2150,7 @@ impl Shell {
                     });
                 }
             },
+            cx,
         ))
     }
 }
@@ -2228,7 +2244,8 @@ impl Render for Shell {
                     .child(view.clone())
                     .into_any_element(),
             ),
-            Overlay::OpsDialog(dialog) => Some(
+            Overlay::OpsDialog(dialog) => Some(focus_kit::fade_in(
+                "fade-ops-dialog",
                 div()
                     .id("ops-dialog-veil")
                     .absolute()
@@ -2245,10 +2262,11 @@ impl Render for Shell {
                         div()
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(dialog.clone()),
-                    )
-                    .into_any_element(),
-            ),
-            Overlay::Settings { view, .. } => Some(
+                    ),
+                cx,
+            )),
+            Overlay::Settings { view, .. } => Some(focus_kit::fade_in(
+                "fade-settings",
                 div()
                     .id("settings-veil")
                     .absolute()
@@ -2265,9 +2283,9 @@ impl Render for Shell {
                         div()
                             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(view.clone()),
-                    )
-                    .into_any_element(),
-            ),
+                    ),
+                cx,
+            )),
         };
         let root = div()
             .id("focus")
