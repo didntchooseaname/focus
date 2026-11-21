@@ -50,7 +50,7 @@ pub use menu::{
     floating, focus_menu, keyboard_menu, menu, menu_rows, menu_separator,
 };
 pub use note_tab::NoteTab;
-pub use scrollbar::{ScrollSource, Scrollbar, scrollbar};
+pub use scrollbar::{ScrollSource, Scrollbar, horizontal_scrollbar, scrollbar};
 pub use segments::{Segment, Segments};
 pub use toast::{Toast, Tone, dot};
 pub use tokens::{ActiveTokens, Mode, Tokens, contrast, motion, size};

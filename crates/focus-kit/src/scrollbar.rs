@@ -63,15 +63,39 @@ impl ScrollSource for ListState {
     }
 }
 
+struct Sideways(ScrollHandle);
+
+impl ScrollSource for Sideways {
+    fn top(&self) -> Pixels {
+        -self.0.offset().x
+    }
+    fn max(&self) -> Pixels {
+        self.0.max_offset().width
+    }
+    fn set_top(&self, top: Pixels) {
+        self.0.set_offset(point(-top, self.0.offset().y));
+    }
+}
+
 pub struct Scrollbar {
     id: ElementId,
     source: Rc<dyn ScrollSource>,
+    horizontal: bool,
 }
 
 pub fn scrollbar(id: impl Into<ElementId>, source: impl ScrollSource) -> Scrollbar {
     Scrollbar {
         id: id.into(),
         source: Rc::new(source),
+        horizontal: false,
+    }
+}
+
+pub fn horizontal_scrollbar(id: impl Into<ElementId>, handle: ScrollHandle) -> Scrollbar {
+    Scrollbar {
+        id: id.into(),
+        source: Rc::new(Sideways(handle)),
+        horizontal: true,
     }
 }
 
@@ -107,15 +131,23 @@ impl Element for Scrollbar {
             position: Position::Absolute,
             ..Style::default()
         };
-        style.inset.top = px(0.).into();
-        style.inset.bottom = px(0.).into();
-        if crate::Dir::current().rtl {
+        if self.horizontal {
             style.inset.left = px(0.).into();
-        } else {
             style.inset.right = px(0.).into();
+            style.inset.bottom = px(0.).into();
+            style.size.width = relative(1.).into();
+            style.size.height = px(WIDTH).into();
+        } else {
+            style.inset.top = px(0.).into();
+            style.inset.bottom = px(0.).into();
+            if crate::Dir::current().rtl {
+                style.inset.left = px(0.).into();
+            } else {
+                style.inset.right = px(0.).into();
+            }
+            style.size.width = px(WIDTH).into();
+            style.size.height = relative(1.).into();
         }
-        style.size.width = px(WIDTH).into();
-        style.size.height = relative(1.).into();
         (window.request_layout(style, [], cx), ())
     }
 
@@ -130,14 +162,26 @@ impl Element for Scrollbar {
     ) -> Prepaint {
         let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
         let max = self.source.max();
-        let track = bounds.size.height;
+        let horizontal = self.horizontal;
+        let track = if horizontal {
+            bounds.size.width
+        } else {
+            bounds.size.height
+        };
         let thumb = (max > px(0.5) && track > px(MIN_THUMB)).then(|| {
             let length = (track * (track / (track + max))).max(px(MIN_THUMB));
             let top = (self.source.top() / max).clamp(0., 1.) * (track - length);
-            Bounds::new(
-                point(bounds.origin.x, bounds.origin.y + top),
-                size(px(WIDTH), length),
-            )
+            if horizontal {
+                Bounds::new(
+                    point(bounds.origin.x + top, bounds.origin.y),
+                    size(length, px(WIDTH)),
+                )
+            } else {
+                Bounds::new(
+                    point(bounds.origin.x, bounds.origin.y + top),
+                    size(px(WIDTH), length),
+                )
+            }
         });
         let drag = match id {
             Some(id) => window.with_element_state(id, |state: Option<Drag>, _| {
@@ -175,12 +219,17 @@ impl Element for Scrollbar {
         window.paint_quad(fill(thumb, color).corner_radii(crate::tokens::size::RADIUS));
         window.set_cursor_style(CursorStyle::Arrow, &state.hitbox);
 
-        let track = bounds.size.height;
-        let length = thumb.size.height;
+        let horizontal = self.horizontal;
+        let along = move |p: gpui::Point<Pixels>| if horizontal { p.x } else { p.y };
+        let (track, length, start) = if horizontal {
+            (bounds.size.width, thumb.size.width, bounds.origin.x)
+        } else {
+            (bounds.size.height, thumb.size.height, bounds.origin.y)
+        };
         let source = self.source.clone();
         let to_top = move |y: Pixels, grab: Pixels| {
             let travel = (track - length).max(px(1.));
-            ((y - bounds.origin.y - grab) / travel).clamp(0., 1.) * source.max()
+            ((y - start - grab) / travel).clamp(0., 1.) * source.max()
         };
 
         let hitbox = state.hitbox.clone();
@@ -195,13 +244,13 @@ impl Element for Scrollbar {
                 return;
             }
             let grab = if thumb.contains(&event.position) {
-                event.position.y - thumb.origin.y
+                along(event.position) - along(thumb.origin)
             } else {
                 length / 2.
             };
             drag.0.set(Some(grab));
             source.drag_started();
-            source.set_top(place(event.position.y, grab));
+            source.set_top(place(along(event.position), grab));
             cx.stop_propagation();
             window.refresh();
         });
@@ -215,7 +264,7 @@ impl Element for Scrollbar {
                 return;
             }
             if let Some(grab) = drag.0.get() {
-                source.set_top(to_top(event.position.y, grab));
+                source.set_top(to_top(along(event.position), grab));
                 window.refresh();
             } else if hitbox.is_hovered(window) != was_hovered {
                 window.refresh();
