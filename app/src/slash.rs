@@ -51,6 +51,7 @@ pub enum Insert {
     },
     ChooseTemplate,
     VaultTemplate(focus_core::NoteId),
+    Tag(String),
     Unavailable,
 }
 
@@ -304,6 +305,39 @@ pub fn vault_templates(templates: &[(focus_core::NoteId, std::path::PathBuf)]) -
         .collect()
 }
 
+pub fn tags(library: &crate::library::Library, query: &str) -> (Vec<Entry>, Vec<Hit>) {
+    let found = library.fuzzy(query, focus_search::FuzzyScope::Tags, &[], 50);
+    let mut entries = Vec::new();
+    let mut hits = Vec::new();
+    for hit in found {
+        let chars: Vec<(usize, char)> = hit.text.char_indices().collect();
+        let matched = hit
+            .positions
+            .iter()
+            .filter_map(|p| {
+                chars
+                    .get(*p as usize)
+                    .map(|(byte, c)| *byte..*byte + c.len_utf8())
+            })
+            .collect();
+        hits.push(Hit {
+            entry: entries.len(),
+            matched,
+        });
+        entries.push(Entry {
+            id: format!("tag-{}", hit.text),
+            group: Group::Links,
+            label: hit.text.clone(),
+            description: String::new(),
+            keywords: String::new(),
+            icon: Icon::TAG,
+            shortcut: None,
+            insert: Insert::Tag(hit.text),
+        });
+    }
+    (entries, hits)
+}
+
 pub fn notes(library: &crate::library::Library, query: &str) -> (Vec<Entry>, Vec<Hit>) {
     let found = library.fuzzy(query, focus_search::FuzzyScope::Notes, &[], 50);
     let mut entries = Vec::new();
@@ -483,11 +517,13 @@ pub fn render(
     query: &str,
     anchor: Bounds<Pixels>,
     viewport: gpui::Size<Pixels>,
+    room: Pixels,
+    side: Option<bool>,
     scroll: &ScrollHandle,
     on_pick: impl Fn(usize, &mut gpui::Window, &mut gpui::App) + Clone + 'static,
     on_dismiss: impl Fn(&mut gpui::Window, &mut gpui::App) + 'static,
     cx: &gpui::App,
-) -> AnyElement {
+) -> (AnyElement, bool) {
     let grouped = grouped && query.trim().is_empty();
     let shown = hits.len().clamp(1, VISIBLE as usize);
     let titles = if grouped {
@@ -500,7 +536,7 @@ pub fn render(
         0
     };
     let height = ROW * shown as f32 + GROUP_ROW * titles as f32 + size::S1 * 2. + px(2.);
-    let below = anchor.bottom() + height + px(8.) < viewport.height;
+    let below = opens_below(anchor.bottom(), height, room, side);
     let top = if below {
         anchor.bottom() + px(4.)
     } else {
@@ -615,7 +651,7 @@ pub fn render(
                 .into_any_element(),
         );
     }
-    div()
+    let element = div()
         .absolute()
         .start_at(if focus_kit::Dir::current().rtl {
             viewport.width - anchor.right()
@@ -638,12 +674,26 @@ pub fn render(
                 .children(rows),
             cx,
         ))
-        .into_any_element()
+        .into_any_element();
+    (element, below)
+}
+
+fn opens_below(anchor_bottom: Pixels, height: Pixels, room: Pixels, side: Option<bool>) -> bool {
+    side.unwrap_or(anchor_bottom + height + size::S2 < room)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{catalog, child_of, filter, score};
+    use super::{catalog, child_of, filter, opens_below, score};
+    use gpui::px;
+
+    #[test]
+    fn the_menu_keeps_the_side_it_opened_on() {
+        assert!(opens_below(px(100.), px(200.), px(500.), None));
+        assert!(!opens_below(px(400.), px(200.), px(500.), None));
+        assert!(!opens_below(px(100.), px(30.), px(500.), Some(false)));
+        assert!(opens_below(px(470.), px(30.), px(500.), Some(true)));
+    }
 
     #[test]
     fn a_row_is_drawn_after_the_titles_of_the_groups_above_it() {

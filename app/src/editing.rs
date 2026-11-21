@@ -20,6 +20,7 @@ pub enum MenuKind {
     Commands,
     Languages,
     Notes,
+    Tags,
     Templates,
 }
 
@@ -29,6 +30,7 @@ impl MenuKind {
             MenuKind::Commands => "/",
             MenuKind::Languages => "```",
             MenuKind::Notes => "[[",
+            MenuKind::Tags => "#",
             MenuKind::Templates => "/",
         }
     }
@@ -44,6 +46,7 @@ pub struct Slash {
     pub selected: usize,
     pub scroll: ScrollHandle,
     pub drawn_at: Option<Bounds<Pixels>>,
+    pub below: Option<(Pixels, bool)>,
 }
 
 impl Slash {
@@ -83,6 +86,20 @@ fn unclosed_link(before: &str) -> Option<(usize, &str)> {
     let at = before.rfind("[[")?;
     let query = &before[at + 2..];
     (!query.contains(']') && query.chars().count() <= 60).then_some((at, query))
+}
+
+fn unclosed_tag(before: &str) -> Option<(usize, &str)> {
+    let at = before.rfind('#')?;
+    let query = &before[at + 1..];
+    let opens = before[..at]
+        .chars()
+        .next_back()
+        .is_none_or(char::is_whitespace);
+    (opens
+        && !query.is_empty()
+        && !query.contains(char::is_whitespace)
+        && query.chars().count() <= 60)
+        .then_some((at, query))
 }
 
 #[derive(Clone, Default)]
@@ -245,11 +262,19 @@ impl Shell {
                 || spaced
                 || query.contains('\n')
                 || query.contains(']')
+                || (kind == MenuKind::Tags && query.contains('#'))
                 || query.chars().count() > 60
             {
                 self.slash = None;
             } else {
                 self.refilter_menu(query, cx);
+                if self
+                    .slash
+                    .as_ref()
+                    .is_some_and(|menu| menu.kind == MenuKind::Tags && menu.hits.is_empty())
+                {
+                    self.slash = None;
+                }
             }
             cx.notify();
             return;
@@ -282,6 +307,23 @@ impl Shell {
             }
         } else if ends("```") && (cursor == 3 || char_before(cursor - 3) == Some('\n')) {
             self.open_menu(editor, MenuKind::Languages, cursor - 3, cx);
+        } else if let Some((at, query)) = unclosed_tag(&before_caret)
+            .or_else(|| ends("#").then(|| (before_caret.len() - 1, "")))
+            .filter(|(at, _)| {
+                before_caret[..*at]
+                    .chars()
+                    .next_back()
+                    .is_none_or(char::is_whitespace)
+            })
+            && self.slash_catalog.dismissed_link != Some(line_start + at)
+            && !editor.read(cx).reading.read(cx).caret_in_property(cx)
+        {
+            let query = query.to_string();
+            self.open_menu(editor, MenuKind::Tags, line_start + at, cx);
+            self.refilter_menu(query, cx);
+            if self.slash.as_ref().is_some_and(|menu| menu.hits.is_empty()) {
+                self.slash = None;
+            }
         }
     }
 
@@ -293,6 +335,7 @@ impl Shell {
             MenuKind::Commands => "commands",
             MenuKind::Languages => "languages",
             MenuKind::Notes => "notes",
+            MenuKind::Tags => "tags",
             MenuKind::Templates => "templates",
         };
         let selected = menu
@@ -355,7 +398,7 @@ impl Shell {
             ),
             MenuKind::Commands => self.slash_catalog.entries.clone(),
             MenuKind::Languages => Arc::new(slash::languages()),
-            MenuKind::Notes => Arc::new(Vec::new()),
+            MenuKind::Notes | MenuKind::Tags => Arc::new(Vec::new()),
             MenuKind::Templates => Arc::new(
                 self.library
                     .as_ref()
@@ -378,6 +421,7 @@ impl Shell {
             selected: 0,
             scroll: ScrollHandle::new(),
             drawn_at: None,
+            below: None,
         });
         self.refilter_menu(String::new(), cx);
         cx.notify();
@@ -397,6 +441,11 @@ impl Shell {
                 let (entries, hits) = library
                     .map(|l| slash::notes(&l, &query))
                     .unwrap_or_default();
+                menu.entries = Arc::new(entries);
+                menu.hits = hits;
+            }
+            MenuKind::Tags => {
+                let (entries, hits) = library.map(|l| slash::tags(&l, &query)).unwrap_or_default();
                 menu.entries = Arc::new(entries);
                 menu.hits = hits;
             }
@@ -480,7 +529,7 @@ impl Shell {
                     self.pick_slash(pick, window, cx);
                 }
                 "escape" => {
-                    if menu.kind == MenuKind::Notes {
+                    if matches!(menu.kind, MenuKind::Notes | MenuKind::Tags) {
                         self.slash_catalog.dismissed_link = Some(menu.anchor);
                     }
                     menu.editor
@@ -639,6 +688,11 @@ impl Shell {
                     let text = format!("{shown}{closing}");
                     replace(query_range, &text, shown.len() + 2, window, cx);
                 }
+                return seen(cx);
+            }
+            Insert::Tag(tag) => {
+                self.slash_catalog.dismissed_link = Some(menu.anchor);
+                replace(query_range, tag, tag.len(), window, cx);
                 return seen(cx);
             }
             Insert::Unavailable => return,
@@ -960,7 +1014,18 @@ pub fn line_prefix(input: &Entity<InputState>, prefix: &str, window: &mut Window
 
 #[cfg(test)]
 mod tests {
-    use super::list_marker;
+    use super::{list_marker, unclosed_tag};
+
+    #[test]
+    fn a_tag_being_typed_opens_its_completion() {
+        assert_eq!(unclosed_tag("see #me"), Some((4, "me")));
+        assert_eq!(unclosed_tag("#method"), Some((0, "method")));
+        assert_eq!(unclosed_tag("# Title"), None);
+        assert_eq!(unclosed_tag("C#"), None);
+        assert_eq!(unclosed_tag("page#anchor"), None);
+        assert_eq!(unclosed_tag("#done and more"), None);
+        assert_eq!(unclosed_tag("a #"), None);
+    }
 
     #[test]
     fn link_targets_follow_the_path_setting() {
