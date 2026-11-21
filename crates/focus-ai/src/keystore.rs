@@ -491,19 +491,27 @@ mod tests {
         dir
     }
 
+    fn program(script: &Path, text: &str) -> String {
+        std::fs::write(script, text).unwrap();
+        std::fs::set_permissions(script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        while matches!(
+            Command::new(script).arg("ready").output(),
+            Err(error) if error.kind() == std::io::ErrorKind::ExecutableFileBusy
+        ) {
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        script.display().to_string()
+    }
+
     fn fake_tool(dir: &Path) -> String {
         let store = dir.join("keyring.txt");
-        let script = dir.join("secret-tool");
-        std::fs::write(
-            &script,
-            format!(
+        program(
+            &dir.join("secret-tool"),
+            &format!(
                 "#!/bin/sh\ncase \"$1\" in\n store) cat > '{0}';;\n lookup) [ -s '{0}' ] && cat '{0}' || exit 1;;\n clear) rm -f '{0}';;\nesac\n",
                 store.display()
             ),
         )
-        .unwrap();
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
-        script.display().to_string()
     }
 
     #[test]
@@ -570,14 +578,15 @@ mod tests {
     #[test]
     fn locked_keyring_does_not_block_and_falls_back_to_file() {
         let dir = scratch("locked");
-        let script = dir.join("secret-tool");
-        std::fs::write(&script, "#!/bin/sh\nsleep 30\n").unwrap();
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let tool = program(
+            &dir.join("secret-tool"),
+            "#!/bin/sh\n[ \"$1\" = ready ] && exit\nsleep 30\n",
+        );
         let file = dir.join("deepseek.key");
         std::fs::write(&file, "sk-from-file-9999\n").unwrap();
         let source = Source {
             env: None,
-            secret_tool: script.display().to_string(),
+            secret_tool: tool,
             file: Some(file),
             lookup_timeout: Duration::from_millis(300),
         };
@@ -595,18 +604,14 @@ mod tests {
     }
 
     fn keyed_fake_tool(dir: &Path) -> String {
-        let script = dir.join("secret-tool");
-        std::fs::write(
-            &script,
-            format!(
+        std::fs::create_dir_all(dir.join("items")).unwrap();
+        program(
+            &dir.join("secret-tool"),
+            &format!(
                 "#!/bin/sh\nd='{}'\nverb=$1; shift\n[ \"$verb\" = store ] && shift\nk=$(printf '%s' \"$*\" | od -An -tx1 | tr -d ' \\n')\ncase \"$verb\" in\n store) cat > \"$d/$k\";;\n lookup) [ -s \"$d/$k\" ] && cat \"$d/$k\" || exit 1;;\n clear) rm -f \"$d/$k\";;\nesac\n",
                 dir.join("items").display()
             ),
         )
-        .unwrap();
-        std::fs::create_dir_all(dir.join("items")).unwrap();
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
-        script.display().to_string()
     }
 
     #[test]
