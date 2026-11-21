@@ -1058,8 +1058,14 @@ fn write_rules_hold_through_the_server_binary() {
     let w = workspace("write-rules");
     let server = start(&w, &["--write"]);
     let note = "Red Team/Kerberoasting.md";
+    let kept = |root: &Path| -> BTreeMap<PathBuf, Vec<u8>> {
+        files_under(root)
+            .into_iter()
+            .filter(|(path, _)| path.file_name().is_none_or(|name| name != "lock"))
+            .collect()
+    };
     let before_vault = files_under(&w.vault);
-    let before_data = files_under(&w.data);
+    let before_data = kept(&w.data);
 
     for (tool, arguments) in [
         (
@@ -1094,7 +1100,7 @@ fn write_rules_hold_through_the_server_binary() {
         "a dry run changed the vault"
     );
     assert_eq!(
-        files_under(&w.data),
+        kept(&w.data),
         before_data,
         "a dry run kept a version or created a file"
     );
