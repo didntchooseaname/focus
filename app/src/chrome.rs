@@ -140,6 +140,7 @@ impl Shell {
                                     .when_some(folder, |this, folder| {
                                         this.cursor_pointer()
                                             .hover(move |s| s.text_color(t.ink).bg(t.card_2))
+                                            .active(move |s| s.bg(t.card_3))
                                             .on_click(cx.listener(
                                                 move |this, event: &gpui::ClickEvent, _, cx| {
                                                     this.open_crumb_menu(
@@ -165,6 +166,7 @@ impl Shell {
                                     .text_color(t.ink)
                                     .cursor_pointer()
                                     .hover(move |s| s.bg(t.card_2))
+                                    .active(move |s| s.bg(t.card_3))
                                     .on_click(
                                         cx.listener(|this, _, _, cx| this.reveal_note_in_files(cx)),
                                     )
@@ -176,7 +178,8 @@ impl Shell {
                 div()
                     .id("titlebar-search")
                     .flow_row()
-                    .flex_none()
+                    .flex_shrink()
+                    .min_w(px(160.))
                     .items_center()
                     .gap(size::S2)
                     .w(px(260.))
@@ -194,14 +197,17 @@ impl Shell {
                     .bg(t.bg_2)
                     .cursor_pointer()
                     .hover(move |s| s.border_color(t.ink_3))
+                    .active(move |s| s.bg(t.card_2))
                     .on_click(|_, window, cx| window.dispatch_action(Box::new(OpenPalette), cx))
                     .child(icon(Icon::SEARCH, size::ICON_DENSE).text_color(t.ink_3))
                     .child(
                         div()
                             .flex_1()
+                            .min_w_0()
+                            .flow_row()
                             .ui()
                             .text_color(t.ink_3)
-                            .child(focus_i18n::t("ui-titlebar-search-prompt")),
+                            .child(ellipsis(focus_i18n::t("ui-titlebar-search-prompt"))),
                     )
                     .child(Kbd::new(crate::actions::shortcut("ui-cmd-open-note"))),
             )
@@ -261,7 +267,7 @@ impl Shell {
                 IconButton::new(
                     "toggle-bottom",
                     Icon::PANEL_BOTTOM,
-                    focus_i18n::t("ui-bottom-tasks"),
+                    focus_i18n::t("ui-titlebar-toggle-bottom"),
                 )
                 .shortcut(crate::actions::shortcut("ui-cmd-toggle-bottom"))
                 .active(self.layout.bottom_open)
@@ -400,6 +406,7 @@ impl Shell {
                                 .text_color(t.ink_2)
                                 .cursor_pointer()
                                 .hover(move |s| s.bg(t.card_2).text_color(t.ink))
+                                .active(move |s| s.bg(t.card_3))
                                 .on_click(cx.listener(|this, _, _, cx| this.cancel_import(cx)))
                                 .child(focus_i18n::t("ui-status-copy-cancel")),
                         ),
@@ -413,8 +420,12 @@ impl Shell {
                         .flex_shrink()
                         .min_w_0()
                         .max_w(px(480.))
+                        .px(size::S1)
+                        .rounded(size::RADIUS)
                         .text_color(t.danger)
                         .cursor_pointer()
+                        .hover(move |s| s.bg(t.card_2))
+                        .active(move |s| s.bg(t.card_3))
                         .child(dot(t.danger))
                         .child(ellipsis(focus_i18n::t_args(
                             "ui-status-history",
@@ -446,33 +457,26 @@ impl Shell {
                 )
             })
             .when_some(editor, |this, editor| {
-                this.child(item().child(focus_i18n::t_args(
-                    "ui-status-words",
-                    &[("count", editor.meta.words.into())],
-                )))
+                this.child(counted("ui-status-words", editor.meta.words as i64))
             })
             .when_some(links, |this, (backlinks, broken)| {
-                this.child(item().child(focus_i18n::t_args(
-                    "ui-status-backlinks",
-                    &[("count", backlinks.into())],
-                )))
-                .when_some(broken.filter(|n| *n > 0), |this, broken| {
-                    this.child(item().text_color(t.warn).child(focus_i18n::t_args(
-                        "ui-status-broken",
-                        &[("count", broken.into())],
-                    )))
-                })
+                this.child(counted("ui-status-backlinks", backlinks as i64))
+                    .when_some(broken.filter(|n| *n > 0), |this, broken| {
+                        this.child(counted("ui-status-broken", broken as i64).text_color(t.warn))
+                    })
             })
             .when(self.library.is_some(), |this| {
-                this.child(item().child(focus_i18n::t_args(
-                    "ui-status-index",
-                    &[("count", self.facts.notes.into())],
-                )))
+                this.child(counted("ui-status-index", self.facts.notes as i64))
             })
             .when_some(self.agent.last(), |this, last| {
                 let tip: SharedString = focus_i18n::t_args(
                     "ui-status-agent-tip",
-                    &[("time", last.format("%H:%M:%S").to_string().as_str().into())],
+                    &[(
+                        "time",
+                        focus_i18n::format_datetime(last.timestamp())
+                            .as_str()
+                            .into(),
+                    )],
                 )
                 .into();
                 this.child(
@@ -498,5 +502,44 @@ impl Shell {
                 )
             })
             .into_any_element()
+    }
+}
+
+fn counted(key: &str, count: i64) -> gpui::Div {
+    let shown = focus_i18n::format_number(count);
+    let text = focus_i18n::t_args(
+        key,
+        &[
+            ("count", focus_i18n::Arg::Int(count)),
+            ("shown", shown.as_str().into()),
+        ],
+    );
+    let row = div().flow_row().flex_none().items_center();
+    match around(&text, &shown) {
+        Some((before, after)) => row
+            .child(before.to_string())
+            .child(div().mono_sm().line_height(px(18.)).child(shown.clone()))
+            .child(after.to_string()),
+        None => row.child(text),
+    }
+}
+
+fn around<'a>(text: &'a str, part: &str) -> Option<(&'a str, &'a str)> {
+    let at = text.find(part)?;
+    Some((&text[..at], &text[at + part.len()..]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::around;
+
+    #[test]
+    fn a_count_splits_around_its_number_or_stays_whole() {
+        assert_eq!(around("1,204 words", "1,204"), Some(("", " words")));
+        assert_eq!(
+            around("已索引 82 篇笔记", "82"),
+            Some(("已索引 ", " 篇笔记"))
+        );
+        assert_eq!(around("كلمتان", "2"), None);
     }
 }

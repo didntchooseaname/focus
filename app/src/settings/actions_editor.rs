@@ -412,24 +412,19 @@ impl SettingsView {
                                 .text_color(if enabled { t.ink } else { t.ink_3 })
                                 .child(shown(&template.label)),
                         )
-                        .child(div().ui_sm().text_color(t.ink_3).child(format!(
-                            "{scope}, {output}{}{}{}",
+                        .child(div().ui_sm().text_color(t.ink_3).child({
+                            let mut parts = vec![scope, output];
                             if builtin {
-                                format!(", {}", focus_i18n::t("settings-ai-actions-builtin"))
-                            } else {
-                                String::new()
-                            },
+                                parts.push(focus_i18n::t("settings-ai-actions-builtin"));
+                            }
                             if builtin && modified {
-                                format!(", {}", focus_i18n::t("settings-ai-actions-modified"))
-                            } else {
-                                String::new()
-                            },
+                                parts.push(focus_i18n::t("settings-ai-actions-modified"));
+                            }
                             if template.ops_only {
-                                format!(", {}", focus_i18n::t("settings-ai-actions-ops"))
-                            } else {
-                                String::new()
-                            },
-                        ))),
+                                parts.push(focus_i18n::t("settings-ai-actions-ops"));
+                            }
+                            parts.join(&focus_i18n::t("ui-list-separator"))
+                        })),
                 )
                 .child(
                     IconButton::new(

@@ -384,7 +384,12 @@ impl SettingsView {
         ascii_fold(self.search.read(cx).value().trim())
     }
 
-    fn render_control(&self, setting: &'static Setting, cx: &mut Context<Self>) -> AnyElement {
+    fn render_control(
+        &self,
+        setting: &'static Setting,
+        off: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let t = *cx.tokens();
         let prefs = self.prefs.read(cx);
         let key = setting.key;
@@ -392,6 +397,7 @@ impl SettingsView {
             Control::Toggle => {
                 let on = prefs.bool(key);
                 Checkbox::new(key, on)
+                    .disabled(off)
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.prefs
                             .update(cx, |prefs, cx| prefs.set(key, Value::Bool(!on), cx));
@@ -406,6 +412,7 @@ impl SettingsView {
                     .collect(),
                 prefs.choice(key),
             )
+            .disabled(off)
             .on_select({
                 let prefs = self.prefs.clone();
                 move |index, _, cx| {
@@ -415,12 +422,13 @@ impl SettingsView {
             .into_any_element(),
             Control::Choice(options) => {
                 let selected = prefs.choice(key);
-                let open = self.open_menu == Some(key);
+                let open = self.open_menu == Some(key) && !off;
                 div()
                     .relative()
                     .child(
                         Button::new(key, schema::option_label(options[selected]))
                             .icon(Icon::CHEVRON_DOWN)
+                            .disabled(off)
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 let just_closed = this
                                     .menu_closed
@@ -436,26 +444,32 @@ impl SettingsView {
                     .when(open, |this| {
                         this.child(deferred(
                             anchored().anchor(Corner::TopRight).snap_to_window().child(
-                                menu(&t)
-                                    .mt(px(4.))
-                                    .occlude()
-                                    .on_mouse_down_out(cx.listener(
-                                        |this, _: &gpui::MouseDownEvent, _, cx| {
-                                            this.menu_closed = Some(Instant::now());
-                                            this.open_menu = None;
-                                            cx.notify();
-                                        },
-                                    ))
-                                    .children(options.iter().enumerate().map(|(index, option)| {
-                                        MenuRow::new(index, schema::option_label(option))
-                                            .checked(index == selected)
-                                            .on_click(cx.listener(move |this, _, _, cx| {
+                                focus_kit::fade_in(
+                                    "fade-settings-menu",
+                                    menu(&t)
+                                        .mt(px(4.))
+                                        .occlude()
+                                        .on_mouse_down_out(cx.listener(
+                                            |this, _: &gpui::MouseDownEvent, _, cx| {
+                                                this.menu_closed = Some(Instant::now());
                                                 this.open_menu = None;
-                                                this.prefs.update(cx, |prefs, cx| {
-                                                    prefs.set(key, Value::Choice(index), cx)
-                                                });
-                                            }))
-                                    })),
+                                                cx.notify();
+                                            },
+                                        ))
+                                        .children(options.iter().enumerate().map(
+                                            |(index, option)| {
+                                                MenuRow::new(index, schema::option_label(option))
+                                                    .checked(index == selected)
+                                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                                        this.open_menu = None;
+                                                        this.prefs.update(cx, |prefs, cx| {
+                                                            prefs.set(key, Value::Choice(index), cx)
+                                                        });
+                                                    }))
+                                            },
+                                        )),
+                                    cx,
+                                ),
                             ),
                         ))
                     })
@@ -470,7 +484,7 @@ impl SettingsView {
                 if MULTILINE.contains(&key) {
                     return div()
                         .w(px(320.))
-                        .child(TextArea::new(input))
+                        .child(TextArea::new(input).disabled(off))
                         .when_some(self.errors.get(key).cloned(), |this, message| {
                             this.child(div().ui_sm().text_color(t.danger).child(message))
                         })
@@ -484,6 +498,7 @@ impl SettingsView {
                     })
                     .child(
                         Field::new(input)
+                            .disabled(off)
                             .error(self.errors.get(key).cloned())
                             .when_some(unit, |field, unit| {
                                 field.suffix(div().ui_sm().text_color(t.ink_3).child(unit))
@@ -491,6 +506,15 @@ impl SettingsView {
                     )
                     .into_any_element()
             }
+            Control::Action if off => Button::new(key, setting.text().action)
+                .disabled(true)
+                .into_any_element(),
+            Control::Custom if off => div().into_any_element(),
+            Control::Info if off => div()
+                .mono()
+                .text_color(t.ink_4)
+                .child(self.info(key))
+                .into_any_element(),
             Control::Action => self
                 .ai_action(key, cx)
                 .or_else(|| self.history_action(key, cx))
@@ -593,27 +617,28 @@ impl SettingsView {
         let off = setting.section == Section::Ai
             && !AI_WITHOUT_SWITCH.contains(&setting.key)
             && !self.prefs.read(cx).bool("ai.enabled");
+        let (label_ink, description_ink) = if off {
+            (t.ink_4, t.ink_4)
+        } else {
+            (t.ink, t.ink_3)
+        };
         if matches!(setting.control, Control::Custom) {
             return div()
                 .relative()
-                .when(off, |this| this.opacity(0.4))
-                .when(off, |this| {
-                    this.child(div().absolute().top_0().left_0().size_full().occlude())
-                })
                 .flex()
                 .flex_col()
                 .gap(size::S3)
                 .py(size::S3)
                 .border_b_1()
                 .border_color(t.line)
-                .child(div().ui().text_color(t.ink).child(setting.text().label))
+                .child(div().ui().text_color(label_ink).child(setting.text().label))
                 .child(
                     div()
                         .ui_sm()
-                        .text_color(t.ink_3)
+                        .text_color(description_ink)
                         .child(setting.text().description),
                 )
-                .child(self.render_control(setting, cx))
+                .child(self.render_control(setting, off, cx))
                 .into_any_element();
         }
         div()
@@ -624,10 +649,6 @@ impl SettingsView {
             .py(size::S3)
             .border_b_1()
             .border_color(t.line)
-            .when(off, |this| this.opacity(0.4))
-            .when(off, |this| {
-                this.child(div().absolute().top_0().left_0().size_full().occlude())
-            })
             .child(
                 div()
                     .flex()
@@ -636,11 +657,11 @@ impl SettingsView {
                     .min_w_0()
                     .gap(px(2.))
                     .pt(px(4.))
-                    .child(div().ui().text_color(t.ink).child(setting.text().label))
+                    .child(div().ui().text_color(label_ink).child(setting.text().label))
                     .child(
                         div()
                             .ui_sm()
-                            .text_color(t.ink_3)
+                            .text_color(description_ink)
                             .child(setting.text().description),
                     ),
             )
@@ -649,7 +670,7 @@ impl SettingsView {
                     .flex_none()
                     .flow_row()
                     .items_start()
-                    .child(self.render_control(setting, cx)),
+                    .child(self.render_control(setting, off, cx)),
             )
             .child(div().flex_none().w(px(28.)).child(if changed {
                 IconButton::new(
@@ -658,6 +679,7 @@ impl SettingsView {
                     focus_i18n::t("settings-reset"),
                 )
                 .dense(true)
+                .disabled(off)
                 .on_click(cx.listener(move |this, _, window, cx| this.reset(setting, window, cx)))
                 .into_any_element()
             } else {
@@ -753,7 +775,10 @@ impl SettingsView {
                             .flex_none()
                             .ui()
                             .text_color(t.ink_3)
-                            .child(label),
+                            .child(focus_kit::truncated(
+                                gpui::ElementId::Name(format!("about-{label}").into()),
+                                label,
+                            )),
                     )
                     .child(
                         div()

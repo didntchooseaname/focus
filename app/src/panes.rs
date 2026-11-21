@@ -106,19 +106,23 @@ fn text_tab(
     (active, focused): (bool, bool),
     on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
 ) -> impl IntoElement {
+    let tip: SharedString = label.clone().into();
     div()
         .id(id)
         .relative()
         .flow_row()
         .items_center()
         .h_full()
-        .flex_none()
+        .flex_shrink()
+        .min_w_0()
         .px(size::S2)
         .ui()
         .text_color(if active { t.ink } else { t.ink_2 })
         .cursor_pointer()
         .hover(|s| s.text_color(t.ink))
-        .child(label)
+        .active(|s| s.bg(t.card_2))
+        .tooltip(move |_, cx| focus_kit::Tooltip::view(tip.clone(), None, cx))
+        .child(focus_kit::ellipsis(label))
         .when(active, |this| this.child(active_bar(t)))
         .when(active && focused, |this| this.child(focus_ring(t)))
         .on_click(on_click)
@@ -423,7 +427,7 @@ impl Shell {
                     .id("right-tabs")
                     .track_focus(&self.right_strip)
                     .on_key_down(strip_keys(false, cx))
-                    .overflow_x_scroll()
+                    .min_w_0()
                     .px(size::S1)
                     .children(tabs.into_iter().map(|(which, label)| {
                         text_tab(
@@ -681,14 +685,17 @@ impl Shell {
                 .items_start()
                 .gap(size::S3)
                 .px(size::S4)
-                .py(px(5.))
+                .py(size::S1)
                 .child(
                     div()
                         .w(px(72.))
                         .flex_none()
                         .ui_sm()
                         .text_color(t.ink_3)
-                        .child(label),
+                        .child(focus_kit::truncated(
+                            ElementId::Name(format!("info-key-{label}").into()),
+                            label,
+                        )),
                 )
                 .child(
                     div()
