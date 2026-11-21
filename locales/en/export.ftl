@@ -81,6 +81,7 @@ import-detected = Detected: { $kind }
 import-unknown = Nothing Focus can import was found at this path.
 import-reading = Reading the source…
 import-preview = What will be created
+import-preview-empty = Choose a file or a folder to see what will be imported
 import-count-notes = Notes
 import-count-attachments = Attachments
 import-count-skipped = Skipped

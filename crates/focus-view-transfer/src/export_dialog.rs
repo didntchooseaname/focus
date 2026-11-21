@@ -266,7 +266,7 @@ impl ExportDialog {
         let format_labels = vec![
             Segment::new(tr("export-format-html")),
             Segment::new(tr("export-format-markdown")),
-            Segment::new(tr("export-format-pdf")),
+            Segment::new(tr("export-format-pdf")).disabled(!scope_is_note),
             Segment::new(tr("export-format-zip")),
         ];
         let selected_format = formats.iter().position(|f| *f == self.format).unwrap_or(0);
@@ -335,7 +335,7 @@ impl ExportDialog {
                     .flex()
                     .flex_col()
                     .gap(size::S1)
-                    .child(
+                    .child(div().flow_row().child(
                         Segments::new("export-scope-choice", scope_labels, self.scope).on_select(
                             move |index, _, cx| {
                                 weak_scope
@@ -343,7 +343,7 @@ impl ExportDialog {
                                     .ok();
                             },
                         ),
-                    )
+                    ))
                     .child(
                         div()
                             .ui_sm()
@@ -354,20 +354,22 @@ impl ExportDialog {
             .child(section(
                 &t,
                 tr("export-format"),
-                Segments::new("export-format-choice", format_labels, selected_format)
-                    .disabled(false)
-                    .on_select(move |index, _, cx| {
-                        weak_format
-                            .update(cx, |this, cx| {
-                                let format = formats[index];
-                                if format != Format::Pdf
-                                    || matches!(this.scopes[this.scope].0, Scope::Note(_))
-                                {
-                                    this.set_format(format, cx);
-                                }
-                            })
-                            .ok();
-                    }),
+                div().flow_row().child(
+                    Segments::new("export-format-choice", format_labels, selected_format)
+                        .disabled(false)
+                        .on_select(move |index, _, cx| {
+                            weak_format
+                                .update(cx, |this, cx| {
+                                    let format = formats[index];
+                                    if format != Format::Pdf
+                                        || matches!(this.scopes[this.scope].0, Scope::Note(_))
+                                    {
+                                        this.set_format(format, cx);
+                                    }
+                                })
+                                .ok();
+                        }),
+                ),
             ))
             .when(!scope_is_note, |d| {
                 d.child(

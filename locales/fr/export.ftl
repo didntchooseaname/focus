@@ -81,6 +81,7 @@ import-detected = Détecté : { $kind }
 import-unknown = Rien que Focus sache importer à ce chemin.
 import-reading = Lecture de la source…
 import-preview = Ce qui sera créé
+import-preview-empty = Choisissez un fichier ou un dossier pour voir ce qui sera importé
 import-count-notes = Notes
 import-count-attachments = Pièces jointes
 import-count-skipped = Ignorés

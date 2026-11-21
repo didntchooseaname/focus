@@ -80,6 +80,7 @@ import-detected = 已识别：{ $kind }
 import-unknown = 在此路径下没有找到 Focus 能导入的内容。
 import-reading = 正在读取来源…
 import-preview = 将创建的内容
+import-preview-empty = 选择一个文件或文件夹，查看将要导入的内容
 import-count-notes = 笔记
 import-count-attachments = 附件
 import-count-skipped = 跳过

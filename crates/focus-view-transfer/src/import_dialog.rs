@@ -272,7 +272,14 @@ impl ImportDialog {
                         notice(&t, t.warn, format!("{name}: {}", skip_text(why)))
                     }));
             }
-            (None, false) => {}
+            (None, false) => {
+                preview_block = preview_block.child(
+                    div()
+                        .ui_sm()
+                        .text_color(t.ink_3)
+                        .child(tr("import-preview-empty")),
+                );
+            }
         }
         div()
             .flex()

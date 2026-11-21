@@ -85,6 +85,7 @@ import-detected = تم التعرف على: { $kind }
 import-unknown = لم يُعثر في هذا المسار على ما يستطيع Focus استيراده.
 import-reading = جارٍ قراءة المصدر…
 import-preview = ما سيتم إنشاؤه
+import-preview-empty = اختر ملفًا أو مجلدًا لترى ما سيتم استيراده
 import-count-notes = الملاحظات
 import-count-attachments = المرفقات
 import-count-skipped = المتجاوَزة
