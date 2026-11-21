@@ -3,6 +3,7 @@ meta-direction = ltr
 
 ui-app-name = Focus
 ui-none = 无
+ui-list-separator = { "、" }
 ui-not-measured = 未测量
 
 ui-language-system = 跟随系统
@@ -64,7 +65,7 @@ ui-cmd-open-system = 用系统打开
 ui-cmd-rotate-image = 顺时针旋转图像
 ui-cmd-rotate-image-back = 逆时针旋转图像
 ui-cmd-copy-image = 复制图像
-ui-palette-no-template = 没有匹配的模板。
+ui-palette-no-template = 没有匹配的模板
 ui-template-provided = Focus 提供
 ui-cmd-export-note = 导出笔记
 ui-cmd-export-vault = 导出库
@@ -75,7 +76,7 @@ ui-cmd-copy-html = 将笔记复制为 HTML
 ui-cmd-copy-markdown = 将笔记复制为 Markdown
 ui-cmd-versions = 查看笔记的历史版本
 ui-cmd-merge-note = 将当前笔记与另一篇笔记合并…
-ui-cmd-extract-selection = 提取当前选中内容…
+ui-cmd-extract-selection = 提取到笔记…
 ui-cmd-move-block-up = 上移块
 ui-cmd-move-block-down = 下移块
 ui-cmd-find = 在笔记中查找
@@ -150,12 +151,22 @@ ui-key-up = 上
 ui-key-down = 下
 ui-key-space = 空格
 ui-key-delete = Del
+ui-key-backspace = Backspace
+ui-key-home = Home
+ui-key-end = End
+ui-key-page-up = PgUp
+ui-key-page-down = PgDn
+ui-key-insert = Ins
+ui-key-menu = 菜单
+ui-key-add = 小键盘 +
+ui-key-subtract = 小键盘 -
 ui-key-ctrl-enter = Ctrl Enter
 ui-key-shift-enter = Shift Enter
 ui-key-up-down = 上 下
 
 ui-titlebar-toggle-left = 左侧栏
 ui-titlebar-toggle-right = 右侧栏
+ui-titlebar-toggle-bottom = 底部面板
 ui-titlebar-back = 后退
 ui-titlebar-forward = 前进
 ui-titlebar-search-prompt = 搜索…
@@ -226,7 +237,7 @@ ui-status-modified = 已修改
 ui-status-cursor = 第 { $line } 行，第 { $column } 列
 ui-status-words =
     { $count ->
-       *[other] { $count } 字
+       *[other] { $shown } 字
     }
 ui-status-image-size = { $width } × { $height } 像素
 ui-status-pdf-page = 第 { $page } 页，共 { $count } 页
@@ -236,9 +247,9 @@ ui-notes-count =
     }
 
 ui-palette-placeholder = 打开笔记。> 命令，# 标签，@ 标题，/ 全文
-ui-palette-no-match = 没有匹配的笔记。
-ui-palette-no-command = 没有匹配的命令。
-ui-palette-no-heading = 当前笔记中没有匹配的标题。
+ui-palette-no-match = 没有匹配的笔记
+ui-palette-no-command = 没有匹配的命令
+ui-palette-no-heading = 当前笔记中没有匹配的标题
 ui-palette-open = 打开
 ui-palette-new-tab = 新标签页
 ui-palette-browse = 浏览
@@ -314,8 +325,8 @@ ui-kit-type-ui-lg = 面板标题，14 / 22
 ui-kit-type-ui = 界面文字，13 / 20
 ui-kit-type-ui-sm = 紧凑行和路径，12.5 / 18
 ui-kit-type-display-sm = 项目发现项
-ui-kit-sample-notes = 篇笔记
 ui-kit-sample-backlinks = 条反向链接
+ui-kit-sample-notes = 篇笔记
 
 ui-cmd-bold = 加粗
 ui-cmd-italic = 倾斜
@@ -549,7 +560,7 @@ ui-image-copy-failed = 复制图像失败：{ $error }
 ui-conflict-copy = 未保存的副本
 
 vault-filter-placeholder = 按名称筛选
-vault-filter-none = 没有文件名与筛选条件匹配。
+vault-filter-none = 没有文件名与筛选条件匹配
 vault-tree-empty = 此仓库还没有笔记。按 Ctrl N 新建一篇。
 vault-new-note-name = 未命名
 vault-new-folder-name = 新建文件夹
@@ -568,7 +579,7 @@ vault-menu-copy-path = 复制路径
 vault-menu-copy-link = 复制链接
 vault-menu-trash = 移到回收站
 vault-move-placeholder = 目标文件夹
-vault-move-none = 没有匹配的文件夹。
+vault-move-none = 没有匹配的文件夹
 vault-trash-question = 将“{ $name }”移到回收站？
 vault-trash-detail = 它会进入仓库的 .trash 文件夹，可以从那里取回。
 vault-trash-detail-system = 它会进入系统回收站，可以用文件管理器从那里还原。
@@ -615,7 +626,7 @@ ui-merge-trash-system = { $source } 将移入系统回收站，可在文件管�
 ui-merge-no-note = 请先打开一篇笔记，再将其合并到另一篇
 ui-note-merged = 笔记已合并到 { $destination }。已改写 { $links } 个链接。
 ui-extract-no-selection = 请在编辑或实时视图中选中笔记文本后再提取
-ui-selection-extracted = 选中内容已提取到 { $destination }
+ui-selection-extracted = 已提取到 { $destination }
 ui-extract-source-changed = 文本已添加到 { $destination }，但笔记在此期间已更改：选中内容保留原处
 vault-tasks-open = 未完成
 vault-tasks-done = 已完成
@@ -646,9 +657,18 @@ vault-bookmark-remove = 移除书签
 vault-menu-bookmark = 添加到书签
 vault-menu-unbookmark = 从书签中移除
 ui-status-conflict = 磁盘上已更改
-ui-status-backlinks = { $count } 个反向链接
-ui-status-broken = { $count } 个失效链接
-ui-status-index = 已索引 { $count } 篇笔记
+ui-status-backlinks =
+    { $count ->
+       *[other] { $shown } 个反向链接
+    }
+ui-status-broken =
+    { $count ->
+       *[other] { $shown } 个失效链接
+    }
+ui-status-index =
+    { $count ->
+       *[other] 已索引 { $shown } 篇笔记
+    }
 ui-status-agent = 代理已连接
 ui-status-agent-tip = 有代理通过本地套接字访问了此窗口，最近一次在 { $time }。
 ui-agent-inserted = 代理在 { $note } 中插入了 { $count } 个字符。

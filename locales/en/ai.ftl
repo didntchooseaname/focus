@@ -25,10 +25,12 @@ ai-confirm-apply = Apply
 ai-confirm-reject = Reject
 ai-confirm-always-allow = Always allow this tool for { $server }
 ai-diff-title = Differences
-ai-context-note = Current note
+ai-context-note = Current note: { $path }
 ai-context-selection = Selection
-ai-context-added = Added with @
+ai-context-added = Added with @: { $path }
 ai-context-remove = Remove from context
+ai-tokens-approx = ~{ $count }
+ai-tokens-approx-thousands = ~{ $count }k
 ai-context-tokens =
     { $count ->
         [one] About { $count } token
@@ -129,7 +131,7 @@ ai-action-needs-note = Open a note first
 ai-needs-key = Add an API key in the settings
 ai-actions-running = Wait for the answer to end
 ai-masking-active = Secrets are masked before sending
-ai-mention-empty = No matching note.
+ai-mention-empty = No matching note
 ai-actions-target-selection = Applies to the selection
 ai-actions-target-note = Applies to the note
 ai-actions-no-target = Open a note or select text to use actions.

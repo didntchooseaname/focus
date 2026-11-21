@@ -1,6 +1,6 @@
 search-placeholder = Rechercher dans le coffre
 search-searching = Recherche en cours…
-search-no-results = Aucun résultat.
+search-no-results = Aucun résultat
 search-results-count =
     { $count ->
         [one] { $count } résultat dans { $files ->
@@ -118,6 +118,7 @@ search-replace-failed =
     }
 search-replace-changed = modifiée sur le disque depuis l’aperçu
 search-replace-write-error = écriture impossible ({ $detail })
+search-replace-failed-note = { $title } : { $reason }
 search-replace-unreadable =
     { $count ->
         [one] { $count } note écartée : UTF-8 invalide

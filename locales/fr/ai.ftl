@@ -25,10 +25,12 @@ ai-confirm-apply = Appliquer
 ai-confirm-reject = Refuser
 ai-confirm-always-allow = Toujours autoriser cet outil pour { $server }
 ai-diff-title = Différences
-ai-context-note = Note courante
+ai-context-note = Note courante : { $path }
 ai-context-selection = Sélection
-ai-context-added = Ajoutée avec @
+ai-context-added = Ajoutée avec @ : { $path }
 ai-context-remove = Retirer du contexte
+ai-tokens-approx = ~{ $count }
+ai-tokens-approx-thousands = ~{ $count }k
 ai-context-tokens =
     { $count ->
         [one] Environ { $count } jeton
@@ -129,7 +131,7 @@ ai-action-needs-note = Ouvrez d'abord une note
 ai-needs-key = Ajoutez une clé d'API dans les réglages
 ai-actions-running = Attendez la fin de la réponse
 ai-masking-active = Les secrets sont masqués avant l'envoi
-ai-mention-empty = Aucune note correspondante.
+ai-mention-empty = Aucune note correspondante
 ai-actions-target-selection = S'applique à la sélection
 ai-actions-target-note = S'applique à la note
 ai-actions-no-target = Ouvrez une note ou sélectionnez du texte pour utiliser les actions.

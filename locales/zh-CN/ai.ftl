@@ -25,10 +25,12 @@ ai-confirm-apply = 应用
 ai-confirm-reject = 拒绝
 ai-confirm-always-allow = 始终允许 { $server } 使用此工具
 ai-diff-title = 差异
-ai-context-note = 当前笔记
+ai-context-note = 当前笔记：{ $path }
 ai-context-selection = 选中内容
-ai-context-added = 通过 @ 添加
+ai-context-added = 通过 @ 添加：{ $path }
 ai-context-remove = 从上下文中移除
+ai-tokens-approx = ~{ $count }
+ai-tokens-approx-thousands = ~{ $count }千
 ai-context-tokens =
     { $count ->
        *[other] 约 { $count } 个 token
@@ -125,7 +127,7 @@ ai-action-needs-note = 请先打开笔记
 ai-needs-key = 请在设置中添加 API 密钥
 ai-actions-running = 请等待回答结束
 ai-masking-active = 发送前会遮盖密钥
-ai-mention-empty = 没有匹配的笔记。
+ai-mention-empty = 没有匹配的笔记
 ai-actions-target-selection = 应用于所选内容
 ai-actions-target-note = 应用于整篇笔记
 ai-actions-no-target = 打开笔记或选中文本后才能使用操作。

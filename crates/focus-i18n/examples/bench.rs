@@ -17,7 +17,10 @@ fn main() {
         for i in 0..ROUNDS {
             black_box(focus_i18n::t_args(
                 "ui-status-words",
-                &[("count", focus_i18n::Arg::Int(i64::from(i % 50)))],
+                &[
+                    ("count", focus_i18n::Arg::Int(i64::from(i % 50))),
+                    ("shown", focus_i18n::Arg::Str("42")),
+                ],
             ));
         }
         let with_args = started.elapsed().as_nanos() as f64 / f64::from(ROUNDS);

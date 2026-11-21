@@ -3,6 +3,7 @@ meta-direction = rtl
 
 ui-app-name = Focus
 ui-none = بلا
+ui-list-separator = { "، " }
 ui-not-measured = غير مقاس
 
 ui-language-system = النظام
@@ -64,7 +65,7 @@ ui-cmd-open-system = فتح بواسطة النظام
 ui-cmd-rotate-image = تدوير الصورة باتجاه عقارب الساعة
 ui-cmd-rotate-image-back = تدوير الصورة عكس اتجاه عقارب الساعة
 ui-cmd-copy-image = نسخ الصورة
-ui-palette-no-template = لا يطابق أي قالب.
+ui-palette-no-template = لا يطابق أي قالب
 ui-template-provided = مقدَّم من Focus
 ui-cmd-export-note = تصدير الملاحظة
 ui-cmd-export-vault = تصدير الخزنة
@@ -75,7 +76,7 @@ ui-cmd-copy-html = نسخ الملاحظة بصيغة HTML
 ui-cmd-copy-markdown = نسخ الملاحظة بصيغة Markdown
 ui-cmd-versions = عرض إصدارات الملاحظة
 ui-cmd-merge-note = دمج الملاحظة الحالية مع ملاحظة أخرى…
-ui-cmd-extract-selection = استخراج التحديد الحالي…
+ui-cmd-extract-selection = استخراج إلى ملاحظة…
 ui-cmd-move-block-up = نقل الكتلة إلى الأعلى
 ui-cmd-move-block-down = نقل الكتلة إلى الأسفل
 ui-cmd-find = البحث في الملاحظة
@@ -150,12 +151,22 @@ ui-key-up = أعلى
 ui-key-down = أسفل
 ui-key-space = مسافة
 ui-key-delete = Del
+ui-key-backspace = Backspace
+ui-key-home = Home
+ui-key-end = End
+ui-key-page-up = PgUp
+ui-key-page-down = PgDn
+ui-key-insert = Ins
+ui-key-menu = القائمة
+ui-key-add = لوحة الأرقام +
+ui-key-subtract = لوحة الأرقام -
 ui-key-ctrl-enter = Ctrl Enter
 ui-key-shift-enter = Shift Enter
 ui-key-up-down = أعلى أسفل
 
 ui-titlebar-toggle-left = الشريط الجانبي الأيسر
 ui-titlebar-toggle-right = الشريط الجانبي الأيمن
+ui-titlebar-toggle-bottom = اللوحة السفلية
 ui-titlebar-back = رجوع
 ui-titlebar-forward = تقدم
 ui-titlebar-search-prompt = بحث…
@@ -237,9 +248,9 @@ ui-status-words =
         [zero] لا كلمات
         [one] كلمة واحدة
         [two] كلمتان
-        [few] { $count } كلمات
-        [many] { $count } كلمة
-       *[other] { $count } كلمة
+        [few] { $shown } كلمات
+        [many] { $shown } كلمة
+       *[other] { $shown } كلمة
     }
 ui-status-image-size = { $width } × { $height } بكسل
 ui-status-pdf-page = الصفحة { $page } من { $count }
@@ -254,9 +265,9 @@ ui-notes-count =
     }
 
 ui-palette-placeholder = افتح ملاحظة. > أوامر، # وسوم، @ عناوين، / نص كامل
-ui-palette-no-match = لا توجد ملاحظة مطابقة.
-ui-palette-no-command = لا يوجد أمر مطابق.
-ui-palette-no-heading = لا يوجد عنوان مطابق في الملاحظة الحالية.
+ui-palette-no-match = لا توجد ملاحظة مطابقة
+ui-palette-no-command = لا يوجد أمر مطابق
+ui-palette-no-heading = لا يوجد عنوان مطابق في الملاحظة الحالية
 ui-palette-open = فتح
 ui-palette-new-tab = علامة تبويب جديدة
 ui-palette-browse = استعراض
@@ -339,8 +350,8 @@ ui-kit-type-ui-lg = عنوان لوحة، 14 / 22
 ui-kit-type-ui = نص الواجهة، 13 / 20
 ui-kit-type-ui-sm = صف كثيف ومسار، 12.5 / 18
 ui-kit-type-display-sm = اكتشافات المهمة
-ui-kit-sample-notes = ملاحظات
 ui-kit-sample-backlinks = روابط راجعة
+ui-kit-sample-notes = ملاحظات
 
 ui-cmd-bold = تغليظ النص
 ui-cmd-italic = جعل النص مائلًا
@@ -579,7 +590,7 @@ ui-image-copy-failed = فشل نسخ الصورة: { $error }
 ui-conflict-copy = نسخة غير محفوظة
 
 vault-filter-placeholder = التصفية بالاسم
-vault-filter-none = لا يطابق أي اسم ملف هذه التصفية.
+vault-filter-none = لا يطابق أي اسم ملف هذه التصفية
 vault-tree-empty = لا توجد ملاحظات في هذه الخزنة بعد. أنشئ واحدة بالضغط على Ctrl N.
 vault-new-note-name = بلا عنوان
 vault-new-folder-name = مجلد جديد
@@ -598,7 +609,7 @@ vault-menu-copy-path = نسخ المسار
 vault-menu-copy-link = نسخ الرابط
 vault-menu-trash = نقل إلى سلة المهملات
 vault-move-placeholder = المجلد الوجهة
-vault-move-none = لا يوجد مجلد مطابق.
+vault-move-none = لا يوجد مجلد مطابق
 vault-trash-question = نقل «{ $name }» إلى سلة المهملات؟
 vault-trash-detail = ينتقل إلى مجلد ‎.trash في الخزنة، ويمكنك استرجاعه منه.
 vault-trash-detail-system = ينتقل إلى سلة مهملات النظام، ويمكن لمدير الملفات استرجاعه منها.
@@ -699,7 +710,7 @@ ui-note-merged =
        *[other] دُمجت الملاحظة في { $destination }. أُعيدت كتابة { $links } رابطًا.
     }
 ui-extract-no-selection = حدّد نصًا في ملاحظة في وضع التحرير أو المباشر لاستخراجه
-ui-selection-extracted = استُخرج التحديد إلى { $destination }
+ui-selection-extracted = استُخرج إلى { $destination }
 ui-extract-source-changed = أُضيف النص إلى { $destination }، لكن الملاحظة تغيّرت في الأثناء: بقي التحديد في مكانه
 vault-tasks-open = مفتوحة
 vault-tasks-done = منجزة
@@ -763,27 +774,27 @@ ui-status-backlinks =
         [zero] لا روابط واردة
         [one] رابط وارد واحد
         [two] رابطان واردان
-        [few] { $count } روابط واردة
-        [many] { $count } رابطًا واردًا
-       *[other] { $count } رابط وارد
+        [few] { $shown } روابط واردة
+        [many] { $shown } رابطًا واردًا
+       *[other] { $shown } رابط وارد
     }
 ui-status-broken =
     { $count ->
         [zero] لا روابط معطلة
         [one] رابط معطل واحد
         [two] رابطان معطلان
-        [few] { $count } روابط معطلة
-        [many] { $count } رابطًا معطلًا
-       *[other] { $count } رابط معطل
+        [few] { $shown } روابط معطلة
+        [many] { $shown } رابطًا معطلًا
+       *[other] { $shown } رابط معطل
     }
 ui-status-index =
     { $count ->
         [zero] لا ملاحظات مفهرسة
         [one] ملاحظة مفهرسة واحدة
         [two] ملاحظتان مفهرستان
-        [few] { $count } ملاحظات مفهرسة
-        [many] { $count } ملاحظة مفهرسة
-       *[other] { $count } ملاحظة مفهرسة
+        [few] { $shown } ملاحظات مفهرسة
+        [many] { $shown } ملاحظة مفهرسة
+       *[other] { $shown } ملاحظة مفهرسة
     }
 ui-status-agent = وكيل متصل
 ui-status-agent-tip = وصل وكيل إلى هذه النافذة عبر المقبس المحلي، آخر طلب في { $time }.

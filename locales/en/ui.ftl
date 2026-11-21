@@ -3,6 +3,7 @@ meta-direction = ltr
 
 ui-app-name = Focus
 ui-none = None
+ui-list-separator = { ", " }
 ui-not-measured = not measured
 
 ui-language-system = System
@@ -64,7 +65,7 @@ ui-cmd-open-system = Open with the system
 ui-cmd-rotate-image = Rotate the image clockwise
 ui-cmd-rotate-image-back = Rotate the image counterclockwise
 ui-cmd-copy-image = Copy the image
-ui-palette-no-template = No template matches.
+ui-palette-no-template = No template matches
 ui-template-provided = Provided by Focus
 ui-cmd-export-note = Export the note
 ui-cmd-export-vault = Export the vault
@@ -75,7 +76,7 @@ ui-cmd-copy-html = Copy the note as HTML
 ui-cmd-copy-markdown = Copy the note as Markdown
 ui-cmd-versions = Show the versions of the note
 ui-cmd-merge-note = Merge current note with another note…
-ui-cmd-extract-selection = Extract current selection…
+ui-cmd-extract-selection = Extract into a note…
 ui-cmd-move-block-up = Move the block up
 ui-cmd-move-block-down = Move the block down
 ui-cmd-find = Find in the note
@@ -150,12 +151,22 @@ ui-key-up = Up
 ui-key-down = Down
 ui-key-space = Space
 ui-key-delete = Del
+ui-key-backspace = Backspace
+ui-key-home = Home
+ui-key-end = End
+ui-key-page-up = PgUp
+ui-key-page-down = PgDn
+ui-key-insert = Ins
+ui-key-menu = Menu
+ui-key-add = Keypad +
+ui-key-subtract = Keypad -
 ui-key-ctrl-enter = Ctrl Enter
 ui-key-shift-enter = Shift Enter
 ui-key-up-down = Up Down
 
 ui-titlebar-toggle-left = Left sidebar
 ui-titlebar-toggle-right = Right sidebar
+ui-titlebar-toggle-bottom = Bottom panel
 ui-titlebar-back = Back
 ui-titlebar-forward = Forward
 ui-titlebar-search-prompt = Search…
@@ -230,8 +241,8 @@ ui-status-modified = Modified
 ui-status-cursor = Ln { $line }, Col { $column }
 ui-status-words =
     { $count ->
-        [one] { $count } word
-       *[other] { $count } words
+        [one] { $shown } word
+       *[other] { $shown } words
     }
 ui-status-image-size = { $width } × { $height } px
 ui-status-pdf-page = Page { $page } of { $count }
@@ -242,9 +253,9 @@ ui-notes-count =
     }
 
 ui-palette-placeholder = Open a note. > commands, # tags, @ headings, / full text
-ui-palette-no-match = No note matches.
-ui-palette-no-command = No command matches.
-ui-palette-no-heading = No heading matches in the current note.
+ui-palette-no-match = No note matches
+ui-palette-no-command = No command matches
+ui-palette-no-heading = No heading matches in the current note
 ui-palette-open = Open
 ui-palette-new-tab = New tab
 ui-palette-browse = Browse
@@ -323,8 +334,8 @@ ui-kit-type-ui-lg = Panel title, 14 / 22
 ui-kit-type-ui = Interface text, 13 / 20
 ui-kit-type-ui-sm = Dense row and path, 12.5 / 18
 ui-kit-type-display-sm = Engagement findings
-ui-kit-sample-notes = notes
 ui-kit-sample-backlinks = backlinks
+ui-kit-sample-notes = notes
 
 ui-cmd-bold = Make bold
 ui-cmd-italic = Make italic
@@ -559,7 +570,7 @@ ui-image-copy-failed = Copying the image failed: { $error }
 ui-conflict-copy = unsaved copy
 
 vault-filter-placeholder = Filter by name
-vault-filter-none = No file name matches the filter.
+vault-filter-none = No file name matches the filter
 vault-tree-empty = This vault has no notes yet. Create one with Ctrl N.
 vault-new-note-name = Untitled
 vault-new-folder-name = New folder
@@ -578,7 +589,7 @@ vault-menu-copy-path = Copy path
 vault-menu-copy-link = Copy link
 vault-menu-trash = Move to trash
 vault-move-placeholder = Folder to move to
-vault-move-none = No folder matches.
+vault-move-none = No folder matches
 vault-trash-question = Move “{ $name }” to the trash?
 vault-trash-detail = It goes to the .trash folder of the vault, where you can take it back.
 vault-trash-detail-system = It goes to the system trash, where your file manager can restore it.
@@ -647,7 +658,7 @@ ui-note-merged =
        *[other] Note merged into { $destination }. { $links } links rewritten.
     }
 ui-extract-no-selection = Select text in a note in Edit or Live to extract it
-ui-selection-extracted = Selection extracted to { $destination }
+ui-selection-extracted = Extracted into { $destination }
 ui-extract-source-changed = Text added to { $destination }, but the note changed meanwhile: the selection was left in place
 vault-tasks-open = Open
 vault-tasks-done = Done
@@ -692,18 +703,18 @@ vault-menu-unbookmark = Remove from bookmarks
 ui-status-conflict = Changed on disk
 ui-status-backlinks =
     { $count ->
-        [one] { $count } backlink
-       *[other] { $count } backlinks
+        [one] { $shown } backlink
+       *[other] { $shown } backlinks
     }
 ui-status-broken =
     { $count ->
-        [one] { $count } broken link
-       *[other] { $count } broken links
+        [one] { $shown } broken link
+       *[other] { $shown } broken links
     }
 ui-status-index =
     { $count ->
-        [one] { $count } note indexed
-       *[other] { $count } notes indexed
+        [one] { $shown } note indexed
+       *[other] { $shown } notes indexed
     }
 ui-status-agent = Agent connected
 ui-status-agent-tip = An agent reached this window through the local socket, last at { $time }.

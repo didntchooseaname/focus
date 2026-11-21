@@ -1,6 +1,6 @@
 search-placeholder = Search the vault
 search-searching = Searching…
-search-no-results = No results.
+search-no-results = No results
 search-results-count =
     { $count ->
         [one] { $count } result in { $files ->
@@ -118,6 +118,7 @@ search-replace-failed =
     }
 search-replace-changed = changed on disk since the preview
 search-replace-write-error = could not write ({ $detail })
+search-replace-failed-note = { $title }: { $reason }
 search-replace-unreadable =
     { $count ->
         [one] { $count } note left out: not valid UTF-8

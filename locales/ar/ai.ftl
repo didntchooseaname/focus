@@ -25,10 +25,12 @@ ai-confirm-apply = تطبيق
 ai-confirm-reject = رفض
 ai-confirm-always-allow = السماح دائمًا بهذه الأداة لـ { $server }
 ai-diff-title = الفروقات
-ai-context-note = الملاحظة الحالية
+ai-context-note = الملاحظة الحالية: { $path }
 ai-context-selection = التحديد
-ai-context-added = أُضيف بالرمز @
+ai-context-added = أُضيف بالرمز @: { $path }
 ai-context-remove = إزالة من السياق
+ai-tokens-approx = ~{ $count }
+ai-tokens-approx-thousands = ~{ $count } ألف
 ai-context-tokens =
     { $count ->
         [zero] لا رموز
@@ -145,7 +147,7 @@ ai-action-needs-note = افتح ملاحظة أولًا
 ai-needs-key = أضف مفتاح API في الإعدادات
 ai-actions-running = انتظر انتهاء الإجابة
 ai-masking-active = تُحجب الأسرار قبل الإرسال
-ai-mention-empty = لا توجد ملاحظة مطابقة.
+ai-mention-empty = لا توجد ملاحظة مطابقة
 ai-actions-target-selection = يُطبَّق على التحديد
 ai-actions-target-note = يُطبَّق على الملاحظة
 ai-actions-no-target = افتح ملاحظة أو حدّد نصًا لاستخدام الإجراءات.

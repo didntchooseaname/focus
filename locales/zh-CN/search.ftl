@@ -1,6 +1,6 @@
 search-placeholder = 搜索库
 search-searching = 正在搜索…
-search-no-results = 没有结果。
+search-no-results = 没有结果
 search-results-count =
     { $count ->
        *[other] { $count } 条结果，分布在 { $files ->
@@ -88,4 +88,5 @@ search-replace-done = 已替换 { $count } 处，涉及 { $files } 篇笔记
 search-replace-failed = { $count } 篇笔记未写入
 search-replace-changed = 预览后已在磁盘上被修改
 search-replace-write-error = 无法写入（{ $detail }）
+search-replace-failed-note = { $title }：{ $reason }
 search-replace-unreadable = { $count } 篇笔记因不是有效的 UTF-8 而被跳过

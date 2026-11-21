@@ -1,6 +1,6 @@
 search-placeholder = البحث في الخزنة
 search-searching = جارٍ البحث…
-search-no-results = لا توجد نتائج.
+search-no-results = لا توجد نتائج
 search-results-count =
     { $count ->
         [zero] لا نتائج في { $files ->
@@ -162,6 +162,7 @@ search-replace-failed =
     }
 search-replace-changed = تغيّرت على القرص منذ المعاينة
 search-replace-write-error = تعذّرت الكتابة ({ $detail })
+search-replace-failed-note = { $title }: { $reason }
 search-replace-unreadable =
     { $count ->
         [zero] لا ملاحظات مستبعدة
