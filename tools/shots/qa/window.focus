@@ -6,11 +6,11 @@ shot dark
 key ctrl-j
 shot bottom-journal
 key ctrl-j
-key ctrl-b
+key ctrl-shift-b
 shot left-hidden
 key ctrl-alt-b
 shot both-hidden
-key ctrl-b
+key ctrl-shift-b
 key ctrl-alt-b
 theme light
 shot light

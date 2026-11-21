@@ -21,6 +21,6 @@ key escape
 settings appearance
 shot settings
 key escape
-key ctrl-b
+key ctrl-shift-b
 key ctrl-alt-b
 shot sidebars-hidden

@@ -151,7 +151,7 @@ pub const COMMANDS: &[Command] = &[
     command!("ui-cmd-commands", "ctrl-shift-p", OpenCommands, false),
     command!("ui-cmd-settings", "ctrl-,", OpenSettings, true),
     command!("ui-cmd-check-updates", "", CheckUpdates, true),
-    command!("ui-cmd-toggle-left", "ctrl-b", ToggleLeft, true),
+    command!("ui-cmd-toggle-left", "ctrl-shift-b", ToggleLeft, true),
     command!("ui-cmd-toggle-right", "ctrl-alt-b", ToggleRight, true),
     command!("ui-cmd-toggle-bottom", "ctrl-j", ToggleBottom, true),
     command!("ui-cmd-search", "ctrl-shift-f", SearchVault, true),
