@@ -6,7 +6,8 @@ use focus_kit::{ActiveTokens, MenuRow, Tokens, TreeRow, Type, menu, size};
 use gpui::{
     AnyElement, App, AppContext, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement,
     IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, Render,
-    Styled, Task, UniformListScrollHandle, Window, div, prelude::FluentBuilder, px, uniform_list,
+    ScrollStrategy, Styled, Task, UniformListScrollHandle, Window, div, prelude::FluentBuilder, px,
+    uniform_list,
 };
 
 use crate::VaultViewEvent;
@@ -98,6 +99,7 @@ pub struct TagTree {
     focus: FocusHandle,
     selected: Option<usize>,
     menu: Option<(String, Point<Pixels>)>,
+    type_ahead: crate::keys::TypeAhead,
 }
 
 impl EventEmitter<VaultViewEvent> for TagTree {}
@@ -120,6 +122,7 @@ impl TagTree {
             focus: cx.focus_handle(),
             selected: None,
             menu: None,
+            type_ahead: Default::default(),
         };
         tree.load(cx);
         tree
@@ -202,6 +205,27 @@ impl TagTree {
             + handle.offset().y
             + size::list_row() / 2.;
         (y > list.top() && y < list.bottom()).then(|| gpui::point(list.left() + px(64.), y))
+    }
+
+    fn type_ahead_key(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
+        if self.menu.is_none()
+            && let Some(typed) = crate::keys::TypeAhead::typed_char(event)
+        {
+            let names = self
+                .rows
+                .iter()
+                .enumerate()
+                .map(|(row, tag)| (row, tag.label.as_str()));
+            let found =
+                self.type_ahead
+                    .seek(typed, std::time::Instant::now(), names, self.selected);
+            if let Some(row) = found {
+                self.selected = Some(row);
+                self.scroll.scroll_to_item(row, ScrollStrategy::Center);
+                cx.notify();
+            }
+            cx.stop_propagation();
+        }
     }
 
     fn on_key(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
@@ -368,11 +392,15 @@ fn tag_rows(counts: &BTreeMap<String, (String, u32)>, expanded: &HashSet<String>
 }
 
 impl Render for TagTree {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = *cx.tokens();
+        if self.selected.is_none() && !self.rows.is_empty() && self.focus.is_focused(window) {
+            self.selected = Some(0);
+        }
         crate::keys::keyed(div().id("tag-tree"), cx)
             .track_focus(&self.focus)
             .on_key_down(cx.listener(Self::on_key))
+            .on_key_down(cx.listener(Self::type_ahead_key))
             .relative()
             .size_full()
             .bg(t.bg)

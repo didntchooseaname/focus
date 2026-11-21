@@ -190,6 +190,8 @@ pub struct FileTree {
     renaming: Option<Renaming>,
     menu: Option<(Option<Arc<Path>>, Point<Pixels>)>,
     confirm: Option<Arc<Path>>,
+    confirm_scope: FocusHandle,
+    confirm_primary: FocusHandle,
     moving: Option<Moving>,
     scroll: UniformListScrollHandle,
     selected_bounds: std::rc::Rc<std::cell::Cell<Option<gpui::Bounds<Pixels>>>>,
@@ -199,6 +201,7 @@ pub struct FileTree {
     language: u64,
     bookmarks: Option<Entity<Bookmarks>>,
     filtering: Option<Task<()>>,
+    type_ahead: crate::keys::TypeAhead,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -317,6 +320,8 @@ impl FileTree {
             renaming: None,
             menu: None,
             confirm: None,
+            confirm_scope: cx.focus_handle(),
+            confirm_primary: cx.focus_handle(),
             moving: None,
             scroll: UniformListScrollHandle::new(),
             selected_bounds: std::rc::Rc::new(std::cell::Cell::new(None)),
@@ -326,6 +331,7 @@ impl FileTree {
             language: focus_i18n::generation(),
             bookmarks: None,
             filtering: None,
+            type_ahead: Default::default(),
             _subscriptions: subscriptions,
         };
         tree.rebuild(cx);
@@ -790,11 +796,12 @@ impl FileTree {
         cx.notify();
     }
 
-    fn request_trash(&mut self, path: Arc<Path>, cx: &mut Context<Self>) {
+    fn request_trash(&mut self, path: Arc<Path>, window: &mut Window, cx: &mut Context<Self>) {
         self.menu = None;
         if self.settings.confirm_delete {
             self.selected = Some(path.clone());
             self.confirm = Some(path);
+            window.focus(&self.confirm_primary);
             cx.notify();
         } else {
             self.trash(path, cx);
@@ -1139,6 +1146,33 @@ impl FileTree {
         let Some(name) = path.file_name() else { return };
         let to = folder.join(name);
         self.relocate(path, to, "vault-moved", cx);
+    }
+
+    fn type_ahead_key(
+        &mut self,
+        event: &KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.moving.is_none()
+            && self.renaming.is_none()
+            && self.focus.is_focused(window)
+            && let Some(typed) = crate::keys::TypeAhead::typed_char(event)
+        {
+            let nodes = &self.snapshot.nodes;
+            let names = self
+                .rows
+                .iter()
+                .enumerate()
+                .map(|(row, index)| (row, &*nodes[*index as usize].name));
+            let found =
+                self.type_ahead
+                    .seek(typed, std::time::Instant::now(), names, self.selected_row());
+            if let Some(row) = found {
+                self.select_row(row, cx);
+            }
+            cx.stop_propagation();
+        }
     }
 
     fn on_key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
@@ -1537,7 +1571,9 @@ impl FileTree {
             items.push(
                 row("menu-trash", "vault-menu-trash", Some(shortcut(6)))
                     .danger(true)
-                    .on_click(cx.listener(move |this, _, _, cx| this.request_trash(p.clone(), cx)))
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        this.request_trash(p.clone(), window, cx)
+                    }))
                     .into_any_element(),
             );
         } else if target.is_none() {
@@ -1582,6 +1618,10 @@ impl FileTree {
             Some(row) => row.bottom_left() + gpui::point(px(24.), px(0.)),
             None => gpui::point(px(24.), px(72.)),
         };
+        let card = focus_kit::contain_tab(
+            focus_kit::floating(t).track_focus(&self.confirm_scope),
+            &self.confirm_scope,
+        );
         Some(focus_kit::fade_in(
             "fade-trash",
             div().absolute().inset_0().occlude().bg(t.veil).child(
@@ -1591,8 +1631,7 @@ impl FileTree {
                         .snap_to_window()
                         .child(focus_kit::fade_in(
                             "fade-trash-card",
-                            focus_kit::floating(t)
-                                .min_w(px(240.))
+                            card.min_w(px(240.))
                                 .max_w(px(360.))
                                 .flex()
                                 .flex_col()
@@ -1634,6 +1673,7 @@ impl FileTree {
                                                 focus_i18n::t("vault-menu-trash"),
                                             )
                                             .kind(ButtonKind::Danger)
+                                            .track_focus(&self.confirm_primary)
                                             .on_click(
                                                 cx.listener(move |this, _, window, cx| {
                                                     window.focus(&this.focus);
@@ -1731,6 +1771,7 @@ impl Render for FileTree {
             .flex_col()
             .bg(t.bg)
             .capture_key_down(cx.listener(Self::on_key))
+            .on_key_down(cx.listener(Self::type_ahead_key))
             .on_action(cx.listener(|this, _: &SelectPrevious, _, cx| {
                 let row = this.selected_row().map_or(0, |r| r.saturating_sub(1));
                 this.select_row(row, cx);
@@ -1780,6 +1821,7 @@ impl Render for FileTree {
                     return;
                 }
                 if let Some(path) = this.confirm.clone() {
+                    window.focus(&this.focus);
                     this.trash(path, cx);
                     return;
                 }
@@ -1802,9 +1844,9 @@ impl Render for FileTree {
                     this.start_rename(path, window, cx);
                 }
             }))
-            .on_action(cx.listener(|this, _: &Trash, _, cx| {
+            .on_action(cx.listener(|this, _: &Trash, window, cx| {
                 if let Some(path) = this.action_target() {
-                    this.request_trash(path, cx);
+                    this.request_trash(path, window, cx);
                 }
             }))
             .on_action(cx.listener(|this, _: &NewNote, window, cx| {
@@ -1858,6 +1900,8 @@ impl Render for FileTree {
                     if renaming.then_write {
                         cx.emit(VaultViewEvent::WriteNote);
                     }
+                } else if this.confirm.is_some() {
+                    window.focus(&this.focus);
                 }
                 this.menu = None;
                 this.confirm = None;

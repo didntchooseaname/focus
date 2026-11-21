@@ -7,7 +7,7 @@ use focus_kit::{
 };
 use gpui::{
     AnyElement, App, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, KeyBinding, ParentElement, Render, ScrollHandle, SharedString,
+    IntoElement, KeyBinding, KeyDownEvent, ParentElement, Render, ScrollHandle, SharedString,
     StatefulInteractiveElement as _, Styled, Window, div,
 };
 
@@ -46,6 +46,7 @@ pub struct Bookmarks {
     selected: Option<usize>,
     scroll: ScrollHandle,
     focus: FocusHandle,
+    type_ahead: crate::keys::TypeAhead,
 }
 
 impl EventEmitter<VaultViewEvent> for Bookmarks {}
@@ -73,6 +74,7 @@ impl Bookmarks {
             selected: None,
             scroll: ScrollHandle::new(),
             focus: cx.focus_handle(),
+            type_ahead: Default::default(),
         };
         list.recent.truncate(RECENT_LIMIT);
         list.rebuild();
@@ -175,6 +177,44 @@ impl Bookmarks {
         }
     }
 
+    fn shown_name(&self, path: &Path) -> String {
+        match self
+            .vault
+            .note_by_path(path)
+            .and_then(|id| self.vault.note(id))
+        {
+            Some(meta) => meta.title.to_string(),
+            None => path
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+        }
+    }
+
+    fn on_key(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
+        let Some(typed) = crate::keys::TypeAhead::typed_char(event) else {
+            return;
+        };
+        let names: Vec<(usize, String)> = self
+            .rows
+            .iter()
+            .enumerate()
+            .filter_map(|(row, kind)| Some((row, self.shown_name(self.path_of(*kind)?))))
+            .collect();
+        let found = self.type_ahead.seek(
+            typed,
+            std::time::Instant::now(),
+            names.iter().map(|(row, name)| (*row, name.as_str())),
+            self.selected,
+        );
+        if let Some(row) = found {
+            self.selected = Some(row);
+            self.scroll.scroll_to_item(row);
+            cx.notify();
+        }
+        cx.stop_propagation();
+    }
+
     fn open(&mut self, row: Row, new_tab: bool, cx: &mut Context<Self>) {
         let Some(path) = self.path_of(row).cloned() else {
             return;
@@ -257,14 +297,7 @@ impl Bookmarks {
                     .vault
                     .note_by_path(path)
                     .and_then(|id| self.vault.note(id));
-                let name: SharedString = match &meta {
-                    Some(meta) => meta.title.to_string().into(),
-                    None => path
-                        .file_stem()
-                        .map(|s| s.to_string_lossy().into_owned())
-                        .unwrap_or_default()
-                        .into(),
-                };
+                let name: SharedString = self.shown_name(path).into();
                 let bookmark = matches!(kind, Row::Bookmark(_));
                 let mut item = TreeRow::new(("bookmark-row", row), name)
                     .depth(1)
@@ -316,12 +349,19 @@ fn remove(list: &mut Vec<PathBuf>, gone: &Path) -> bool {
 }
 
 impl Render for Bookmarks {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = *cx.tokens();
+        if self.selected.is_none() && self.focus.is_focused(window) {
+            self.selected = self
+                .rows
+                .iter()
+                .position(|row| matches!(row, Row::Bookmark(_) | Row::Recent(_)));
+        }
         div()
             .id("bookmarks")
             .key_context(CONTEXT)
             .track_focus(&self.focus)
+            .on_key_down(cx.listener(Self::on_key))
             .on_action(cx.listener(|this, _: &SelectPrevious, _, cx| this.step(Step::Previous, cx)))
             .on_action(cx.listener(|this, _: &SelectNext, _, cx| this.step(Step::Next, cx)))
             .on_action(
