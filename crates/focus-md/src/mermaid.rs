@@ -197,6 +197,17 @@ pub fn render_svg(source: &str, theme: &Theme) -> Result<Svg, Error> {
     let Some(diagram) = diagram_name(kind) else {
         return Err(Error::Unsupported(format!("{kind:?}").to_lowercase()));
     };
+    let drawn_from_nodes = matches!(
+        kind,
+        DiagramKind::Flowchart
+            | DiagramKind::Class
+            | DiagramKind::State
+            | DiagramKind::Er
+            | DiagramKind::Mindmap
+    );
+    if drawn_from_nodes && parsed.graph.nodes.is_empty() {
+        return Err(Error::Syntax("no node is declared".into()));
+    }
     let options = RenderOptions {
         theme: engine_theme(theme),
         layout: engine_layout(theme, kind),

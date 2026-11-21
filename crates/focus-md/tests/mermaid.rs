@@ -162,3 +162,12 @@ fn chains_of_open_links_keep_each_node_label() {
         "a node shows its source as label"
     );
 }
+
+#[test]
+fn an_unclosed_node_is_a_syntax_error() {
+    let source = "flowchart TD\n    A[Start --> B{Broken\n";
+    assert!(matches!(
+        render_svg(source, &Theme::dark()),
+        Err(Error::Syntax(_))
+    ));
+}
