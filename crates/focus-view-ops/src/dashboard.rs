@@ -2,8 +2,8 @@ use focus_i18n::{Arg, t_args};
 use focus_kit::{ActiveTokens, Button, ButtonKind, Icon, Type, dot, size};
 use focus_ops::{Severity, checklist};
 use gpui::{
-    AnyElement, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, Styled,
-    Subscription, Window, div, prelude::FluentBuilder, px,
+    AnyElement, Context, Entity, EventEmitter, IntoElement, ParentElement, Render, SharedString,
+    Styled, Subscription, Window, div, prelude::FluentBuilder, px,
 };
 use gpui::{InteractiveElement, StatefulInteractiveElement};
 
@@ -234,43 +234,54 @@ impl Render for OpsDashboard {
                         .element(format!("event-{i}"), &e.text, &active.hosts, cx)
                 })
                 .collect();
-            let body: AnyElement = if latest.is_empty() {
-                hatched_empty(&t, t_("ops-journal-empty"), None).into_any_element()
-            } else {
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap(size::S1)
-                    .children(latest.into_iter().zip(cells).map(|(e, cell)| {
-                        crate::ui::row()
-                            .gap(size::S3)
-                            .h(px(22.))
-                            .items_center()
-                            .child(
-                                div()
-                                    .flex_none()
-                                    .mono_sm()
-                                    .text_color(t.ink_3)
-                                    .child(e.timestamp),
-                            )
-                            .children(e.target.map(|target| {
-                                div()
-                                    .flex_none()
-                                    .mono_sm()
-                                    .text_color(t.ink_2)
-                                    .child(target)
-                            }))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .min_w_0()
-                                    .h(px(20.))
-                                    .overflow_hidden()
-                                    .child(cell),
-                            )
-                    }))
-                    .into_any_element()
-            };
+            let body: AnyElement =
+                if latest.is_empty() {
+                    hatched_empty(&t, t_("ops-journal-empty"), None).into_any_element()
+                } else {
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(size::S1)
+                        .children(latest.into_iter().zip(cells).enumerate().map(
+                            |(i, (e, cell))| {
+                                let whole: SharedString =
+                                    crate::rich::plain(&e.text, &active.hosts).into();
+                                crate::ui::row()
+                                    .gap(size::S3)
+                                    .h(px(22.))
+                                    .items_center()
+                                    .child(
+                                        div()
+                                            .flex_none()
+                                            .mono_sm()
+                                            .text_color(t.ink_3)
+                                            .child(e.timestamp),
+                                    )
+                                    .children(e.target.map(|target| {
+                                        div()
+                                            .flex_none()
+                                            .mono_sm()
+                                            .text_color(t.ink_2)
+                                            .child(target)
+                                    }))
+                                    .child(
+                                        div()
+                                            .id(("dashboard-event", i))
+                                            .flex_1()
+                                            .min_w_0()
+                                            .h(px(20.))
+                                            .overflow_hidden()
+                                            .whitespace_nowrap()
+                                            .text_ellipsis()
+                                            .tooltip(move |_, cx| {
+                                                focus_kit::Tooltip::view(whole.clone(), None, cx)
+                                            })
+                                            .child(cell),
+                                    )
+                            },
+                        ))
+                        .into_any_element()
+                };
             div()
                 .flex()
                 .flex_col()

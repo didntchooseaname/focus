@@ -86,6 +86,17 @@ pub(crate) fn segments(text: &str, hosts: &[Host]) -> Vec<Segment> {
     out
 }
 
+pub(crate) fn plain(text: &str, hosts: &[Host]) -> String {
+    segments(text, hosts)
+        .into_iter()
+        .map(|segment| match segment {
+            Segment::Text(text) | Segment::Host(text, _) => text,
+            Segment::Wiki { label, .. } => label,
+            Segment::Tag(name) => format!("#{name}"),
+        })
+        .collect()
+}
+
 pub(crate) struct NoVault;
 
 impl Resolver for NoVault {
@@ -268,6 +279,18 @@ mod tests {
                 Segment::Text(" ".into()),
                 Segment::Tag("ad".into()),
             ]
+        );
+    }
+
+    #[test]
+    fn the_tooltip_of_an_event_reads_as_its_line_shows_it() {
+        let hosts = [host("10.0.0.5", "dc01", "Hosts/dc01.md")];
+        assert_eq!(
+            plain(
+                "Relayed to 10.0.0.5 see [[Kerberoasting|the note]] #ad",
+                &hosts
+            ),
+            "Relayed to 10.0.0.5 see the note #ad"
         );
     }
 
