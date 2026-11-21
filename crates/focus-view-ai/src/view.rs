@@ -2,8 +2,8 @@ use focus_ai::prompts;
 use focus_ai::prompts::Output;
 use focus_i18n::{Arg, format_date, format_duration, format_number, t, t_args};
 use focus_kit::{
-    ActiveTokens, Button, ButtonKind, Icon, IconButton, MenuRow, Tokens, Tooltip, Type, icon, menu,
-    menu_separator, size,
+    ActiveTokens, Button, ButtonKind, ContextChip, DiffMark, Icon, IconButton, MenuRow, Tokens,
+    Tooltip, Type, diff_marker, diff_row, icon, menu, menu_separator, size,
 };
 use gpui::{
     AnyElement, App, Context, Div, Focusable, InteractiveElement, IntoElement, ListOffset,
@@ -430,7 +430,7 @@ impl AiPanel {
                             div()
                                 .mono_sm()
                                 .text_color(t.ink_3)
-                                .child(format!("~{}", format_tokens(chip.tokens))),
+                                .child(format_tokens(chip.tokens)),
                         )
                 }),
             ));
@@ -696,17 +696,16 @@ impl AiPanel {
         const MAX_ROWS: usize = 24;
         let overflow = shown.len().saturating_sub(MAX_ROWS);
         let rows = shown.into_iter().take(MAX_ROWS).map(|line| {
-            let (marker, color, tint) = match line.mark {
-                Mark::Added => ("+", t.ok, Some(t.ok.opacity(0.12))),
-                Mark::Removed => ("-", t.danger, Some(t.danger.opacity(0.12))),
-                Mark::Same => (" ", t.ink_3, None),
+            let mark = match line.mark {
+                Mark::Added => DiffMark::Added,
+                Mark::Removed => DiffMark::Removed,
+                Mark::Same => DiffMark::Same,
             };
-            dir_ltr_row()
+            diff_row(t, mark)
                 .gap(size::S1)
                 .px(size::S2)
                 .mono_sm()
-                .when_some(tint, |this, tint| this.bg(tint))
-                .child(div().flex_none().w(px(8.)).text_color(color).child(marker))
+                .child(diff_marker(t, mark).w(px(8.)))
                 .child(div().flex_1().min_w_0().text_color(t.ink_body).child(
                     if line.text.is_empty() {
                         " ".to_string()
@@ -1020,10 +1019,12 @@ impl AiPanel {
                 chips
                     .iter()
                     .enumerate()
-                    .map(|(i, chip)| self.chip_view(t, dir, i, chip, cx)),
+                    .map(|(i, chip)| self.chip_view(i, chip, cx)),
             )
         });
-        let mention = self.mention_list(t, cx);
+        let mention = self
+            .mention_list(t, cx)
+            .map(|list| focus_kit::fade_in("fade-ai-mention", list, cx));
 
         let input_box = div()
             .id("ai-input-box")
@@ -1211,7 +1212,7 @@ impl AiPanel {
                         "ai-context-tokens",
                         &[("count", Arg::from(total))],
                     )))
-                    .child(format!("~{}", format_tokens(total))),
+                    .child(format_tokens(total)),
             )
             .child(send);
 
@@ -1245,66 +1246,29 @@ impl AiPanel {
             .child(toolbar)
     }
 
-    fn chip_view(
-        &self,
-        t: &Tokens,
-        dir: Dir,
-        index: usize,
-        chip: &Chip,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
+    fn chip_view(&self, index: usize, chip: &Chip, cx: &mut Context<Self>) -> AnyElement {
         let (kind, path) = (chip.kind, chip.path.clone());
         let tooltip = match (chip.kind, &chip.path) {
             (ChipKind::Selection, _) => t_("ai-context-selection"),
-            (ChipKind::Note, Some(p)) => format!("{}: {}", t_("ai-context-note"), p.display()),
-            (_, Some(p)) => format!("{}: {}", t_("ai-context-added"), p.display()),
+            (ChipKind::Note, Some(p)) => t_args(
+                "ai-context-note",
+                &[("path", p.display().to_string().as_str().into())],
+            ),
+            (_, Some(p)) => t_args(
+                "ai-context-added",
+                &[("path", p.display().to_string().as_str().into())],
+            ),
             _ => chip.label.clone(),
         };
-        dir.row()
-            .id(id(&[&"ai-chip", &index]))
-            .items_center()
-            .gap(size::S1)
-            .h(px(22.))
-            .max_w_full()
-            .min_w_0()
-            .pl(size::S2)
-            .pr(px(2.))
-            .rounded(size::RADIUS)
-            .bg(t.card_2)
-            .ui_sm()
-            .tooltip(tip(tooltip))
-            .child(
-                div()
-                    .min_w_0()
-                    .text_color(t.ink)
-                    .child(focus_kit::ellipsis(chip.label.clone())),
-            )
-            .child(
-                div()
-                    .flex_none()
-                    .mono_sm()
-                    .text_color(t.ink_3)
-                    .child(format!("~{}", format_tokens(chip.tokens))),
-            )
-            .child(
-                div()
-                    .id(id(&[&"ai-chip-remove", &index]))
-                    .flex()
-                    .flex_none()
-                    .items_center()
-                    .justify_center()
-                    .size(px(18.))
-                    .rounded(size::RADIUS)
-                    .cursor_pointer()
-                    .text_color(t.ink_3)
-                    .hover(move |s| s.bg(t.card_3).text_color(t.ink))
-                    .tooltip(tip(t_("ai-context-remove")))
-                    .on_click(
-                        cx.listener(move |this, _, _, cx| this.remove_chip(kind, path.clone(), cx)),
-                    )
-                    .child(icon(Icon::CLOSE, size::ICON_SMALL)),
-            )
-            .into_any_element()
+        ContextChip::new(
+            id(&[&"ai-chip", &index]),
+            chip.label.clone(),
+            t_("ai-context-remove"),
+        )
+        .count(format_tokens(chip.tokens))
+        .tooltip(tooltip)
+        .on_remove(cx.listener(move |this, _, _, cx| this.remove_chip(kind, path.clone(), cx)))
+        .into_any_element()
     }
 
     fn mention_list(&self, t: &Tokens, cx: &mut Context<Self>) -> Option<Div> {
@@ -1354,7 +1318,7 @@ impl AiPanel {
         }));
         dir.at_start(div().absolute().top(size::SIDEBAR_HEADER), size::S2)
             .max_w_full()
-            .child(menu)
+            .child(focus_kit::fade_in("fade-ai-models", menu, cx))
             .into_any_element()
     }
 
@@ -1428,7 +1392,7 @@ impl AiPanel {
             );
         dir.at_start(div().absolute().bottom(px(48.)), size::S2)
             .max_w_full()
-            .child(menu)
+            .child(focus_kit::fade_in("fade-ai-actions", menu, cx))
             .into_any_element()
     }
 }
@@ -1453,10 +1417,6 @@ fn disabled_reason(no_backend: bool, running: bool) -> Option<&'static str> {
     } else {
         None
     }
-}
-
-fn dir_ltr_row() -> Div {
-    div().flex().flex_row()
 }
 
 #[cfg(test)]

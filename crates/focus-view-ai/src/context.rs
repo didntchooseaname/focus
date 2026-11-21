@@ -72,12 +72,13 @@ pub(crate) fn compose(chips: &[Chip], question: &str) -> String {
 
 pub(crate) fn format_tokens(count: u32) -> String {
     if count >= 1000 {
-        format!(
-            "{}k",
-            focus_i18n::format_decimal(f64::from(count) / 1000., 1)
+        let thousands = focus_i18n::format_decimal(f64::from(count) / 1000., 1);
+        focus_i18n::t_args(
+            "ai-tokens-approx-thousands",
+            &[("count", thousands.as_str().into())],
         )
     } else {
-        count.to_string()
+        focus_i18n::t_args("ai-tokens-approx", &[("count", count.into())])
     }
 }
 
@@ -113,7 +114,7 @@ mod tests {
 
     #[test]
     fn tokens_are_compact_above_a_thousand() {
-        assert_eq!(format_tokens(950), "950");
-        assert!(format_tokens(1240).ends_with('k'));
+        assert_eq!(format_tokens(950), "~950");
+        assert_eq!(format_tokens(1240), "~1.2k");
     }
 }
