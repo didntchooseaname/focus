@@ -71,6 +71,22 @@ fn an_edit_is_kept_only_after_five_minutes() {
 }
 
 #[test]
+fn versions_kept_in_the_same_millisecond_stay_in_order() {
+    let f = Fixture::new("same-millisecond", HistoryConfig::default());
+    let kept = ["a longer first text", "second", "3"];
+    for content in kept {
+        assert!(f.keep("a.md", Kind::Bulk, content).is_some());
+    }
+    assert_eq!(f.texts("a.md"), ["3", "second", "a longer first text"]);
+    assert!(
+        f.keep("a.md", Kind::Edit, "typed right after").is_none(),
+        "an edit still waits after versions stamped ahead of the clock"
+    );
+    f.advance(EDIT_INTERVAL + Duration::from_millis(3));
+    assert!(f.keep("a.md", Kind::Edit, "typed later").is_some());
+}
+
+#[test]
 fn the_closure_runs_only_when_a_version_is_stored() {
     let f = Fixture::new("lazy", HistoryConfig::default());
     f.keep("a.md", Kind::Edit, "one");

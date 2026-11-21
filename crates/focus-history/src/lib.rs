@@ -19,6 +19,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub const EDIT_INTERVAL: Duration = Duration::from_secs(5 * 60);
+const AHEAD_OF_CLOCK: Duration = Duration::from_secs(1);
 
 const STALE_TEMPORARY: Duration = Duration::from_secs(3600);
 
@@ -268,7 +269,8 @@ impl History {
         let edit_is_early = |latest: &Option<Entry>, now: u64| {
             kind.waits()
                 && latest.as_ref().is_some_and(|l| {
-                    l.at_ms <= now && now - l.at_ms <= EDIT_INTERVAL.as_millis() as u64
+                    l.at_ms <= now + AHEAD_OF_CLOCK.as_millis() as u64
+                        && now.saturating_sub(l.at_ms) <= EDIT_INTERVAL.as_millis() as u64
                 })
         };
         if edit_is_early(&last_entry(&note)?, self.now_ms()) {
@@ -300,7 +302,8 @@ impl History {
         if fs::read(&path_file).ok().as_deref() != Some(rel_bytes(rel).as_slice()) {
             self.write_private(&path_file, &rel_bytes(rel))?;
         }
-        let name = Entry::name_for(now, kind, bytes.len() as u64, &hash);
+        let at = latest.as_ref().map_or(now, |l| now.max(l.at_ms + 1));
+        let name = Entry::name_for(at, kind, bytes.len() as u64, &hash);
         let version = note.join(&name);
         match fs::OpenOptions::new()
             .write(true)
