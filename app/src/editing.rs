@@ -285,6 +285,58 @@ impl Shell {
         }
     }
 
+    pub fn menu_line(&self) -> String {
+        let Some(menu) = &self.slash else {
+            return "none".into();
+        };
+        let kind = match menu.kind {
+            MenuKind::Commands => "commands",
+            MenuKind::Languages => "languages",
+            MenuKind::Notes => "notes",
+            MenuKind::Templates => "templates",
+        };
+        let selected = menu
+            .hits
+            .get(menu.selected)
+            .map_or("", |hit| menu.entries[hit.entry].id.as_str());
+        let shown = self.menu_row(&menu.selected.to_string()).is_some();
+        format!(
+            "{kind} | {} | {selected} | {}",
+            menu.query,
+            if shown { "shown" } else { "hidden" }
+        )
+    }
+
+    pub fn show_menu_row(&mut self, row: &str, cx: &mut Context<Self>) -> Option<usize> {
+        let menu = self.slash.as_mut()?;
+        if row == "title" {
+            menu.scroll.scroll_to_item(0);
+            cx.notify();
+            return (menu.child(0)? > 0).then_some(0);
+        }
+        let rank = match row.parse::<usize>() {
+            Ok(rank) => rank,
+            Err(_) => menu
+                .hits
+                .iter()
+                .position(|hit| menu.entries[hit.entry].id == row)?,
+        };
+        menu.child(rank)?;
+        menu.select(rank);
+        cx.notify();
+        Some(rank)
+    }
+
+    pub fn menu_row(&self, row: &str) -> Option<gpui::Point<Pixels>> {
+        let menu = self.slash.as_ref()?;
+        let child = match row {
+            "title" => 0,
+            rank => menu.child(rank.parse().ok()?)?,
+        };
+        let at = menu.scroll.bounds_for_item(child)?.center() + menu.scroll.offset();
+        menu.scroll.bounds().contains(&at).then_some(at)
+    }
+
     pub fn open_menu(
         &mut self,
         editor: &Entity<NoteEditor>,

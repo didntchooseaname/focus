@@ -1303,9 +1303,12 @@ impl Window {
     }
 }
 
+/// What the handlers of an event dispatched to a window asked for.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct DispatchEventResult {
+pub struct DispatchEventResult {
+    /// False when a handler stopped the propagation of the event.
     pub propagate: bool,
+    /// True when a handler prevented the default behavior of the event.
     pub default_prevented: bool,
 }
 

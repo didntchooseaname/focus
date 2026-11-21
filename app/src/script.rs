@@ -105,6 +105,9 @@ pub enum Step {
     Focus(String),
     Key(String),
     Type(String),
+    Mouse(f32, f32),
+    Pick(String),
+    Menu,
     Wait(u64),
     Mark(String),
     Shot(String),
@@ -499,6 +502,16 @@ pub fn parse(text: &str) -> Result<Vec<(usize, Step)>, String> {
                 Step::Key(keys)
             }
             "type" => Step::Type(need("text")?),
+            "mouse" => {
+                let place = rest
+                    .split_once(char::is_whitespace)
+                    .and_then(|(x, y)| Some((x.parse().ok()?, y.trim().parse().ok()?)));
+                match place {
+                    Some((x, y)) => Step::Mouse(x, y),
+                    None => return Err(fail("expected: mouse <x> <y>, in window pixels")),
+                }
+            }
+            "pick" => Step::Pick(need("title, a row of the open menu from 0, or the id of an entry")?),
             "mark" => Step::Mark(need("label")?),
             "wait" => Step::Wait(
                 rest.parse()
@@ -509,6 +522,7 @@ pub fn parse(text: &str) -> Result<Vec<(usize, Step)>, String> {
             "quit" => Step::Quit,
             "viewer" => Step::Viewer(crate::media::ViewerStep::parse(rest).map_err(|e| fail(&e))?),
             "status" => Step::Status,
+            "menu" => Step::Menu,
             "embeds" => Step::Embeds,
             "zoom" => Step::Zoom(
                 rest.parse()
@@ -599,6 +613,38 @@ pub async fn run(shell: WeakEntity<Shell>, steps: Vec<(usize, Step)>, cx: &mut A
                     }
                 })
                 .map_err(|e| e.to_string()),
+            Step::Mouse(x, y) => {
+                let at = gpui::point(gpui::px(*x), gpui::px(*y));
+                cx.update(|window, cx| press_at(at, window, cx))
+                    .map_err(|e| e.to_string())
+            }
+            Step::Pick(row) => {
+                settle(&shell, cx).await;
+                let shown = shell
+                    .update(cx, |shell, cx| shell.show_menu_row(row, cx))
+                    .map_err(|e| e.to_string())
+                    .and_then(|rank| {
+                        rank.ok_or_else(|| format!("{row}: no such row in an open menu"))
+                    });
+                match shown {
+                    Ok(rank) => {
+                        cx.background_executor().timer(FRAME * 3).await;
+                        let drawn = if row == "title" {
+                            row.clone()
+                        } else {
+                            rank.to_string()
+                        };
+                        match shell.read_with(cx, |shell, _| shell.menu_row(&drawn)) {
+                            Ok(Some(at)) => cx
+                                .update(|window, cx| press_at(at, window, cx))
+                                .map_err(|e| e.to_string()),
+                            Ok(None) => Err(format!("{row}: the row is not drawn")),
+                            Err(error) => Err(error.to_string()),
+                        }
+                    }
+                    Err(error) => Err(error),
+                }
+            }
             Step::Shot(name) => shot(&shell, name, cx).await,
             Step::Snap(name) => snap(name, cx),
             Step::Codes(path) => codes(&shell, path, cx).await,
@@ -620,6 +666,38 @@ pub async fn run(shell: WeakEntity<Shell>, steps: Vec<(usize, Step)>, cx: &mut A
         }
     }
     let _ = cx.update(|_, cx| cx.quit());
+}
+
+fn press_at(at: gpui::Point<gpui::Pixels>, window: &mut Window, cx: &mut gpui::App) {
+    use gpui::{MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PlatformInput};
+    let modifiers = gpui::Modifiers::default();
+    window.dispatch_event(
+        PlatformInput::MouseMove(MouseMoveEvent {
+            position: at,
+            pressed_button: None,
+            modifiers,
+        }),
+        cx,
+    );
+    window.dispatch_event(
+        PlatformInput::MouseDown(MouseDownEvent {
+            button: MouseButton::Left,
+            position: at,
+            modifiers,
+            click_count: 1,
+            first_mouse: false,
+        }),
+        cx,
+    );
+    window.dispatch_event(
+        PlatformInput::MouseUp(MouseUpEvent {
+            button: MouseButton::Left,
+            position: at,
+            modifiers,
+            click_count: 1,
+        }),
+        cx,
+    );
 }
 
 async fn codes(
@@ -1083,6 +1161,7 @@ impl Shell {
             Step::Graph => self.open_graph(None, window, cx),
             Step::Viewer(step) => self.run_viewer_step(*step, window, cx)?,
             Step::Status => println!("status: {}", self.status_line(cx)),
+            Step::Menu => println!("menu: {}", self.menu_line()),
             Step::Embeds => {
                 for embed in self.embeds_drawn(cx)? {
                     println!("embed: {embed}");
@@ -1618,6 +1697,8 @@ impl Shell {
             | Step::Mark(_)
             | Step::Key(_)
             | Step::Type(_)
+            | Step::Mouse(..)
+            | Step::Pick(_)
             | Step::Shot(_)
             | Step::Snap(_)
             | Step::Codes(_)
