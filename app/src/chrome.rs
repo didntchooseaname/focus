@@ -366,6 +366,7 @@ impl Shell {
         };
         let item = || div().flow_row().flex_none().items_center().gap(size::S2);
         let (file_path, file_items) = self.render_file_status(cx);
+        let graph_counts = self.graph_status(cx);
         if matches!(
             self.screen,
             crate::shell::Screen::Welcome { .. }
@@ -485,6 +486,9 @@ impl Shell {
             })
             .child(div().flex_1())
             .children(file_items)
+            .when_some(graph_counts, |this, counts| {
+                this.child(item().mono_sm().line_height(px(18.)).child(counts))
+            })
             .when_some(cursor, |this, cursor| {
                 this.child(
                     item()

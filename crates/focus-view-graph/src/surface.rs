@@ -42,6 +42,7 @@ pub(crate) fn rebuild<V: GraphHost>(view: &mut V, cx: &mut Context<V>) {
             }
             this.core_mut().install(built);
             ensure_ticking(this, cx);
+            cx.emit(GraphEvent::Built);
             cx.notify();
         });
     })

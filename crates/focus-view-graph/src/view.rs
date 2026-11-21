@@ -22,6 +22,7 @@ const REBUILD_DELAY: Duration = Duration::from_millis(300);
 pub enum GraphEvent {
     OpenNote { note: NoteId, new_tab: bool },
     SettingsChanged(GraphSettings),
+    Built,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -576,8 +577,9 @@ impl Render for GraphView {
                     .child(controls::panel(self, window, cx)),
             )
             .child(
-                at_bottom_end(div().absolute()).occlude().child(
-                    ZoomControls::new(
+                at_bottom_end(div().absolute())
+                    .occlude()
+                    .child(ZoomControls::new(
                         zoom,
                         IconButton::new(
                             "graph-zoom-out",
@@ -600,9 +602,7 @@ impl Render for GraphView {
                         )
                         .shortcut(focus_i18n::keys_text(crate::surface::FIT_KEY))
                         .on_click(cx.listener(|this, _, _, cx| this.zoom(None, cx))),
-                    )
-                    .bare(),
-                ),
+                    )),
             )
     }
 }

@@ -109,6 +109,7 @@ impl Shell {
                         GraphEvent::SettingsChanged(settings) => {
                             this.store_graph_settings(settings, cx)
                         }
+                        GraphEvent::Built => cx.notify(),
                     },
                 ));
                 let reduce = self.prefs.read(cx).bool("appearance.reduce_motion");
@@ -120,6 +121,23 @@ impl Shell {
         };
         graph.update(cx, |graph, cx| graph.set_active_note(active, cx));
         self.show_pane(Pane::Graph, window, cx);
+    }
+
+    pub fn graph_status(&self, cx: &gpui::App) -> Option<String> {
+        if !matches!(
+            self.active_pane.and_then(|i| self.panes.get(i)),
+            Some(Pane::Graph)
+        ) {
+            return None;
+        }
+        let (notes, links) = self.graph.as_ref()?.read(cx).counts();
+        Some(focus_i18n::t_args(
+            "graph-stats",
+            &[
+                ("notes", focus_i18n::Arg::Int(notes as i64)),
+                ("links", focus_i18n::Arg::Int(links as i64)),
+            ],
+        ))
     }
 
     pub fn mount_local_graph(&mut self, window: &mut Window, cx: &mut Context<Self>) {

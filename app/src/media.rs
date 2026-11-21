@@ -519,6 +519,7 @@ impl Shell {
         self.file_status_path()
             .into_iter()
             .chain(self.file_status(cx))
+            .chain(self.graph_status(cx))
             .collect::<Vec<_>>()
             .join(" | ")
     }
