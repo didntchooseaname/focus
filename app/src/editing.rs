@@ -516,6 +516,27 @@ impl Shell {
                 return true;
             }
         }
+        let paging = matches!(keystroke.key.as_str(), "pageup" | "pagedown");
+        if paging
+            && plain
+            && keystroke.modifiers.shift
+            && let Some(editor) = self.editor_focused(window, cx)
+            && editor.read(cx).view == crate::editor::ViewMode::Source
+        {
+            let input = editor.read(cx).typing_input();
+            crate::window_keys::select_page(input, keystroke.key == "pagedown", window, cx);
+            return true;
+        }
+        if keystroke.key == "tab"
+            && plain
+            && let Some(editor) = self.editor_focused(window, cx)
+            && editor.read(cx).view == crate::editor::ViewMode::Source
+        {
+            let input = editor.read(cx).typing_input();
+            if tab_in_list(&input, keystroke.modifiers.shift, window, cx) {
+                return true;
+            }
+        }
         if keystroke.key == "enter"
             && plain
             && !keystroke.modifiers.shift
@@ -814,6 +835,94 @@ fn list_marker(line: &str) -> Option<(usize, usize, String)> {
     None
 }
 
+fn item_marker(line: &str) -> Option<(usize, usize)> {
+    let (indent, marker, _) = list_marker(line)?;
+    (!line[indent..].starts_with('>')).then_some((indent, marker))
+}
+
+pub fn shift_item(
+    text: &str,
+    caret: usize,
+    outdent: bool,
+) -> Option<(Range<usize>, String, usize)> {
+    let lines: Vec<(usize, &str)> = {
+        let mut at = 0;
+        text.split('\n')
+            .map(|line| {
+                let start = at;
+                at += line.len() + 1;
+                (start, line.trim_end_matches('\r'))
+            })
+            .collect()
+    };
+    let row = lines
+        .iter()
+        .rposition(|(start, line)| *start <= caret && caret <= start + line.len())?;
+    let (indent, _) = item_marker(lines[row].1)?;
+    let above = lines[..row]
+        .iter()
+        .rev()
+        .take_while(|(_, line)| !line.trim().is_empty())
+        .filter_map(|(_, line)| item_marker(line));
+    let target = if outdent {
+        if indent == 0 {
+            return Some((caret..caret, String::new(), caret));
+        }
+        above.map(|(i, _)| i).find(|i| *i < indent).unwrap_or(0)
+    } else {
+        match above.into_iter().find(|(i, _)| *i <= indent) {
+            Some((i, marker)) if i == indent => i + marker,
+            _ => return Some((caret..caret, String::new(), caret)),
+        }
+    };
+    let end = lines[row + 1..]
+        .iter()
+        .position(|(_, line)| {
+            let depth = line.len() - line.trim_start().len();
+            line.trim().is_empty() || depth <= indent
+        })
+        .map_or(lines.len(), |n| row + 1 + n);
+    let delta = target as isize - indent as isize;
+    let start = lines[row].0;
+    let last = &lines[end - 1];
+    let range = start..last.0 + last.1.len();
+    let mut out = Vec::new();
+    for (_, line) in &lines[row..end] {
+        let depth = line.len() - line.trim_start().len();
+        let kept = (depth as isize + delta).max(0) as usize;
+        out.push(format!("{}{}", " ".repeat(kept), &line[depth..]));
+    }
+    let moved = (caret as isize + delta).max(start as isize + target as isize) as usize;
+    Some((range, out.join("\n"), moved))
+}
+
+fn tab_in_list(
+    input: &Entity<InputState>,
+    outdent: bool,
+    window: &mut Window,
+    cx: &mut App,
+) -> bool {
+    let (text, cursor, selected) = {
+        let state = input.read(cx);
+        (
+            state.text().to_string(),
+            state.cursor(),
+            state.selection_text(),
+        )
+    };
+    if selected.contains('\n') {
+        return false;
+    }
+    let Some((range, written, caret)) = shift_item(&text, cursor, outdent) else {
+        return false;
+    };
+    if !range.is_empty() || !written.is_empty() {
+        let at = caret - range.start;
+        replace(input, range, &written, at, window, cx);
+    }
+    true
+}
+
 fn continue_list(input: &Entity<InputState>, window: &mut Window, cx: &mut App) -> bool {
     let (line, line_start, cursor) = {
         let state = input.read(cx);
@@ -837,38 +946,13 @@ fn continue_list(input: &Entity<InputState>, window: &mut Window, cx: &mut App) 
 }
 
 pub fn line_prefix(input: &Entity<InputState>, prefix: &str, window: &mut Window, cx: &mut App) {
-    let (line, start, cursor) = {
+    let (text, cursor) = {
         let state = input.read(cx);
-        let text = state.text();
-        let row = state.cursor_position().line as usize;
-        let start = text.line_start_offset(row);
-        (text.slice_line(row).to_string(), start, state.cursor())
+        (state.text().to_string(), state.cursor())
     };
-    let line = line.trim_end_matches(['\n', '\r']).to_string();
-    let replacement = if prefix == "#" {
-        let level = line.chars().take_while(|c| *c == '#').count();
-        let body = line[level..].trim_start();
-        if level >= 6 {
-            body.to_string()
-        } else {
-            format!("{} {body}", "#".repeat(level + 1))
-        }
-    } else if let Some(body) = line.strip_prefix(prefix) {
-        body.to_string()
-    } else {
-        format!("{prefix}{line}")
-    };
-    let column = cursor - start;
-    let at = (column as isize + replacement.len() as isize - line.len() as isize)
-        .clamp(0, replacement.len() as isize) as usize;
-    replace(
-        input,
-        start..start + line.len(),
-        &replacement,
-        at,
-        window,
-        cx,
-    );
+    let change = crate::format::prefix_line(&text, cursor, prefix);
+    let at = change.select.start - change.range.start;
+    replace(input, change.range, &change.text, at, window, cx);
 }
 
 #[cfg(test)]
@@ -918,6 +1002,29 @@ mod tests {
         assert!(!under("/", 0), "the first line");
         assert!(!under("Notes. /", 7), "inside a line");
         assert!(!under("Notes.\n  /", 9), "after an indent");
+    }
+
+    #[test]
+    fn tab_indents_and_outdents_a_list_item_with_its_children() {
+        let apply = |text: &str, caret: usize, outdent: bool| {
+            let (range, written, moved) =
+                super::shift_item(text, caret, outdent).expect("a list item");
+            let out = format!("{}{written}{}", &text[..range.start], &text[range.end..]);
+            (out, moved)
+        };
+        let text = "- one\n- two\n  - child\nafter";
+        let caret = text.find("two").expect("in the text") + 3;
+        let (indented, moved) = apply(text, caret, false);
+        assert_eq!(indented, "- one\n  - two\n    - child\nafter");
+        assert_eq!(&indented[moved - 3..moved], "two");
+        let (back, _) = apply(&indented, moved, true);
+        assert_eq!(back, text);
+        let (first, _) = apply("- one\n", 3, false);
+        assert_eq!(first, "- one\n", "no sibling above: nothing moves");
+        let (numbered, _) = apply("1. a\n2. b", 8, false);
+        assert_eq!(numbered, "1. a\n   2. b");
+        assert!(super::shift_item("plain text", 3, false).is_none());
+        assert!(super::shift_item("> quote", 3, false).is_none());
     }
 
     #[test]

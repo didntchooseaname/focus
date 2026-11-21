@@ -380,6 +380,9 @@ fn mark_of(text: &str, range: &Range<usize>) -> &'static str {
 }
 
 pub fn link(text: &str, selection: Range<usize>) -> Change {
+    if let Some(change) = unlink(text, selection.clone()) {
+        return change;
+    }
     let inner = &text[selection.clone()];
     let written = format!("[{inner}]()");
     let caret = selection.start + written.len() - 1;
@@ -388,6 +391,90 @@ pub fn link(text: &str, selection: Range<usize>) -> Change {
         text: written,
         select: caret..caret,
     }
+}
+
+fn unlink(text: &str, selection: Range<usize>) -> Option<Change> {
+    let plain = |label: &str| !label.contains(['[', ']', '\n']);
+    let whole = if selection.is_empty() {
+        let caret = selection.start;
+        if !text[..caret].ends_with("](") || !text[caret..].starts_with(')') {
+            return None;
+        }
+        let close = caret - 2;
+        let open = text[..close].rfind('[')?;
+        open..caret + 1
+    } else {
+        let chosen = &text[selection.clone()];
+        let target = chosen.strip_prefix('[')?.strip_suffix(')')?;
+        let (_, url) = target.split_once("](")?;
+        if url.contains(['(', ')', '\n']) {
+            return None;
+        }
+        selection
+    };
+    let inside = &text[whole.start + 1..];
+    let label = &inside[..inside.find("](")?];
+    if !plain(label) {
+        return None;
+    }
+    let start = whole.start;
+    Some(Change {
+        range: whole,
+        text: label.to_string(),
+        select: start..start + label.len(),
+    })
+}
+
+pub fn prefix_line(text: &str, caret: usize, prefix: &str) -> Change {
+    let start = text[..caret].rfind('\n').map_or(0, |at| at + 1);
+    let end = text[caret..].find('\n').map_or(text.len(), |at| caret + at);
+    let line = text[start..end].trim_end_matches('\r');
+    let replacement = if prefix == "#" {
+        let level = line.chars().take_while(|c| *c == '#').count();
+        let body = line[level..].trim_start();
+        if level >= 6 {
+            body.to_string()
+        } else {
+            format!("{} {body}", "#".repeat(level + 1))
+        }
+    } else if let Some(body) = line.strip_prefix(prefix) {
+        body.to_string()
+    } else {
+        format!("{prefix}{line}")
+    };
+    let column = caret - start;
+    let at = (column as isize + replacement.len() as isize - line.len() as isize)
+        .clamp(0, replacement.len() as isize) as usize;
+    Change {
+        range: start..start + line.len(),
+        text: replacement,
+        select: start + at..start + at,
+    }
+}
+
+pub fn prefix_in_place(
+    editor: &gpui::Entity<crate::editor::NoteEditor>,
+    prefix: &str,
+    window: &mut gpui::Window,
+    cx: &mut gpui::App,
+) -> bool {
+    if !editor.read(cx).caret_in_place(cx) {
+        return false;
+    }
+    let (input, reading) = {
+        let e = editor.read(cx);
+        (e.input.clone(), e.reading.clone())
+    };
+    if reading.read(cx).caret_in_property(cx) {
+        return true;
+    }
+    let (text, selection) = read_field(&input, window, cx);
+    let change = prefix_line(&text, selection.start, prefix);
+    reading.update(cx, |reading, cx| {
+        reading.replace_in_place(change.range, &change.text, change.select, window, cx);
+        reading.source_if_unseen(cx);
+    });
+    true
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -832,6 +919,17 @@ pub fn in_place_actions(
     let highlight = on(Some(Inline::Highlight));
     let code = on(Some(Inline::Code));
     let url = on(None);
+    let prefixed = |prefix: &'static str| {
+        let editor = editor.clone();
+        move |window: &mut gpui::Window, cx: &mut gpui::App| {
+            if !prefix_in_place(&editor, prefix, window, cx) {
+                cx.propagate();
+            }
+        }
+    };
+    let heading = prefixed("#");
+    let bullets = prefixed("- ");
+    let task = prefixed("- [ ] ");
     element
         .key_context(EDITOR_CONTEXT)
         .on_action(move |_: &FormatBold, window, cx| bold(window, cx))
@@ -840,11 +938,59 @@ pub fn in_place_actions(
         .on_action(move |_: &FormatHighlight, window, cx| highlight(window, cx))
         .on_action(move |_: &FormatCode, window, cx| code(window, cx))
         .on_action(move |_: &FormatLink, window, cx| url(window, cx))
+        .on_action(move |_: &FormatHeading, window, cx| heading(window, cx))
+        .on_action(move |_: &FormatBullets, window, cx| bullets(window, cx))
+        .on_action(move |_: &FormatTask, window, cx| task(window, cx))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn applied(text: &str, change: &Change) -> String {
+        format!(
+            "{}{}{}",
+            &text[..change.range.start],
+            change.text,
+            &text[change.range.end..]
+        )
+    }
+
+    #[test]
+    fn a_link_made_twice_gives_the_text_back() {
+        let text = "alpha beta gamma";
+        let first = link(text, 0..text.len());
+        let linked = applied(text, &first);
+        assert_eq!(linked, "[alpha beta gamma]()");
+        let second = link(&linked, first.select.clone());
+        assert_eq!(applied(&linked, &second), text);
+        assert_eq!(second.select, 0..text.len());
+        let whole = "see [note](note.md) here";
+        let unlinked = link(whole, 4..19);
+        assert_eq!(applied(whole, &unlinked), "see note here");
+        let empty = link("a  b", 2..2);
+        assert_eq!(applied("a  b", &empty), "a []() b");
+    }
+
+    #[test]
+    fn a_line_prefix_is_added_removed_and_heading_levels_cycle() {
+        let text = "# T\n\nalpha\nbeta";
+        let caret = text.find("alpha").expect("in the text") + 2;
+        let bullet = prefix_line(text, caret, "- ");
+        let bulleted = applied(text, &bullet);
+        assert_eq!(bulleted, "# T\n\n- alpha\nbeta");
+        assert_eq!(bullet.select, caret + 2..caret + 2);
+        let back = prefix_line(&bulleted, caret + 2, "- ");
+        assert_eq!(applied(&bulleted, &back), text);
+        let heading = prefix_line(text, caret, "#");
+        let headed = applied(text, &heading);
+        assert_eq!(headed, "# T\n\n# alpha\nbeta");
+        let second = prefix_line(&headed, heading.select.start, "#");
+        assert_eq!(applied(&headed, &second), "# T\n\n## alpha\nbeta");
+        let crlf = "one\r\ntwo";
+        let task = prefix_line(crlf, 1, "- [ ] ");
+        assert_eq!(applied(crlf, &task), "- [ ] one\r\ntwo");
+    }
 
     fn run(text: &str, needle: &str, kind: Inline) -> (String, String) {
         let start = text.find(needle).expect("in the text");
