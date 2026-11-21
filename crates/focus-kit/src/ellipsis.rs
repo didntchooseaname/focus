@@ -61,6 +61,7 @@ pub struct EllipsisLayout {
     full: ShapedLine,
     runs: Vec<TextRun>,
     font_size: Pixels,
+    letter_spacing: Pixels,
     line_height: Pixels,
 }
 
@@ -89,9 +90,14 @@ impl Element for Ellipsis {
             .line_height
             .to_pixels(font_size.into(), window.rem_size());
         let runs = self.runs(window);
-        let full = window
-            .text_system()
-            .shape_line(self.text.clone(), font_size, &runs, None);
+        let letter_spacing = text_style.letter_spacing;
+        let full = window.text_system().shape_line_spaced(
+            self.text.clone(),
+            font_size,
+            letter_spacing,
+            &runs,
+            None,
+        );
         let mut style = Style::default();
         style.size.width = full.width.ceil().into();
         style.size.height = line_height.into();
@@ -105,6 +111,7 @@ impl Element for Ellipsis {
                 full,
                 runs,
                 font_size,
+                letter_spacing,
                 line_height,
             },
         )
@@ -140,12 +147,20 @@ impl Element for Ellipsis {
                 .map(|run| run.font.clone())
                 .unwrap_or_else(|| window.text_style().font());
             let mut runs = layout.runs.clone();
-            let mut wrapper = window.text_system().line_wrapper(font, layout.font_size);
+            let mut wrapper = window.text_system().line_wrapper_spaced(
+                font,
+                layout.font_size,
+                layout.letter_spacing,
+            );
             let cut =
                 wrapper.truncate_line(self.text.clone(), bounds.size.width, SUFFIX, &mut runs);
-            window
-                .text_system()
-                .shape_line(cut, layout.font_size, &runs, None)
+            window.text_system().shape_line_spaced(
+                cut,
+                layout.font_size,
+                layout.letter_spacing,
+                &runs,
+                None,
+            )
         };
         if let Err(error) = line.paint_background(bounds.origin, layout.line_height, window, cx) {
             eprintln!("focus-kit: text background not painted: {error:#}");
