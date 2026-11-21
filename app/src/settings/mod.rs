@@ -7,7 +7,9 @@ pub mod schema;
 pub mod shortcuts;
 mod transfer;
 
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use focus_kit::Flow as _;
@@ -16,10 +18,10 @@ use focus_kit::{
     Segments, TextArea, TreeRow, Type, menu, size,
 };
 use gpui::{
-    AnyElement, App, AppContext, Context, Corner, Entity, EventEmitter, FocusHandle,
-    InteractiveElement, IntoElement, ParentElement, Render, ScrollHandle, SharedString,
-    StatefulInteractiveElement, Styled, Subscription, Window, anchored, deferred, div,
-    prelude::FluentBuilder, px,
+    AnyElement, App, AppContext, Bounds, Context, Corner, Entity, EventEmitter, FocusHandle,
+    InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Pixels, Render, ScrollHandle,
+    SharedString, StatefulInteractiveElement, Styled, Subscription, Window, anchored, canvas,
+    deferred, div, prelude::FluentBuilder, px,
 };
 use gpui_component::input::{InputEvent, InputState};
 
@@ -76,6 +78,7 @@ pub struct SettingsView {
     inputs: HashMap<&'static str, Entity<InputState>>,
     errors: HashMap<&'static str, SharedString>,
     open_menu: Option<&'static str>,
+    menu_highlight: usize,
     menu_closed: Option<Instant>,
     acted: Option<(&'static str, u64)>,
     pub facts: Facts,
@@ -91,6 +94,10 @@ pub struct SettingsView {
     intercept: Option<Subscription>,
     notice: Option<(bool, SharedString)>,
     recent_focus: Vec<FocusHandle>,
+    sections_focus: FocusHandle,
+    row_focus: HashMap<&'static str, FocusHandle>,
+    row_bounds: Rc<RefCell<HashMap<&'static str, Bounds<Pixels>>>>,
+    focused_row: Option<&'static str>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -221,9 +228,21 @@ impl SettingsView {
             inputs,
             errors: HashMap::new(),
             open_menu: None,
+            menu_highlight: 0,
             menu_closed: None,
             acted: None,
-            recent_focus: facts.recent.iter().map(|_| cx.focus_handle()).collect(),
+            recent_focus: facts
+                .recent
+                .iter()
+                .map(|_| cx.focus_handle().tab_stop(true))
+                .collect(),
+            sections_focus: cx.focus_handle().tab_stop(true),
+            row_focus: SETTINGS
+                .iter()
+                .map(|setting| (setting.key, cx.focus_handle()))
+                .collect(),
+            row_bounds: Rc::default(),
+            focused_row: None,
             facts,
             scroll: ScrollHandle::new(),
             ai: ai_page::AiState::new(),
@@ -253,7 +272,12 @@ impl SettingsView {
         match request.split_once(':').unwrap_or((request, "")) {
             ("action", _) => self.open_draft(None, window, cx),
             ("server", _) => self.open_server_draft(None, window, cx),
-            ("menu", key) => self.open_menu = schema::setting(key).map(|setting| setting.key),
+            ("menu", key) => {
+                self.open_menu = schema::setting(key).map(|setting| setting.key);
+                self.menu_highlight = self
+                    .open_menu
+                    .map_or(0, |key| self.prefs.read(cx).choice(key));
+            }
             ("record", label) => {
                 if let Some(group) = shortcuts::groups().into_iter().find(|g| g.label == label) {
                     self.begin_recording(group.label, cx);
@@ -284,6 +308,86 @@ impl SettingsView {
             return true;
         }
         self.shortcut_conflict.take().is_some()
+    }
+
+    fn show_section(&mut self, section: Section, window: &mut Window, cx: &mut Context<Self>) {
+        self.section = section;
+        self.scroll.set_offset(gpui::point(px(0.), px(0.)));
+        self.search
+            .update(cx, |input, cx| input.set_value("", window, cx));
+        cx.notify();
+    }
+
+    fn step_section(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
+        if event.keystroke.modifiers.modified() {
+            return;
+        }
+        let at = Section::ALL
+            .iter()
+            .position(|s| *s == self.section)
+            .unwrap_or(0);
+        let target = match event.keystroke.key.as_str() {
+            "up" => at.saturating_sub(1),
+            "down" => (at + 1).min(Section::ALL.len() - 1),
+            _ => return,
+        };
+        cx.stop_propagation();
+        if target != at {
+            self.show_section(Section::ALL[target], window, cx);
+        }
+    }
+
+    fn reveal_focused_row(&mut self, shown: &[&'static Setting], window: &Window, cx: &App) {
+        let focused = shown.iter().map(|s| s.key).find(|key| {
+            self.row_focus
+                .get(key)
+                .is_some_and(|row| row.contains_focused(window, cx))
+        });
+        if focused == self.focused_row {
+            return;
+        }
+        self.focused_row = focused;
+        let Some(row) = focused.and_then(|key| self.row_bounds.borrow().get(key).copied()) else {
+            return;
+        };
+        let view = self.scroll.bounds();
+        let (offset, max) = (self.scroll.offset(), self.scroll.max_offset());
+        let y = if row.top() < view.top() {
+            offset.y + (view.top() - row.top()) + size::S4
+        } else if row.bottom() > view.bottom() {
+            offset.y - (row.bottom() - view.bottom()) - size::S4
+        } else {
+            return;
+        };
+        self.scroll
+            .set_offset(gpui::point(offset.x, y.clamp(-max.height, px(0.))));
+    }
+
+    fn select_keys(
+        &mut self,
+        key: &'static str,
+        count: usize,
+        event: &KeyDownEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if event.keystroke.modifiers.modified() {
+            return;
+        }
+        let down = match event.keystroke.key.as_str() {
+            "down" => true,
+            "up" => false,
+            _ => return,
+        };
+        cx.stop_propagation();
+        if self.open_menu != Some(key) {
+            self.open_menu = Some(key);
+            self.menu_highlight = self.prefs.read(cx).choice(key);
+        } else if down {
+            self.menu_highlight = (self.menu_highlight + 1).min(count - 1);
+        } else {
+            self.menu_highlight = self.menu_highlight.saturating_sub(1);
+        }
+        cx.notify();
     }
 
     fn scroll_content(&mut self, to: Scroll, cx: &mut Context<Self>) {
@@ -423,8 +527,14 @@ impl SettingsView {
             Control::Choice(options) => {
                 let selected = prefs.choice(key);
                 let open = self.open_menu == Some(key) && !off;
+                let count = options.len();
                 div()
                     .relative()
+                    .when(!off, |this| {
+                        this.on_key_down(cx.listener(move |this, event: &KeyDownEvent, _, cx| {
+                            this.select_keys(key, count, event, cx)
+                        }))
+                    })
                     .child(
                         Button::new(key, schema::option_label(options[selected]))
                             .icon(Icon::CHEVRON_DOWN)
@@ -433,11 +543,16 @@ impl SettingsView {
                                 let just_closed = this
                                     .menu_closed
                                     .is_some_and(|at| at.elapsed() < Duration::from_millis(200));
-                                this.open_menu = if this.open_menu == Some(key) || just_closed {
-                                    None
-                                } else {
-                                    Some(key)
-                                };
+                                if this.open_menu == Some(key) {
+                                    let index = this.menu_highlight;
+                                    this.open_menu = None;
+                                    this.prefs.update(cx, |prefs, cx| {
+                                        prefs.set(key, Value::Choice(index), cx)
+                                    });
+                                } else if !just_closed {
+                                    this.open_menu = Some(key);
+                                    this.menu_highlight = selected;
+                                }
                                 cx.notify();
                             })),
                     )
@@ -460,6 +575,7 @@ impl SettingsView {
                                             |(index, option)| {
                                                 MenuRow::new(index, schema::option_label(option))
                                                     .checked(index == selected)
+                                                    .current(index == self.menu_highlight)
                                                     .on_click(cx.listener(move |this, _, _, cx| {
                                                         this.open_menu = None;
                                                         this.prefs.update(cx, |prefs, cx| {
@@ -611,6 +727,23 @@ impl SettingsView {
         }
     }
 
+    fn tracked_row(&self, key: &'static str) -> gpui::Div {
+        let bounds = self.row_bounds.clone();
+        div()
+            .relative()
+            .when_some(self.row_focus.get(key), |row, focus| row.track_focus(focus))
+            .child(
+                canvas(
+                    move |area, _, _| {
+                        bounds.borrow_mut().insert(key, area);
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .size_full(),
+            )
+    }
+
     fn render_row(&self, setting: &'static Setting, cx: &mut Context<Self>) -> AnyElement {
         let t = *cx.tokens();
         let changed = !self.prefs.read(cx).is_default(setting);
@@ -623,8 +756,8 @@ impl SettingsView {
             (t.ink, t.ink_3)
         };
         if matches!(setting.control, Control::Custom) {
-            return div()
-                .relative()
+            return self
+                .tracked_row(setting.key)
                 .flex()
                 .flex_col()
                 .gap(size::S3)
@@ -641,8 +774,7 @@ impl SettingsView {
                 .child(self.render_control(setting, off, cx))
                 .into_any_element();
         }
-        div()
-            .relative()
+        self.tracked_row(setting.key)
             .flow_row()
             .items_start()
             .gap(size::S6)
@@ -817,6 +949,9 @@ impl Render for SettingsView {
             })
             .collect();
         let section_changed = matches.iter().any(|s| !self.prefs.read(cx).is_default(s));
+        self.reveal_focused_row(&matches, window, cx);
+        let sections_focused = self.sections_focus.is_focused(window);
+        focus_kit::keyboard::name_focus(&self.sections_focus, "section-list", cx);
 
         let content: AnyElement = match section {
             Section::Shortcuts => self.render_shortcuts(&query, cx),
@@ -925,18 +1060,26 @@ impl Render for SettingsView {
                             .py(size::S2)
                             .border_end_1()
                             .border_color(t.line)
+                            .track_focus(&self.sections_focus)
+                            .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                                this.step_section(event, window, cx)
+                            }))
                             .children(Section::ALL.into_iter().map(|s| {
-                                TreeRow::new(("section", s as usize), s.label())
-                                    .icon(s.icon())
-                                    .active(!searching && s == section)
-                                    .on_click(cx.listener(move |this, _, window, cx| {
-                                        this.section = s;
-                                        this.scroll.set_offset(gpui::point(px(0.), px(0.)));
-                                        this.search.update(cx, |input, cx| {
-                                            input.set_value("", window, cx)
-                                        });
-                                        cx.notify();
-                                    }))
+                                let current = s == section;
+                                div()
+                                    .relative()
+                                    .child(
+                                        TreeRow::new(("section", s as usize), s.label())
+                                            .icon(s.icon())
+                                            .active(!searching && current)
+                                            .focused(sections_focused && current)
+                                            .on_click(cx.listener(move |this, _, window, cx| {
+                                                this.show_section(s, window, cx)
+                                            })),
+                                    )
+                                    .when(sections_focused && current, |this| {
+                                        this.child(focus_kit::interaction::inset_ring(t.ink))
+                                    })
                             })),
                     )
                     .child(
