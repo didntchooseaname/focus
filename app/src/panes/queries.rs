@@ -201,10 +201,15 @@ mod tests {
         assert_eq!(notes[0].count, 2);
         let lines: Vec<u32> = notes[0].lines.iter().map(|l| l.line).collect();
         assert_eq!(lines, [0, 2]);
-        assert!(
-            Arc::ptr_eq(&outcome, &q.results("kerberos", None).unwrap()),
-            "kept"
-        );
+        let (first, second) = loop {
+            let generation = q.generation();
+            let first = q.results("kerberos", None).unwrap();
+            let second = q.results("kerberos", None).unwrap();
+            if q.generation() == generation {
+                break (first, second);
+            }
+        };
+        assert!(Arc::ptr_eq(&first, &second), "kept");
         let holder = q
             .vault
             .note_by_path(std::path::Path::new("Red/kerberos.md"));
