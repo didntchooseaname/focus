@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::ops::Range;
 
 use focus_i18n::{Arg, t_args};
-use focus_kit::{ActiveTokens, Button, Field, Icon, MenuRow, Type, icon, menu, size};
+use focus_kit::{ActiveTokens, Button, Field, Flow as _, Icon, MenuRow, Type, icon, menu, size};
 use focus_ops::{JournalEntry, journal};
 use gpui::{
     AnyElement, App, AppContext as _, Context, Entity, EventEmitter, FocusHandle,
@@ -168,12 +168,13 @@ impl Render for JournalPanel {
 
         let target_button = div()
             .id("ops-journal-target")
-            .flex()
+            .flow_row()
             .items_center()
             .justify_between()
             .gap(size::S2)
             .flex_none()
-            .w(px(168.))
+            .min_w(px(168.))
+            .max_w(px(280.))
             .h(size::CONTROL)
             .px(size::S2)
             .rounded(size::RADIUS)
@@ -181,6 +182,7 @@ impl Render for JournalPanel {
             .border_color(t.line_2)
             .bg(t.bg_2)
             .cursor_pointer()
+            .hover(move |s| s.border_color(t.ink_3))
             .text_color(t.ink)
             .on_click(cx.listener(|this, _, _, cx| {
                 this.menu = this.menus.click_opens(this.menu);
@@ -205,20 +207,24 @@ impl Render for JournalPanel {
                     cx.notify();
                 })
             };
-            self.menus
-                .attach(div().absolute().bottom(px(32.)).left_0(), dismiss)
-                .child(menu(&t).min_w(px(168.)).max_h(px(200.)).children(
-                    rows.into_iter().enumerate().map(|(i, (value, label))| {
-                        MenuRow::new(("ops-journal-target-row", i), label)
-                            .checked(value == self.target)
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.target = value.clone();
-                                this.menu = false;
-                                this.refilter(cx);
-                                cx.notify();
-                            }))
-                    }),
-                ))
+            focus_kit::fade_in(
+                "fade-ops-target-menu",
+                self.menus
+                    .attach(div().absolute().bottom(px(32.)).start_at(px(0.)), dismiss)
+                    .child(menu(&t).min_w(px(168.)).max_h(px(200.)).children(
+                        rows.into_iter().enumerate().map(|(i, (value, label))| {
+                            MenuRow::new(("ops-journal-target-row", i), label)
+                                .checked(value == self.target)
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.target = value.clone();
+                                    this.menu = false;
+                                    this.refilter(cx);
+                                    cx.notify();
+                                }))
+                        }),
+                    )),
+                cx,
+            )
         });
 
         let header = crate::ui::row()
@@ -295,9 +301,8 @@ impl Render for JournalPanel {
                                     &active.hosts,
                                     cx,
                                 );
-                                div()
+                                crate::ui::row()
                                     .id(("ops-journal-row", row))
-                                    .flex()
                                     .items_center()
                                     .gap(size::S3)
                                     .h(px(22.))

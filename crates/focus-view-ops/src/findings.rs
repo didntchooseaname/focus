@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use focus_i18n::{Arg, t_args};
 use focus_kit::{
-    ActiveTokens, Button, ButtonKind, ContextChip, Field, Icon, IconButton, MenuRow, Segment,
-    Segments, Tokens, Type, menu, size,
+    ActiveTokens, Button, ButtonKind, ContextChip, Field, Flow as _, Icon, IconButton, MenuRow,
+    Segment, Segments, Tokens, Type, menu, size,
 };
 use focus_ops::cvss::{self, Metric};
 use focus_ops::{Finding, FindingStatus, Severity, findings};
@@ -18,8 +18,8 @@ use gpui_component::input::{InputEvent, InputState};
 use crate::event::{NoticeTone, OpsEvent};
 use crate::state::{OpsState, error_text};
 use crate::ui::{
-    finding_status_key, hatched_empty, mono_chip, screen_header, section_label, severity_color,
-    severity_key, severity_tag, t_,
+    finding_status_key, hatched_empty, mono_chip, screen_header, section_label, severity_key,
+    severity_tag, t_,
 };
 
 const SEVERITIES: [Severity; 5] = [
@@ -704,7 +704,7 @@ impl FindingsList {
             .h_full()
             .gap(size::S3)
             .p(size::S4)
-            .border_l_1()
+            .border_start_1()
             .border_color(t.line)
             .child(tabs)
             .child(body)
@@ -940,24 +940,24 @@ impl FindingsList {
                     .into_any_element(),
             );
         }
-        Some(
-            menu(t)
-                .children(hits.into_iter().map(|weakness| {
-                    let id = focus_ops::cwe::format_id(weakness.id);
-                    let added = finding.cwe.contains(&id);
-                    MenuRow::new(
-                        ("ops-finding-cwe-hit", weakness.id as usize),
-                        format!("{id} {}", weakness.name),
-                    )
-                    .checked(added)
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        this.cwe_input
-                            .update(cx, |input, cx| input.set_value("", window, cx));
-                        this.add_cwe(&id, cx);
-                    }))
+        Some(focus_kit::fade_in(
+            "fade-ops-cwe-menu",
+            menu(t).children(hits.into_iter().map(|weakness| {
+                let id = focus_ops::cwe::format_id(weakness.id);
+                let added = finding.cwe.contains(&id);
+                MenuRow::new(
+                    ("ops-finding-cwe-hit", weakness.id as usize),
+                    format!("{id} {}", weakness.name),
+                )
+                .checked(added)
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    this.cwe_input
+                        .update(cx, |input, cx| input.set_value("", window, cx));
+                    this.add_cwe(&id, cx);
                 }))
-                .into_any_element(),
-        )
+            })),
+            cx,
+        ))
     }
 
     fn calculator(&self, t: &Tokens, cx: &mut Context<Self>) -> gpui::Div {
@@ -968,14 +968,11 @@ impl FindingsList {
         let version_entity = entity.clone();
         let headline: AnyElement = match &scored {
             Ok(score) => crate::ui::row()
-                .items_baseline()
+                .items_center()
                 .gap(size::S3)
                 .child(
-                    div()
-                        .stat()
-                        .font_family(focus_kit::typography::MONO)
-                        .text_color(severity_color(t, score.severity))
-                        .child(format!("{:.1}", score.base)),
+                    mono_chip(t, focus_i18n::format_decimal(f64::from(score.base), 1))
+                        .font_weight(gpui::FontWeight::SEMIBOLD),
                 )
                 .child(severity_tag(t, score.severity))
                 .into_any_element(),
@@ -1026,6 +1023,7 @@ impl FindingsList {
                             .flex_1()
                             .min_w_0()
                             .mono_sm()
+                            .text_left()
                             .text_color(t.ink_2)
                             .child(vector),
                     )
@@ -1251,8 +1249,9 @@ impl Render for FindingsList {
                                     cx.notify();
                                 })
                             };
-                            this.child(deferred(
-                                anchored().snap_to_window().child(
+                            this.child(deferred(anchored().snap_to_window().child(
+                                focus_kit::fade_in(
+                                    "fade-ops-findings-menu",
                                     self.menus.attach(menu(&t).mt(px(4.)), dismiss).children(
                                         rows.into_iter().enumerate().map(
                                             |(index, (text, checked))| {
@@ -1277,8 +1276,9 @@ impl Render for FindingsList {
                                             },
                                         ),
                                     ),
+                                    cx,
                                 ),
-                            ))
+                            )))
                         })
                 };
             let mut severity_rows = vec![(t_("ops-filter-all"), self.severity.is_none())];
@@ -1548,39 +1548,43 @@ impl Render for FindingsList {
                 .into_any_element()
         };
 
-        crate::ui::pageable(div().id("ops-findings"), &self.focus, cx, Self::jump)
-            .flex()
-            .size_full()
-            .bg(t.bg)
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .flex_1()
-                    .min_w(px(270.))
-                    .gap(size::S4)
-                    .p(size::S4)
-                    .child(screen_header(
-                        &t,
-                        t_("ops-section-findings"),
-                        Some(t_args(
-                            "ops-finding-count",
-                            &[("count", Arg::from(active.findings.len()))],
-                        )),
-                    ))
-                    .child(toolbar)
-                    .children(creation)
-                    .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .flex_1()
-                            .min_h_0()
-                            .child(list)
-                            .children(has_rows.then(crate::ui::table_filler)),
-                    ),
-            )
-            .child(self.right_panel(&t, &active, cx))
+        crate::ui::pageable(
+            crate::ui::row().id("ops-findings"),
+            &self.focus,
+            cx,
+            Self::jump,
+        )
+        .size_full()
+        .bg(t.bg)
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .flex_1()
+                .min_w(px(270.))
+                .gap(size::S4)
+                .p(size::S4)
+                .child(screen_header(
+                    &t,
+                    t_("ops-section-findings"),
+                    Some(t_args(
+                        "ops-finding-count",
+                        &[("count", Arg::from(active.findings.len()))],
+                    )),
+                ))
+                .child(toolbar)
+                .children(creation)
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .flex_1()
+                        .min_h_0()
+                        .child(list)
+                        .children(has_rows.then(crate::ui::table_filler)),
+                ),
+        )
+        .child(self.right_panel(&t, &active, cx))
     }
 }
 

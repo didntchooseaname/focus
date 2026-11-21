@@ -709,33 +709,18 @@ impl OpsSidebar {
                     .flex_col()
                     .gap(size::S1)
                     .child(
-                        crate::ui::row()
-                            .id("ops-exam-rules-toggle")
-                            .items_center()
-                            .gap(size::S1)
-                            .h(px(22.))
-                            .cursor_pointer()
-                            .text_color(t.ink_3)
-                            .hover({
-                                let ink = t.ink_2;
-                                move |s| s.text_color(ink)
-                            })
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.rules_open = !this.rules_open;
-                                cx.notify();
-                            }))
-                            .child(icon(
-                                if self.rules_open {
-                                    Icon::CHEVRON_DOWN
-                                } else {
-                                    crate::dir::Dir::current().forward()
-                                },
-                                size::ICON_SMALL,
-                            ))
-                            .child(div().ui_xs().child(t_args(
+                        focus_kit::Disclosure::new(
+                            "ops-exam-rules-toggle",
+                            t_args(
                                 "ops-exam-rules-count",
                                 &[("count", Arg::from(profile.rule_keys.len()))],
-                            ))),
+                            ),
+                            self.rules_open,
+                        )
+                        .on_toggle(cx.listener(|this, _, _, cx| {
+                            this.rules_open = !this.rules_open;
+                            cx.notify();
+                        })),
                     )
                     .when(self.rules_open, |this| {
                         this.children(profile.rule_keys.iter().map(|key| {
@@ -891,7 +876,8 @@ impl Render for OpsSidebar {
                             })),
                     )
                     .when(self.open == Open::Trash, |this| {
-                        this.child(
+                        this.child(focus_kit::fade_in(
+                            "fade-ops-trash-menu",
                             self.menus
                                 .attach(
                                     menu(&t).min_w_0().p(size::S3).gap(size::S2),
@@ -930,7 +916,8 @@ impl Render for OpsSidebar {
                                                 })),
                                         ),
                                 ),
-                        )
+                            cx,
+                        ))
                     })
             }))
             .child(
@@ -973,11 +960,13 @@ impl Render for OpsSidebar {
                     }
                 },
                 self.dismiss_menu(cx),
+                cx,
             ))
             .child(section_label(&t, t_("ops-scope")))
             .child(Field::new(&self.scope))
             .when(self.open == Open::Engagements, |this| {
-                this.child(
+                this.child(focus_kit::fade_in(
+                    "fade-ops-engagement-menu",
                     self.menus
                         .attach(menu(&t).min_w_0(), self.dismiss_menu(cx))
                         .children(engagements.iter().enumerate().map(|(i, e)| {
@@ -1002,7 +991,8 @@ impl Render for OpsSidebar {
                                     cx.notify();
                                 })),
                         ),
-                )
+                    cx,
+                ))
             });
 
         let pages = div().flex().flex_col().children(
@@ -1102,7 +1092,8 @@ impl Render for OpsSidebar {
                     .child(icon(Icon::CHEVRON_DOWN, size::ICON_SMALL).text_color(t.ink_3)),
             )
             .when(self.open == Open::Targets, |this| {
-                this.child(
+                this.child(focus_kit::fade_in(
+                    "fade-ops-targets-menu",
                     self.menus
                         .attach(menu(&t).min_w_0().max_h(px(220.)), self.dismiss_menu(cx))
                         .child(
@@ -1138,7 +1129,8 @@ impl Render for OpsSidebar {
                                     ))
                                 }),
                         ),
-                )
+                    cx,
+                ))
             });
 
         let described: HashMap<&str, &str> = vars::known().iter().copied().collect();
@@ -1246,29 +1238,34 @@ impl Render for OpsSidebar {
                 }
                 let list = offering.then(|| {
                     let name = name.clone();
-                    self.menus
-                        .attach(menu(&t).min_w_0().max_h(px(200.)), self.dismiss_menu(cx))
-                        .children(choices.into_iter().enumerate().map(|(i, choice)| {
-                            let (credential, variable) = (choice.credential.clone(), name.clone());
-                            MenuRow::new(("ops-var-choice", i), choice.label).on_click(cx.listener(
-                                move |this, _, _, cx| {
-                                    this.link_variable(
-                                        variable.clone(),
-                                        Some(credential.clone()),
-                                        cx,
-                                    )
-                                },
-                            ))
-                        }))
-                        .when(linked, |menu| {
-                            let variable = name.clone();
-                            menu.child(
-                                MenuRow::new("ops-var-unlink", t_("ops-var-credential-unlink"))
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.link_variable(variable.clone(), None, cx)
-                                    })),
-                            )
-                        })
+                    focus_kit::fade_in(
+                        "fade-ops-credential-menu",
+                        self.menus
+                            .attach(menu(&t).min_w_0().max_h(px(200.)), self.dismiss_menu(cx))
+                            .children(choices.into_iter().enumerate().map(|(i, choice)| {
+                                let (credential, variable) =
+                                    (choice.credential.clone(), name.clone());
+                                MenuRow::new(("ops-var-choice", i), choice.label).on_click(
+                                    cx.listener(move |this, _, _, cx| {
+                                        this.link_variable(
+                                            variable.clone(),
+                                            Some(credential.clone()),
+                                            cx,
+                                        )
+                                    }),
+                                )
+                            }))
+                            .when(linked, |menu| {
+                                let variable = name.clone();
+                                menu.child(
+                                    MenuRow::new("ops-var-unlink", t_("ops-var-credential-unlink"))
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.link_variable(variable.clone(), None, cx)
+                                        })),
+                                )
+                            }),
+                        cx,
+                    )
                 });
                 div()
                     .flex()

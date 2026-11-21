@@ -72,8 +72,7 @@ pub(crate) fn severity_weight(severity: Severity) -> FontWeight {
 
 pub(crate) fn severity_tag(t: &Tokens, severity: Severity) -> Div {
     let color = severity_color(t, severity);
-    div()
-        .flex()
+    row()
         .items_center()
         .gap(size::S2)
         .child(div().flex_none().w(px(2.)).h(px(16.)).bg(color))
@@ -455,6 +454,7 @@ pub(crate) fn dropdown(
     toggle: impl Fn(&mut Window, &mut App) + 'static,
     pick: impl Fn(usize, &mut Window, &mut App) + Clone + 'static,
     dismiss: impl Fn(&mut Window, &mut App) + Clone + 'static,
+    cx: &App,
 ) -> AnyElement {
     use focus_kit::{Icon, MenuRow, menu};
     use gpui::StatefulInteractiveElement as _;
@@ -488,15 +488,19 @@ pub(crate) fn dropdown(
                 .child(focus_kit::icon(Icon::CHEVRON_DOWN, size::ICON_SMALL).text_color(t.ink_3)),
         )
         .when(open, |this| {
-            let list = menus.attach(menu(t).mt(px(4.)), dismiss).children(
-                rows.into_iter()
-                    .enumerate()
-                    .map(|(index, (text, checked))| {
-                        let pick = pick.clone();
-                        MenuRow::new((id, index), text)
-                            .checked(checked)
-                            .on_click(move |_, window, cx| pick(index, window, cx))
-                    }),
+            let list = focus_kit::fade_in(
+                "fade-ops-dropdown",
+                menus.attach(menu(t).mt(px(4.)), dismiss).children(
+                    rows.into_iter()
+                        .enumerate()
+                        .map(|(index, (text, checked))| {
+                            let pick = pick.clone();
+                            MenuRow::new((id, index), text)
+                                .checked(checked)
+                                .on_click(move |_, window, cx| pick(index, window, cx))
+                        }),
+                ),
+                cx,
             );
             this.child(deferred(anchored().snap_to_window().child(list)))
         })

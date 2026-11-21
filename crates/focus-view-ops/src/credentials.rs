@@ -2,7 +2,8 @@ use std::collections::HashSet;
 
 use focus_i18n::{Arg, t_args};
 use focus_kit::{
-    ActiveTokens, Button, ButtonKind, Field, Icon, IconButton, MenuRow, Type, icon, menu, size,
+    ActiveTokens, Button, ButtonKind, Field, Flow as _, Icon, IconButton, MenuRow, Type, icon,
+    menu, size,
 };
 use focus_ops::{Credential, loot};
 use gpui::{
@@ -266,7 +267,7 @@ impl Render for CredentialsTable {
 
         let kind_button = div()
             .id("ops-credential-kind")
-            .flex()
+            .flow_row()
             .items_center()
             .justify_between()
             .gap(size::S2)
@@ -279,6 +280,7 @@ impl Render for CredentialsTable {
             .border_color(t.line_2)
             .bg(t.bg_2)
             .cursor_pointer()
+            .hover(move |s| s.border_color(t.ink_3))
             .ui()
             .text_color(t.ink)
             .on_click(cx.listener(|this, _, _, cx| {
@@ -296,21 +298,25 @@ impl Render for CredentialsTable {
                     cx.notify();
                 })
             };
-            self.menus
-                .attach(div().absolute().top(px(32.)).left_0(), dismiss)
-                .child(
-                    menu(&t)
-                        .min_w(px(120.))
-                        .children(KINDS.iter().enumerate().map(|(i, kind)| {
-                            MenuRow::new(("ops-credential-kind-row", i), *kind)
-                                .checked(i == self.kind)
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    this.kind = i;
-                                    this.kind_menu = false;
-                                    cx.notify();
-                                }))
-                        })),
-                )
+            focus_kit::fade_in(
+                "fade-ops-kind-menu",
+                self.menus
+                    .attach(div().absolute().top(px(32.)).start_at(px(0.)), dismiss)
+                    .child(
+                        menu(&t)
+                            .min_w(px(120.))
+                            .children(KINDS.iter().enumerate().map(|(i, kind)| {
+                                MenuRow::new(("ops-credential-kind-row", i), *kind)
+                                    .checked(i == self.kind)
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.kind = i;
+                                        this.kind_menu = false;
+                                        cx.notify();
+                                    }))
+                            })),
+                    ),
+                cx,
+            )
         });
 
         let quick_add = crate::ui::row()
@@ -348,12 +354,10 @@ impl Render for CredentialsTable {
                     .min_w_0()
                     .child(t_("ops-credentials-column-domain")),
             )
-            .child(
-                div()
-                    .flex_none()
-                    .w(px(84.))
-                    .child(t_("ops-credentials-column-kind")),
-            )
+            .child(div().flex_none().w(px(84.)).child(focus_kit::truncated(
+                "ops-credentials-kind-header",
+                t_("ops-credentials-column-kind"),
+            )))
             .child(
                 div()
                     .flex_1()

@@ -1,5 +1,4 @@
 use focus_i18n::Direction;
-use focus_kit::Icon;
 use gpui::{Div, Styled, div};
 
 #[derive(Clone, Copy, Debug)]
@@ -27,14 +26,6 @@ impl Dir {
             element.text_right()
         } else {
             element.text_left()
-        }
-    }
-
-    pub fn forward(self) -> Icon {
-        if self.rtl {
-            Icon::CHEVRON_LEFT
-        } else {
-            Icon::CHEVRON_RIGHT
         }
     }
 }

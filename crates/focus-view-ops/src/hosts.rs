@@ -8,7 +8,9 @@ use std::net::Ipv4Addr;
 use std::path::PathBuf;
 
 use focus_i18n::{Arg, t_args};
-use focus_kit::{ActiveTokens, Button, ButtonKind, Icon, IconButton, Tokens, Type, icon, size};
+use focus_kit::{
+    ActiveTokens, Button, ButtonKind, Flow as _, Icon, IconButton, Tokens, Type, icon, size,
+};
 use focus_ops::{Host, hosts};
 use gpui::{
     AnyElement, AppContext as _, Context, Entity, EventEmitter, FocusHandle, InteractiveElement,
@@ -442,7 +444,7 @@ impl HostsTable {
                 .h_full()
                 .gap(size::S3)
                 .p(size::S4)
-                .border_l_1()
+                .border_start_1()
                 .border_color(t.line)
                 .child(div().mono().text_color(t.ink).child(host.ip.clone()))
                 .children(
@@ -495,6 +497,7 @@ impl HostsTable {
                             })
                         }
                     },
+                    cx,
                 ))
                 .child(
                     self.proofs_section(
@@ -633,7 +636,10 @@ fn cells(t: &Tokens, host: &Host) -> [AnyElement; 5] {
             .w(px(96.))
             .ui()
             .text_color(status_ink)
-            .child(t_(host_status_key(host.status)))
+            .child(focus_kit::truncated(
+                gpui::ElementId::Name(format!("ops-host-status-{}", host.ip).into()),
+                t_(host_status_key(host.status)),
+            ))
             .into_any_element(),
         div()
             .flex_1()
