@@ -65,6 +65,18 @@ impl Row {
         }
     }
 
+    pub fn found(&self) -> Option<SharedString> {
+        match self {
+            Row::Line { text, ranges, .. }
+            | Row::Before { text, ranges, .. }
+            | Row::After { text, ranges, .. } => {
+                let range = ranges.first()?;
+                Some(text.get(range.clone())?.to_string().into())
+            }
+            _ => None,
+        }
+    }
+
     fn selectable(&self) -> bool {
         !matches!(self, Row::Reason { .. } | Row::After { .. })
     }

@@ -66,6 +66,7 @@ enum Hit {
         title: SharedString,
         excerpt: SharedString,
         matched: Vec<Range<usize>>,
+        found: Option<SharedString>,
     },
     File {
         path: std::path::PathBuf,
@@ -96,8 +97,15 @@ fn char_ranges(text: &str, positions: &[u32]) -> Vec<Range<usize>> {
 }
 
 pub enum PaletteEvent {
-    OpenNote { id: NoteId, new_tab: bool },
-    OpenAtLine { id: NoteId, line: u32 },
+    OpenNote {
+        id: NoteId,
+        new_tab: bool,
+    },
+    OpenAtLine {
+        id: NoteId,
+        line: u32,
+        found: Option<SharedString>,
+    },
     SearchTag(String),
     Run(Box<dyn Action>),
     GoToLine(u32),
@@ -408,6 +416,10 @@ impl Palette {
                             .unwrap_or_default()
                             .into(),
                         matched: line.map(|l| l.ranges.clone()).unwrap_or_default(),
+                        found: line.and_then(|l| {
+                            let range = l.ranges.first()?;
+                            Some(l.text.get(range.clone())?.to_string().into())
+                        }),
                     })
                 })
                 .collect();
@@ -457,9 +469,12 @@ impl Palette {
             Hit::Note { id, .. } if self.mode == Mode::Templates => PaletteEvent::FromTemplate(*id),
             Hit::HostTemplate { index, .. } => PaletteEvent::FromHostTemplate(*index),
             Hit::Note { id, .. } => PaletteEvent::OpenNote { id: *id, new_tab },
-            Hit::Line { id, line, .. } => PaletteEvent::OpenAtLine {
+            Hit::Line {
+                id, line, found, ..
+            } => PaletteEvent::OpenAtLine {
                 id: *id,
                 line: *line,
+                found: found.clone(),
             },
             Hit::Tag { text, .. } => PaletteEvent::SearchTag(text.to_string()),
             Hit::Command { index, .. } => PaletteEvent::Run((COMMANDS[*index].action)()),

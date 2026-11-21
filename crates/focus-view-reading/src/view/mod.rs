@@ -320,6 +320,7 @@ pub struct ReadingView {
     note_field: Option<Entity<gpui_component::input::InputState>>,
     editing: Option<inplace::Editing>,
     in_place_frame: Option<inplace::Frame>,
+    spot: Option<inplace::Spot>,
     focus_target: Option<walk::Target>,
     in_place_press: Option<usize>,
     in_place_text: Option<gpui_component::Rope>,
@@ -427,6 +428,7 @@ impl ReadingView {
             note_field: None,
             editing: None,
             in_place_frame: None,
+            spot: None,
             focus_target: None,
             in_place_press: None,
             in_place_text: None,
@@ -1661,6 +1663,10 @@ impl ReadingView {
             _ => rich,
         };
         let decor = self.decorate(key, rich, t);
+        let spotted = match decor {
+            Some(_) => Vec::new(),
+            None => self.spotted(key, rich),
+        };
         let revealed;
         let rich = match decor.as_ref().and_then(|d| d.rich.clone()) {
             Some(shown) => {
@@ -1715,7 +1721,7 @@ impl ReadingView {
                 },
                 decor.as_ref().and_then(|d| d.caret),
                 decor.as_ref().and_then(|d| d.marked.clone()),
-                decor.map(|d| d.found).unwrap_or_default(),
+                decor.map(|d| d.found).unwrap_or(spotted),
             )
             .paints(paints),
         )

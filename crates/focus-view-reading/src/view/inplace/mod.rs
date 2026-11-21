@@ -119,6 +119,43 @@ impl Frame {
     }
 }
 
+pub(crate) struct Spot {
+    text: Rope,
+    found: (std::rc::Rc<Vec<Range<usize>>>, usize),
+}
+
+fn found_in(
+    found: &(std::rc::Rc<Vec<Range<usize>>>, usize),
+    origin: usize,
+    map: &SourceMap,
+) -> Vec<crate::text::Found> {
+    let (ranges, current) = found;
+    let Some(span) = map.span() else {
+        return Vec::new();
+    };
+    let (from, to) = (origin + span.start, origin + span.end);
+    let first = ranges.partition_point(|r| r.end <= from);
+    let mut shown = Vec::new();
+    for (index, range) in ranges.iter().enumerate().skip(first) {
+        if range.start >= to {
+            break;
+        }
+        let (Some(start), Some(end)) = (
+            range.start.checked_sub(origin),
+            range.end.checked_sub(origin),
+        ) else {
+            continue;
+        };
+        if let Some(range) = map.shown_range(&(start..end)) {
+            shown.push(crate::text::Found {
+                range,
+                current: index == *current,
+            });
+        }
+    }
+    shown
+}
+
 pub(super) struct Decor {
     pub rich: Option<Rich>,
     pub map: Option<Arc<SourceMap>>,
@@ -466,7 +503,16 @@ impl ReadingView {
 
     pub(super) fn read_frame(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.in_place_frame = None;
+        self.spot = None;
         if !self.caret_shown() {
+            let field = self.note_field.as_ref().or(self.in_place.as_ref());
+            self.spot = field.and_then(|field| {
+                let field = field.read(cx);
+                Some(Spot {
+                    found: field.find_ranges(cx)?,
+                    text: field.text().clone(),
+                })
+            });
             return;
         }
         let Some(field) = self.field().cloned() else {
@@ -573,23 +619,8 @@ impl ReadingView {
         } else if let Some(end) = relative(selection.end) {
             decor.selection = map.shown_range(&(0..end));
         }
-        if let (Some((ranges, current)), Some(span)) = (&frame.found, map.span()) {
-            let (from, to) = (origin + span.start, origin + span.end);
-            let first = ranges.partition_point(|r| r.end <= from);
-            for (index, range) in ranges.iter().enumerate().skip(first) {
-                if range.start >= to {
-                    break;
-                }
-                let (Some(start), Some(end)) = (relative(range.start), relative(range.end)) else {
-                    continue;
-                };
-                if let Some(shown) = map.shown_range(&(start..end)) {
-                    decor.found.push(crate::text::Found {
-                        range: shown,
-                        current: index == *current,
-                    });
-                }
-            }
+        if let Some(found) = &frame.found {
+            decor.found = found_in(found, origin, &map);
         }
         decor.marked = frame
             .marked
@@ -597,6 +628,16 @@ impl ReadingView {
             .and_then(|m| map.shown_range(&(relative(m.start)?..relative(m.end)?)));
         decor.map = Some(map);
         Some(decor)
+    }
+
+    pub(super) fn spotted(&self, key: TextKey, rich: &Rich) -> Vec<crate::text::Found> {
+        let Some(spot) = &self.spot else {
+            return Vec::new();
+        };
+        match (srcmap::of(rich), self.origin(key.0, &spot.text)) {
+            (Some(map), Some(origin)) => found_in(&spot.found, origin, &map),
+            _ => Vec::new(),
+        }
     }
 
     fn at<'a>(&'a self, text: &'a Rope, caret: usize, selection: Range<usize>) -> At<'a> {

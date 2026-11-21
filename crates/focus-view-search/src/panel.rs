@@ -91,6 +91,7 @@ pub enum SearchEvent {
     OpenNote {
         note: NoteId,
         line: Option<u32>,
+        found: Option<SharedString>,
         new_tab: bool,
     },
     FocusReleased,
@@ -703,6 +704,7 @@ impl SearchPanel {
         cx.emit(SearchEvent::OpenNote {
             note,
             line,
+            found: row.found(),
             new_tab,
         });
     }
@@ -1062,6 +1064,7 @@ impl SearchPanel {
         cx.emit(SearchEvent::OpenNote {
             note,
             line,
+            found: None,
             new_tab,
         });
     }

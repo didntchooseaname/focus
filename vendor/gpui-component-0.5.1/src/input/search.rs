@@ -673,6 +673,25 @@ impl InputState {
         cx.notify();
     }
 
+    /// Highlights every occurrence of `query`, selects the first one that ends at or after
+    /// `offset` and scrolls to it: a match reached from outside the field (Focus: a result
+    /// of the vault search).
+    pub fn find_at(&mut self, query: &str, case_sensitive: bool, offset: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let panel = self.external_panel(window, cx);
+        let found = panel.update(cx, |panel, cx| {
+            panel.open = true;
+            panel.case_insensitive = !case_sensitive;
+            panel.matcher.update_query(query, !case_sensitive);
+            panel.matcher.update_cursor_by_offset(offset);
+            cx.notify();
+            panel.matcher.matched_ranges.get(panel.matcher.current_match_ix).cloned()
+        });
+        if let Some(found) = found {
+            self.scroll_to(found.start, None, cx);
+        }
+        cx.notify();
+    }
+
     /// Moves to the next occurrence, or the previous one.
     pub fn find_next(&mut self, forward: bool, window: &mut Window, cx: &mut Context<Self>) {
         let panel = self.external_panel(window, cx);

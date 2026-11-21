@@ -115,6 +115,7 @@ pub struct NoteEditor {
     pub dirty: bool,
     pub view: ViewMode,
     pub editing_view: ViewMode,
+    pub spotted: bool,
     pub conflict: bool,
     theirs: Option<Arc<conflict::Theirs>>,
     conflict_task: Option<Task<()>>,
@@ -209,6 +210,9 @@ impl NoteEditor {
                 if this.live.is_none() {
                     cx.emit(EditorEvent::Edited);
                 }
+                if this.spotted {
+                    this.clear_spot(cx);
+                }
                 let dirty = if this.crlf {
                     this.on_disk(&input.read(cx).value()) != this.loaded
                 } else {
@@ -272,6 +276,7 @@ impl NoteEditor {
             decoration: None,
             code_variables: None,
             parked: false,
+            spotted: false,
             follower: false,
             unsaved: None,
             parked_top: None,
@@ -934,6 +939,42 @@ impl NoteEditor {
         self.input.update(cx, |input, cx| {
             input.set_cursor_position(Position { line, character: 0 }, window, cx)
         });
+    }
+
+    pub fn arrive(
+        &mut self,
+        line: u32,
+        found: Option<gpui::SharedString>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.reading
+            .update(cx, |reading, _| reading.scroll_to_line(line));
+        if self.view != ViewMode::Reading {
+            self.go_to_line(line, window, cx);
+        }
+        match found {
+            Some(text) if !text.is_empty() => {
+                self.input.update(cx, |input, cx| {
+                    let from = input.text().line_start_offset(line as usize);
+                    input.find_at(&text, false, from, window, cx)
+                });
+                self.spotted = true;
+                self.reading.update(cx, |_, cx| cx.notify());
+                cx.notify();
+            }
+            _ => self.clear_spot(cx),
+        }
+    }
+
+    pub fn clear_spot(&mut self, cx: &mut Context<Self>) {
+        if !self.spotted {
+            return;
+        }
+        self.spotted = false;
+        self.input.update(cx, |input, cx| input.find_close(cx));
+        self.reading.update(cx, |_, cx| cx.notify());
+        cx.notify();
     }
 }
 

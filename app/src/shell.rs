@@ -167,6 +167,7 @@ pub struct Shell {
     pub facts: Facts,
     first_frame_seen: bool,
     pub pending_line: Option<(NoteId, u32)>,
+    pub pending_found: Option<(NoteId, gpui::SharedString)>,
     pub slash: Option<crate::editing::Slash>,
     pub slash_catalog: crate::editing::SlashCatalog,
     pub selbar: crate::selbar::SelectionBar,
@@ -249,11 +250,13 @@ impl Shell {
                     focus_view_search::SearchEvent::OpenNote {
                         note,
                         line,
+                        found,
                         new_tab,
                     } => {
                         this.open_note(*note, *new_tab, window, cx);
                         if let Some(line) = line {
                             this.pending_line = Some((*note, *line));
+                            this.pending_found = found.clone().map(|text| (*note, text));
                         }
                     }
                     focus_view_search::SearchEvent::FocusReleased => this.focus_content(window, cx),
@@ -314,6 +317,7 @@ impl Shell {
             },
             first_frame_seen: false,
             pending_line: None,
+            pending_found: None,
             slash: None,
             slash_catalog: crate::editing::SlashCatalog::new(),
             selbar: Default::default(),
@@ -1145,6 +1149,10 @@ impl Shell {
         if let Some(index) = self.tabs.iter().position(|tab| tab.read(cx).id == id) {
             self.activate(index, window, cx);
             self.push_history(id);
+            let editor = self.tabs[index].clone();
+            cx.defer_in(window, move |this, window, cx| {
+                this.arrive(&editor, window, cx)
+            });
             return;
         }
         let Some(meta) = self.library.as_ref().and_then(|library| library.note(id)) else {
@@ -1154,6 +1162,25 @@ impl Shell {
             return;
         };
         self.open_meta(meta, None, new_tab, window, cx);
+    }
+
+    fn arrive(&mut self, editor: &Entity<NoteEditor>, window: &mut Window, cx: &mut Context<Self>) {
+        let Some((id, line)) = self.pending_line else {
+            return;
+        };
+        if editor.read(cx).id != id || !matches!(editor.read(cx).load, crate::editor::Load::Ready) {
+            return;
+        }
+        self.pending_line = None;
+        let found = self
+            .pending_found
+            .take()
+            .filter(|(note, _)| *note == id)
+            .map(|(_, text)| text);
+        for other in self.tabs.iter().filter(|tab| *tab != editor) {
+            other.update(cx, |other, cx| other.clear_spot(cx));
+        }
+        editor.update(cx, |editor, cx| editor.arrive(line, found, window, cx));
     }
 
     pub fn open_meta(
@@ -1209,20 +1236,7 @@ impl Shell {
             window,
             |this, editor, event: &EditorEvent, window, cx| match event {
                 EditorEvent::Changed => {
-                    if let Some((id, line)) = this.pending_line
-                        && editor.read(cx).id == id
-                        && matches!(editor.read(cx).load, crate::editor::Load::Ready)
-                    {
-                        this.pending_line = None;
-                        editor.update(cx, |editor, cx| {
-                            editor
-                                .reading
-                                .update(cx, |reading, _| reading.scroll_to_line(line));
-                            if editor.view != ViewMode::Reading {
-                                editor.go_to_line(line, window, cx);
-                            }
-                        });
-                    }
+                    this.arrive(editor, window, cx);
                     this.sync_twin(editor, window, cx);
                     this.poll_history_error(cx);
                     cx.notify()
@@ -1499,11 +1513,13 @@ impl Shell {
                     this.close_overlay(window, cx);
                     window.dispatch_action(action, cx);
                 }
-                PaletteEvent::OpenAtLine { id, line } => {
+                PaletteEvent::OpenAtLine { id, line, found } => {
                     let (id, line) = (*id, *line);
+                    let found = found.clone();
                     this.close_overlay(window, cx);
                     this.open_note(id, false, window, cx);
                     this.pending_line = Some((id, line));
+                    this.pending_found = found.map(|text| (id, text));
                 }
                 PaletteEvent::SearchTag(tag) => {
                     let query = format!("tag:#{tag}");
@@ -2050,6 +2066,14 @@ impl Shell {
             .on_action(cx.listener(|this, _: &Dismiss, window, cx| {
                 if !matches!(this.overlay, Overlay::None) {
                     this.close_overlay(window, cx);
+                } else if this.find.is_none()
+                    && this
+                        .active_editor()
+                        .is_some_and(|editor| editor.read(cx).spotted)
+                {
+                    if let Some(editor) = this.active_editor().cloned() {
+                        editor.update(cx, |editor, cx| editor.clear_spot(cx));
+                    }
                 } else if matches!(this.screen, Screen::Kit(_)) {
                     this.screen = Screen::Workspace;
                     cx.notify();

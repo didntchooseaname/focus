@@ -56,6 +56,9 @@ impl Shell {
                 _subscriptions: subscriptions,
             });
         }
+        if let Some(editor) = self.active_editor().cloned() {
+            editor.update(cx, |editor, _| editor.spotted = false);
+        }
         let Some(bar) = &mut self.find else { return };
         bar.replacing |= replacing;
         if restore.is_some() {
