@@ -9,7 +9,7 @@ use gpui::{
 
 use super::SettingsView;
 use super::schema::{Value, ascii_fold};
-use crate::actions::{COMMANDS, Command, EDITOR_COMMANDS, display};
+use crate::actions::{COMMANDS, Command, EDITOR_COMMANDS, FIXED_KEYS, FixedKey, display};
 
 const KEY: &str = "shortcuts.overrides";
 const LOCKED: &str = "ui-cmd-dismiss";
@@ -23,7 +23,21 @@ pub struct Group {
 pub struct Conflict {
     label: &'static str,
     keys: String,
-    other: &'static str,
+    other: Taken,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Taken {
+    Command(&'static str),
+    Fixed(&'static str),
+}
+
+impl Taken {
+    fn label(self) -> &'static str {
+        match self {
+            Taken::Command(label) | Taken::Fixed(label) => label,
+        }
+    }
 }
 
 pub type Overrides = BTreeMap<String, Vec<String>>;
@@ -84,18 +98,28 @@ pub fn keys_of(keystroke: &Keystroke) -> Option<String> {
         .then(|| keystroke.unparse())
 }
 
-fn conflict_of(
-    groups: &[Group],
-    overrides: &Overrides,
-    label: &str,
-    keys: &str,
-) -> Option<&'static str> {
-    let editor = groups.iter().find(|g| g.label == label)?.editor;
-    groups
+fn conflict_of(groups: &[Group], overrides: &Overrides, label: &str, keys: &str) -> Option<Taken> {
+    if let Some(group) = groups
         .iter()
-        .filter(|g| g.editor == editor && g.label != label)
+        .filter(|g| g.label != label)
         .find(|g| effective_keys(g, overrides).iter().any(|k| k == keys))
-        .map(|g| g.label)
+    {
+        return Some(Taken::Command(group.label));
+    }
+    FIXED_KEYS
+        .iter()
+        .filter(|fixed| fixed.everywhere)
+        .find(|fixed| fixed.keys.contains(&keys))
+        .map(|fixed| Taken::Fixed(fixed.label))
+}
+
+fn fixed_matches(fixed: &FixedKey, query: &str) -> bool {
+    query.is_empty()
+        || ascii_fold(&focus_i18n::t(fixed.label)).contains(query)
+        || fixed
+            .keys
+            .iter()
+            .any(|k| ascii_fold(&display(k)).contains(query))
 }
 
 impl SettingsView {
@@ -173,13 +197,16 @@ impl SettingsView {
         let Some(conflict) = self.shortcut_conflict.take() else {
             return;
         };
+        let Taken::Command(other) = conflict.other else {
+            return;
+        };
         let mut overrides = self.overrides(cx);
-        if let Some(group) = groups().into_iter().find(|g| g.label == conflict.other) {
+        if let Some(group) = groups().into_iter().find(|g| g.label == other) {
             let remaining: Vec<String> = effective_keys(&group, &overrides)
                 .into_iter()
                 .filter(|k| *k != conflict.keys)
                 .collect();
-            overrides.insert(conflict.other.to_string(), remaining);
+            overrides.insert(other.to_string(), remaining);
         }
         overrides.insert(conflict.label.to_string(), vec![conflict.keys]);
         self.write_overrides(&overrides, cx);
@@ -302,7 +329,8 @@ impl SettingsView {
                         )
                     })
                     .when_some(conflict, |this, conflict| {
-                        let other = focus_i18n::t(conflict.other);
+                        let other = focus_i18n::t(conflict.other.label());
+                        let fixed = matches!(conflict.other, Taken::Fixed(_));
                         let keys = display(&conflict.keys);
                         this.child(
                             div()
@@ -312,23 +340,29 @@ impl SettingsView {
                                 .pb(size::S2)
                                 .child(div().flex_1().ui_sm().text_color(t.danger).child(
                                     focus_i18n::t_args(
-                                        "settings-shortcuts-conflict",
+                                        if fixed {
+                                            "settings-shortcuts-fixed-conflict"
+                                        } else {
+                                            "settings-shortcuts-conflict"
+                                        },
                                         &[
                                             ("keys", keys.as_str().into()),
                                             ("command", other.as_str().into()),
                                         ],
                                     ),
                                 ))
-                                .child(
-                                    Button::new(
-                                        "shortcut-replace",
-                                        focus_i18n::t("settings-shortcuts-replace"),
+                                .when(!fixed, |row| {
+                                    row.child(
+                                        Button::new(
+                                            "shortcut-replace",
+                                            focus_i18n::t("settings-shortcuts-replace"),
+                                        )
+                                        .kind(ButtonKind::Danger)
+                                        .on_click(
+                                            cx.listener(|this, _, _, cx| this.replace_conflict(cx)),
+                                        ),
                                     )
-                                    .kind(ButtonKind::Danger)
-                                    .on_click(
-                                        cx.listener(|this, _, _, cx| this.replace_conflict(cx)),
-                                    ),
-                                )
+                                })
                                 .child(
                                     Button::new(
                                         "shortcut-keep",
@@ -362,7 +396,59 @@ impl SettingsView {
                 ),
             )
             .children(rows)
+            .children(self.render_fixed_keys(query, cx))
             .into_any_element()
+    }
+
+    fn render_fixed_keys(&self, query: &str, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let t = *cx.tokens();
+        let shown: Vec<&FixedKey> = FIXED_KEYS
+            .iter()
+            .filter(|fixed| fixed_matches(fixed, query))
+            .collect();
+        if shown.is_empty() {
+            return None;
+        }
+        Some(
+            div()
+                .flex()
+                .flex_col()
+                .child(
+                    div()
+                        .pt(size::S6)
+                        .pb(size::S2)
+                        .border_b_1()
+                        .border_color(t.line)
+                        .ui_xs()
+                        .text_color(t.ink_3)
+                        .child(focus_i18n::t("settings-shortcuts-fixed")),
+                )
+                .children(shown.into_iter().map(|fixed| {
+                    div()
+                        .flow_row()
+                        .items_center()
+                        .gap(size::S3)
+                        .min_h(px(36.))
+                        .border_b_1()
+                        .border_color(t.line)
+                        .child(
+                            div()
+                                .flex_1()
+                                .ui()
+                                .text_color(t.ink)
+                                .child(focus_i18n::t(fixed.label)),
+                        )
+                        .child(
+                            div()
+                                .flow_row()
+                                .gap(size::S1)
+                                .children(fixed.keys.iter().map(|k| Kbd::new(display(k)))),
+                        )
+                        .child(div().flex_none().w(px(28.)))
+                        .child(div().flex_none().w(px(28.)))
+                }))
+                .into_any_element(),
+        )
     }
 }
 
@@ -392,26 +478,51 @@ mod tests {
     }
 
     #[test]
-    fn a_default_shortcut_conflicts_within_its_context_only() {
+    fn a_key_used_anywhere_is_a_conflict() {
         let all = groups();
         let overrides = Overrides::new();
         assert_eq!(
-            conflict_of(&all, &overrides, "ui-cmd-toggle-right", "ctrl-b"),
-            Some("ui-cmd-toggle-left")
+            conflict_of(&all, &overrides, "ui-cmd-toggle-right", "ctrl-shift-b"),
+            Some(Taken::Command("ui-cmd-toggle-left"))
         );
         assert_eq!(
             conflict_of(&all, &overrides, "ui-cmd-toggle-right", "ctrl-alt-q"),
             None
         );
         assert_eq!(
-            conflict_of(&all, &overrides, "ui-cmd-bold", "ctrl-b"),
-            None,
-            "the editor context shadows the shell one"
+            conflict_of(&all, &overrides, "ui-cmd-bold", "ctrl-k"),
+            Some(Taken::Command("ui-cmd-open-note")),
+            "an editor key shadows a window key"
         );
         assert_eq!(
-            conflict_of(&all, &overrides, "ui-cmd-italic", "ctrl-b"),
-            Some("ui-cmd-bold")
+            conflict_of(&all, &overrides, "ui-cmd-toggle-left", "ctrl-b"),
+            Some(Taken::Command("ui-cmd-bold")),
+            "a window key shadowed by an editor key"
         );
+        assert_eq!(
+            conflict_of(&all, &overrides, "ui-cmd-toggle-left", "ctrl-f"),
+            Some(Taken::Command("ui-cmd-find"))
+        );
+        assert_eq!(
+            conflict_of(&all, &overrides, "ui-cmd-toggle-left", "ctrl-z"),
+            Some(Taken::Fixed("ui-fixed-undo"))
+        );
+        assert_eq!(
+            conflict_of(&all, &overrides, "ui-cmd-toggle-left", "ctrl-d"),
+            None,
+            "a key of the tree alone stays free"
+        );
+    }
+
+    #[test]
+    fn fixed_keys_are_found_by_the_search() {
+        let undo = FIXED_KEYS
+            .iter()
+            .find(|f| f.label == "ui-fixed-undo")
+            .expect("listed");
+        assert!(fixed_matches(undo, ""));
+        assert!(fixed_matches(undo, "ctrl z"));
+        assert!(!fixed_matches(undo, "ctrl q"));
     }
 
     #[test]
