@@ -169,6 +169,9 @@ impl NewEngagementDialog {
     }
 
     fn create(&mut self, cx: &mut Context<Self>) {
+        if self.busy {
+            return;
+        }
         let name = self.name.read(cx).value().trim().to_string();
         if name.is_empty() {
             self.error = Some(t_("ops-new-name-required"));
@@ -330,9 +333,12 @@ impl Render for NewEngagementDialog {
             .id("ops-new-engagement")
             .key_context("OpsDialog")
             .track_focus(&self.focus)
-            .on_key_down(cx.listener(|_, event: &KeyDownEvent, _, cx| {
-                if event.keystroke.key == "escape" {
-                    cx.emit(OpsEvent::DialogClosed);
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
+                let plain = !event.keystroke.modifiers.modified();
+                match event.keystroke.key.as_str() {
+                    "escape" => cx.emit(OpsEvent::DialogClosed),
+                    "enter" if plain => this.create(cx),
+                    _ => {}
                 }
             }))
             .on_mouse_down_out(
