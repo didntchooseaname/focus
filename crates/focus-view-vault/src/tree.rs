@@ -45,54 +45,54 @@ actions!(
     ]
 );
 
-const KEYS: [(&str, &str); 18] = [
-    ("up", "up"),
-    ("down", "down"),
-    ("left", "left"),
-    ("right", "right"),
-    ("enter", "enter"),
-    ("f2", "F2"),
-    ("delete", "Del"),
-    ("ctrl-n", "Ctrl N"),
-    ("ctrl-shift-n", "Ctrl Shift N"),
-    ("ctrl-d", "Ctrl D"),
-    ("ctrl-m", "Ctrl M"),
-    ("ctrl-shift-c", "Ctrl Shift C"),
-    ("ctrl-alt-c", "Ctrl Alt C"),
-    ("ctrl-f", "Ctrl F"),
-    ("shift-f10", "Shift F10"),
-    ("escape", "Esc"),
-    ("ctrl-c", "Ctrl C"),
-    ("ctrl-v", "Ctrl V"),
+const KEYS: [&str; 18] = [
+    "up",
+    "down",
+    "left",
+    "right",
+    "enter",
+    "f2",
+    "delete",
+    "ctrl-n",
+    "ctrl-shift-n",
+    "ctrl-d",
+    "ctrl-m",
+    "ctrl-shift-c",
+    "ctrl-alt-c",
+    "ctrl-f",
+    "shift-f10",
+    "escape",
+    "ctrl-c",
+    "ctrl-v",
 ];
 
 pub(crate) fn bind(cx: &mut App) {
     let c = Some(CONTEXT);
     cx.bind_keys([
-        KeyBinding::new(KEYS[0].0, SelectPrevious, c),
-        KeyBinding::new(KEYS[1].0, SelectNext, c),
-        KeyBinding::new(KEYS[2].0, Collapse, c),
-        KeyBinding::new(KEYS[3].0, Expand, c),
-        KeyBinding::new(KEYS[4].0, OpenSelected, c),
-        KeyBinding::new(KEYS[5].0, Rename, c),
-        KeyBinding::new(KEYS[6].0, Trash, c),
-        KeyBinding::new(KEYS[7].0, NewNote, c),
-        KeyBinding::new(KEYS[8].0, NewFolder, c),
-        KeyBinding::new(KEYS[9].0, Duplicate, c),
-        KeyBinding::new(KEYS[10].0, MoveTo, c),
-        KeyBinding::new(KEYS[11].0, CopyPath, c),
-        KeyBinding::new(KEYS[12].0, CopyLink, c),
-        KeyBinding::new(KEYS[13].0, FocusFilter, c),
-        KeyBinding::new(KEYS[14].0, ContextMenu, c),
-        KeyBinding::new(KEYS[15].0, Dismiss, c),
-        KeyBinding::new(KEYS[16].0, CopyFiles, c),
-        KeyBinding::new(KEYS[17].0, PasteFiles, c),
+        KeyBinding::new(KEYS[0], SelectPrevious, c),
+        KeyBinding::new(KEYS[1], SelectNext, c),
+        KeyBinding::new(KEYS[2], Collapse, c),
+        KeyBinding::new(KEYS[3], Expand, c),
+        KeyBinding::new(KEYS[4], OpenSelected, c),
+        KeyBinding::new(KEYS[5], Rename, c),
+        KeyBinding::new(KEYS[6], Trash, c),
+        KeyBinding::new(KEYS[7], NewNote, c),
+        KeyBinding::new(KEYS[8], NewFolder, c),
+        KeyBinding::new(KEYS[9], Duplicate, c),
+        KeyBinding::new(KEYS[10], MoveTo, c),
+        KeyBinding::new(KEYS[11], CopyPath, c),
+        KeyBinding::new(KEYS[12], CopyLink, c),
+        KeyBinding::new(KEYS[13], FocusFilter, c),
+        KeyBinding::new(KEYS[14], ContextMenu, c),
+        KeyBinding::new(KEYS[15], Dismiss, c),
+        KeyBinding::new(KEYS[16], CopyFiles, c),
+        KeyBinding::new(KEYS[17], PasteFiles, c),
         KeyBinding::new("menu", ContextMenu, c),
     ]);
 }
 
-fn shortcut(action: usize) -> &'static str {
-    KEYS[action].1
+fn shortcut(action: usize) -> String {
+    focus_i18n::keys_text(KEYS[action])
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -508,9 +508,9 @@ impl FileTree {
         let list = handle.bounds();
         let y = list.top()
             + size::S1 * 2.
-            + size::ROW * row as f32
+            + size::list_row() * row as f32
             + handle.offset().y
-            + size::ROW / 2.;
+            + size::list_row() / 2.;
         (y > list.top() && y < list.bottom()).then(|| gpui::point(list.left() + px(64.), y))
     }
 
@@ -1204,8 +1204,8 @@ impl FileTree {
         if let Some(renaming) = self.renaming.as_ref().filter(|r| r.path == path) {
             return focus_kit::Dir::current()
                 .pad_start(
-                    div().w_full().h(size::ROW).flex().items_center(),
-                    px(8. + 14. * depth as f32 + 20.),
+                    div().w_full().h(size::list_row()).flex().items_center(),
+                    px(8. + 14. * depth as f32 + 22.),
                 )
                 .pr(size::S2)
                 .bg(t.card_3)
@@ -1239,7 +1239,6 @@ impl FileTree {
         div()
             .id(("tree-row", index as usize))
             .relative()
-            .when(unread, |this| this.opacity(0.5))
             .when(focused, |this| {
                 this.child(
                     gpui::canvas(move |b, _, _| bounds.set(Some(b)), |_, _, _, _| {})
@@ -1287,6 +1286,7 @@ impl FileTree {
                             .count(node.note_count)
                     })
                     .active(active)
+                    .muted(unread)
                     .focused(focused)
                     .when(node.link_out == Some(LinkOut::Followed), |r| {
                         r.trailing(
@@ -1381,7 +1381,7 @@ impl FileTree {
         let (target, at) = self.menu.clone()?;
         let node = target.as_ref().and_then(|p| self.node(p));
         let is_note = node.is_some_and(|n| n.kind == NodeKind::Note);
-        let row = |id: &'static str, key: &str, keys: Option<&'static str>| {
+        let row = |id: &'static str, key: &str, keys: Option<String>| {
             let r = MenuRow::new(id, focus_i18n::t(key));
             match keys {
                 Some(k) => r.shortcut(k),
@@ -1546,16 +1546,21 @@ impl FileTree {
         }
         Some(
             gpui::deferred(
-                gpui::anchored().position(at).snap_to_window().child(
-                    menu(t)
-                        .id("tree-menu")
-                        .occlude()
-                        .on_mouse_down_out(cx.listener(|this, _, _, cx| {
-                            this.menu = None;
-                            cx.notify();
-                        }))
-                        .children(items),
-                ),
+                gpui::anchored()
+                    .position(at)
+                    .snap_to_window()
+                    .child(focus_kit::fade_in(
+                        "fade-tree-menu",
+                        menu(t)
+                            .id("tree-menu")
+                            .occlude()
+                            .on_mouse_down_out(cx.listener(|this, _, _, cx| {
+                                this.menu = None;
+                                cx.notify();
+                            }))
+                            .children(items),
+                        cx,
+                    )),
             )
             .with_priority(1)
             .into_any_element(),
@@ -1577,17 +1582,18 @@ impl FileTree {
             Some(row) => row.bottom_left() + gpui::point(px(24.), px(0.)),
             None => gpui::point(px(24.), px(72.)),
         };
-        Some(
-            div()
-                .absolute()
-                .inset_0()
-                .occlude()
-                .bg(t.bg.opacity(0.6))
-                .child(
-                    gpui::deferred(
-                        gpui::anchored().position(at).snap_to_window().child(
+        Some(focus_kit::fade_in(
+            "fade-trash",
+            div().absolute().inset_0().occlude().bg(t.veil).child(
+                gpui::deferred(
+                    gpui::anchored()
+                        .position(at)
+                        .snap_to_window()
+                        .child(focus_kit::fade_in(
+                            "fade-trash-card",
                             focus_kit::floating(t)
-                                .w(px(240.))
+                                .min_w(px(240.))
+                                .max_w(px(360.))
                                 .flex()
                                 .flex_col()
                                 .gap(size::S3)
@@ -1636,12 +1642,13 @@ impl FileTree {
                                             ),
                                         ),
                                 ),
-                        ),
-                    )
-                    .with_priority(1),
+                            cx,
+                        )),
                 )
-                .into_any_element(),
-        )
+                .with_priority(1),
+            ),
+            cx,
+        ))
     }
 
     fn render_mover(&self, t: &Tokens, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -1669,7 +1676,8 @@ impl FileTree {
                         }
                     }))
             });
-        Some(
+        Some(focus_kit::fade_in(
+            "fade-move-menu",
             div()
                 .absolute()
                 .top(size::S1)
@@ -1696,9 +1704,9 @@ impl FileTree {
                                     .child(focus_i18n::t("vault-move-none")),
                             )
                         }),
-                )
-                .into_any_element(),
-        )
+                ),
+            cx,
+        ))
     }
 }
 

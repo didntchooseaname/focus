@@ -204,7 +204,7 @@ impl TaskList {
                     .w_full()
                     .items_center()
                     .gap(size::S2)
-                    .h(size::ROW)
+                    .h(size::list_row())
                     .px(size::S2)
                     .map(|this| focus_kit::Dir::current().pad_start(this, px(30.)))
                     .hover(move |s| s.bg(t.card_2))

@@ -84,7 +84,7 @@ pub(crate) fn bind(cx: &mut App) {
 
 pub(crate) fn page(scroll: &UniformListScrollHandle) -> usize {
     let height = scroll.0.borrow().base_handle.bounds().size.height;
-    ((height / size::ROW).floor() as usize)
+    ((height / size::list_row()).floor() as usize)
         .saturating_sub(1)
         .max(1)
 }

@@ -11,6 +11,8 @@ use gpui::{
 
 use crate::VaultViewEvent;
 
+const RENAME_KEY: &str = "f2";
+
 struct TagRow {
     key: String,
     label: String,
@@ -196,9 +198,9 @@ impl TagTree {
         let list = handle.bounds();
         let y = list.top()
             + size::S1 * 2.
-            + size::ROW * row as f32
+            + size::list_row() * row as f32
             + handle.offset().y
-            + size::ROW / 2.;
+            + size::list_row() / 2.;
         (y > list.top() && y < list.bottom()).then(|| gpui::point(list.left() + px(64.), y))
     }
 
@@ -210,7 +212,7 @@ impl TagTree {
                 self.menu = None;
                 cx.notify();
             }
-            "f2" if plain => {
+            RENAME_KEY if plain => {
                 if let Some(tag) = self.selected.and_then(|row| self.full(row)) {
                     self.rename(tag, cx);
                 }
@@ -254,22 +256,27 @@ impl TagTree {
         let (tag, at) = self.menu.clone()?;
         Some(
             gpui::deferred(
-                gpui::anchored().position(at).snap_to_window().child(
-                    menu(t)
-                        .id("tag-menu")
-                        .occlude()
-                        .on_mouse_down_out(cx.listener(|this, _, _, cx| {
-                            this.menu = None;
-                            cx.notify();
-                        }))
-                        .child(
-                            MenuRow::new("tag-menu-rename", focus_i18n::t("vault-menu-rename"))
-                                .shortcut("F2")
-                                .on_click(
-                                    cx.listener(move |this, _, _, cx| this.rename(tag.clone(), cx)),
-                                ),
-                        ),
-                ),
+                gpui::anchored()
+                    .position(at)
+                    .snap_to_window()
+                    .child(focus_kit::fade_in(
+                        "fade-tag-menu",
+                        menu(t)
+                            .id("tag-menu")
+                            .occlude()
+                            .on_mouse_down_out(cx.listener(|this, _, _, cx| {
+                                this.menu = None;
+                                cx.notify();
+                            }))
+                            .child(
+                                MenuRow::new("tag-menu-rename", focus_i18n::t("vault-menu-rename"))
+                                    .shortcut(focus_i18n::keys_text(RENAME_KEY))
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.rename(tag.clone(), cx)
+                                    })),
+                            ),
+                        cx,
+                    )),
             )
             .with_priority(1)
             .into_any_element(),
@@ -312,7 +319,7 @@ impl TagTree {
                         .start(div().absolute(), px(8. + 14. * r.depth as f32))
                         .top_0()
                         .w(px(20.))
-                        .h(size::ROW)
+                        .h(size::list_row())
                         .cursor_pointer()
                         .hover(move |s| s.bg(t.card_2))
                         .on_mouse_down(

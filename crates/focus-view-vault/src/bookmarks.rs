@@ -2,11 +2,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use focus_core::{Vault, VaultEvent};
-use focus_kit::{ActiveTokens, Disclosure, Icon, IconButton, Tokens, TreeRow, Type, size};
+use focus_kit::{
+    ActiveTokens, Disclosure, Flow as _, Icon, IconButton, Tokens, TreeRow, Type, size,
+};
 use gpui::{
     AnyElement, App, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement,
-    IntoElement, KeyBinding, ParentElement, Render, ScrollStrategy, SharedString, Styled,
-    UniformListScrollHandle, Window, div, prelude::FluentBuilder, px, uniform_list,
+    IntoElement, KeyBinding, ParentElement, Render, ScrollHandle, SharedString,
+    StatefulInteractiveElement as _, Styled, Window, div,
 };
 
 use crate::VaultViewEvent;
@@ -42,7 +44,7 @@ pub struct Bookmarks {
     folded: [bool; 2],
     rows: Vec<Row>,
     selected: Option<usize>,
-    scroll: UniformListScrollHandle,
+    scroll: ScrollHandle,
     focus: FocusHandle,
 }
 
@@ -69,7 +71,7 @@ impl Bookmarks {
             folded: [false; 2],
             rows: Vec::new(),
             selected: None,
-            scroll: UniformListScrollHandle::new(),
+            scroll: ScrollHandle::new(),
             focus: cx.focus_handle(),
         };
         list.recent.truncate(RECENT_LIMIT);
@@ -201,10 +203,10 @@ impl Bookmarks {
             .filter(|r| matches!(self.rows[*r], Row::Bookmark(_) | Row::Recent(_)))
             .collect();
         if let Some(row) =
-            crate::keys::step(&items, self.selected, crate::keys::page(&self.scroll), step)
+            crate::keys::step(&items, self.selected, rows_per_page(&self.scroll), step)
         {
             self.selected = Some(row);
-            self.scroll.scroll_to_item(row, ScrollStrategy::Center);
+            self.scroll.scroll_to_item(row);
             cx.notify();
         }
     }
@@ -219,9 +221,9 @@ impl Bookmarks {
                     ("vault-bookmarks", self.bookmarks.len())
                 };
                 div()
-                    .h(size::ROW)
+                    .h(size::list_row())
                     .px(size::S2)
-                    .flex()
+                    .flow_row()
                     .items_center()
                     .child(
                         Disclosure::new(
@@ -235,10 +237,10 @@ impl Bookmarks {
                     .into_any_element()
             }
             Row::Empty(section) => div()
-                .h(size::ROW)
-                .flex()
-                .items_center()
-                .map(|this| focus_kit::Dir::current().pad_start(this, px(30.)))
+                .py(size::S2)
+                .pad_start(size::S2 + size::INDENT + size::ICON_DENSE + size::S2)
+                .pad_end(size::S3)
+                .text_start()
                 .ui_sm()
                 .text_color(t.ink_3)
                 .child(focus_i18n::t(if section {
@@ -271,6 +273,7 @@ impl Bookmarks {
                     } else {
                         Icon::CLOCK
                     })
+                    .muted(meta.is_none())
                     .focused(self.selected == Some(row))
                     .on_click(cx.listener(move |this, event: &gpui::ClickEvent, _, cx| {
                         this.selected = Some(row);
@@ -291,10 +294,7 @@ impl Bookmarks {
                         })),
                     );
                 }
-                div()
-                    .when(meta.is_none(), |this| this.opacity(0.5))
-                    .child(item)
-                    .into_any_element()
+                item.into_any_element()
             }
         }
     }
@@ -347,22 +347,25 @@ impl Render for Bookmarks {
             .size_full()
             .bg(t.bg)
             .child(
-                uniform_list(
-                    "bookmark-rows",
-                    self.rows.len(),
-                    cx.processor(move |this, range: std::ops::Range<usize>, _, cx| {
-                        range.map(|row| this.render_row(row, &t, cx)).collect()
-                    }),
-                )
-                .size_full()
-                .py(size::S1)
-                .track_scroll(self.scroll.clone()),
+                div()
+                    .id("bookmark-rows")
+                    .size_full()
+                    .py(size::S1)
+                    .overflow_y_scroll()
+                    .track_scroll(&self.scroll)
+                    .children((0..self.rows.len()).map(|row| self.render_row(row, &t, cx))),
             )
             .child(focus_kit::scrollbar(
                 "bookmarks-scrollbar",
                 self.scroll.clone(),
             ))
     }
+}
+
+fn rows_per_page(scroll: &ScrollHandle) -> usize {
+    ((scroll.bounds().size.height / size::list_row()).floor() as usize)
+        .saturating_sub(1)
+        .max(1)
 }
 
 #[cfg(test)]
