@@ -9,7 +9,7 @@ use std::{
     sync::Arc,
 };
 
-use super::LineWrapper;
+use super::LineBreaks;
 
 /// A laid out and styled line of text
 #[derive(Default, Debug)]
@@ -95,14 +95,58 @@ impl LineLayout {
         None
     }
 
-    fn compute_wrap_boundaries(
+    /// Focus patch: adds `spacing` between each two neighbouring characters of the line on
+    /// screen, after shaping (CSS `letter-spacing`), and changes its width by the sum. Nothing
+    /// is added beside a right-to-left character (no tracking on Arabic), between the glyphs
+    /// of one character, nor after the last character of the line. Painting, wrapping,
+    /// carets and hit tests all read the moved positions.
+    pub fn apply_letter_spacing(&mut self, text: &str, spacing: Pixels) {
+        if spacing == Pixels::ZERO {
+            return;
+        }
+        let mut order: Vec<(usize, usize)> = self
+            .runs
+            .iter()
+            .enumerate()
+            .flat_map(|(run_ix, run)| (0..run.glyphs.len()).map(move |glyph_ix| (run_ix, glyph_ix)))
+            .collect();
+        order.sort_by(|a, b| {
+            let x = |(run_ix, glyph_ix): (usize, usize)| f32::from(self.runs[run_ix].glyphs[glyph_ix].position.x);
+            x(*a).total_cmp(&x(*b))
+        });
+        let mut shift = Pixels::ZERO;
+        let mut previous: Option<(usize, bool)> = None;
+        for (run_ix, glyph_ix) in order {
+            let glyph = &mut self.runs[run_ix].glyphs[glyph_ix];
+            let spaced = text
+                .get(glyph.index..)
+                .and_then(|rest| rest.chars().next())
+                .is_some_and(|c| !is_right_to_left(c));
+            if let Some((index, previous_spaced)) = previous
+                && index != glyph.index
+                && previous_spaced
+                && spaced
+            {
+                shift += spacing;
+            }
+            glyph.position.x += shift;
+            previous = Some((glyph.index, spaced));
+        }
+        self.width += shift;
+    }
+
+    /// The wrap boundaries of this line for `wrap_width`, at most `max_lines` lines (Focus
+    /// patch: public, for the tests of `apply_letter_spacing`).
+    pub fn compute_wrap_boundaries(
         &self,
         text: &str,
         wrap_width: Pixels,
         max_lines: Option<usize>,
     ) -> SmallVec<[WrapBoundary; 1]> {
         let mut boundaries = SmallVec::new();
-        let mut first_non_whitespace_ix = None;
+        let mut breaks = LineBreaks::default();
+        let mut glue = None;
+        let mut previous_index = None;
         let mut last_candidate_ix = None;
         let mut last_candidate_x = px(0.);
         let mut last_boundary = WrapBoundary {
@@ -110,7 +154,6 @@ impl LineLayout {
             glyph_ix: 0,
         };
         let mut last_boundary_x = px(0.);
-        let mut prev_ch = '\0';
         let mut glyphs = self
             .runs
             .iter()
@@ -122,35 +165,36 @@ impl LineLayout {
                         WrapBoundary { run_ix, glyph_ix },
                         character,
                         glyph.position.x,
+                        glyph.index,
                     )
                 })
             })
             .peekable();
 
-        while let Some((boundary, ch, x)) = glyphs.next() {
+        while let Some((boundary, ch, x, index)) = glyphs.next() {
             if ch == '\n' {
                 continue;
             }
 
-            // Here is very similar to `LineWrapper::wrap_line` to determine text wrapping,
-            // but there are some differences, so we have to duplicate the code here.
-            if LineWrapper::is_word_char(ch) {
-                if prev_ch == ' ' && ch != ' ' && first_non_whitespace_ix.is_some() {
-                    last_candidate_ix = Some(boundary);
-                    last_candidate_x = x;
+            if previous_index != Some(index) {
+                previous_index = Some(index);
+                if LineBreaks::is_format(ch) && !breaks.in_glue() {
+                    glue = Some((boundary, x));
                 }
-            } else {
-                if ch != ' ' && first_non_whitespace_ix.is_some() {
-                    last_candidate_ix = Some(boundary);
-                    last_candidate_x = x;
+                if let Some(at) = breaks.next(index, ch) {
+                    let (candidate, candidate_x) = match glue {
+                        Some(start) if at < index => start,
+                        _ => (boundary, x),
+                    };
+                    last_candidate_ix = Some(candidate);
+                    last_candidate_x = candidate_x;
+                }
+                if !breaks.in_glue() {
+                    glue = None;
                 }
             }
 
-            if ch != ' ' && first_non_whitespace_ix.is_none() {
-                first_non_whitespace_ix = Some(boundary);
-            }
-
-            let next_x = glyphs.peek().map_or(self.width, |(_, _, x)| *x);
+            let next_x = glyphs.peek().map_or(self.width, |(_, _, x, _)| *x);
             let width = next_x - last_boundary_x;
 
             if width > wrap_width && boundary > last_boundary {
@@ -170,7 +214,6 @@ impl LineLayout {
                 }
                 boundaries.push(last_boundary);
             }
-            prev_ch = ch;
         }
 
         boundaries
@@ -378,6 +421,7 @@ impl LineLayoutCache {
         &self,
         text: Text,
         font_size: Pixels,
+        letter_spacing: Pixels,
         runs: &[FontRun],
         wrap_width: Option<Pixels>,
         max_lines: Option<usize>,
@@ -389,6 +433,7 @@ impl LineLayoutCache {
         let key = &CacheKeyRef {
             text: text.as_ref(),
             font_size,
+            letter_spacing,
             runs,
             wrap_width,
             force_width: None,
@@ -411,7 +456,7 @@ impl LineLayoutCache {
             drop(current_frame);
             let text = SharedString::from(text);
             let mut unwrapped_layout =
-                self.layout_line::<&SharedString>(&text, font_size, runs, None);
+                self.layout_line::<&SharedString>(&text, font_size, letter_spacing, runs, None);
             let wrap_boundaries = match wrap_width {
                 // Focus patch: right-to-left text is cut in logical order and laid out in
                 // screen order, see `wrap_logically`.
@@ -419,6 +464,7 @@ impl LineLayoutCache {
                     let (layout, boundaries) = self.wrap_logically(
                         &text,
                         font_size,
+                        letter_spacing,
                         runs,
                         &unwrapped_layout,
                         wrap_width.unwrap_or(Pixels::MAX),
@@ -440,6 +486,7 @@ impl LineLayoutCache {
             let key = Arc::new(CacheKey {
                 text,
                 font_size,
+                letter_spacing,
                 runs: SmallVec::from(runs),
                 wrap_width,
                 force_width: None,
@@ -466,6 +513,7 @@ impl LineLayoutCache {
         &self,
         text: &SharedString,
         font_size: Pixels,
+        letter_spacing: Pixels,
         runs: &[FontRun],
         shaped: &LineLayout,
         wrap_width: Pixels,
@@ -488,17 +536,20 @@ impl LineLayoutCache {
         let mut line_start = 0;
         let mut width = px(0.);
         let mut candidate: Option<(usize, Pixels)> = None;
-        let mut seen_word = false;
-        let mut prev = '\0';
+        let mut breaks = LineBreaks::default();
+        let mut glue_width = px(0.);
         for (ix, ch) in text.char_indices() {
             if ch == '\n' {
                 continue;
             }
-            let breakable = if LineWrapper::is_word_char(ch) { prev == ' ' && ch != ' ' } else { ch != ' ' };
-            if breakable && seen_word && ix > line_start {
-                candidate = Some((ix, width));
+            if LineBreaks::is_format(ch) && !breaks.in_glue() {
+                glue_width = width;
             }
-            seen_word |= ch != ' ';
+            if let Some(at) = breaks.next(ix, ch)
+                && at > line_start
+            {
+                candidate = Some((at, if at < ix { glue_width } else { width }));
+            }
             width += advance[ix];
             if width > wrap_width && ix > line_start {
                 if max_lines.is_some_and(|max| starts.len() >= max) {
@@ -512,7 +563,6 @@ impl LineLayoutCache {
                 line_start = at;
                 width -= before;
             }
-            prev = ch;
         }
 
         let mut out = LineLayout {
@@ -536,7 +586,7 @@ impl LineLayoutCache {
                     line_runs.push(FontRun { len, font_id: run.font_id });
                 }
             }
-            let piece = self.layout_line(text[start..end].to_string(), font_size, &line_runs, None);
+            let piece = self.layout_line(text[start..end].to_string(), font_size, letter_spacing, &line_runs, None);
             // Each line in screen order, left to right, as painting and wrap boundaries
             // expect: a run per font, in the order the fonts appear from the left.
             let mut placed: Vec<(FontId, ShapedGlyph)> = piece
@@ -575,6 +625,7 @@ impl LineLayoutCache {
         &self,
         text: Text,
         font_size: Pixels,
+        letter_spacing: Pixels,
         runs: &[FontRun],
         force_width: Option<Pixels>,
     ) -> Arc<LineLayout>
@@ -585,6 +636,7 @@ impl LineLayoutCache {
         let key = &CacheKeyRef {
             text: text.as_ref(),
             font_size,
+            letter_spacing,
             runs,
             wrap_width: None,
             force_width,
@@ -616,6 +668,7 @@ impl LineLayoutCache {
                     self.platform_text_system
                         .layout_line(&text, font_size, runs)
                 });
+            layout.apply_letter_spacing(&text, letter_spacing);
 
             if let Some(force_width) = force_width {
                 let mut glyph_pos = 0;
@@ -632,6 +685,7 @@ impl LineLayoutCache {
             let key = Arc::new(CacheKey {
                 text,
                 font_size,
+                letter_spacing,
                 runs: SmallVec::from(runs),
                 wrap_width: None,
                 force_width,
@@ -659,6 +713,7 @@ trait AsCacheKeyRef {
 struct CacheKey {
     text: SharedString,
     font_size: Pixels,
+    letter_spacing: Pixels,
     runs: SmallVec<[FontRun; 1]>,
     wrap_width: Option<Pixels>,
     force_width: Option<Pixels>,
@@ -668,6 +723,7 @@ struct CacheKey {
 struct CacheKeyRef<'a> {
     text: &'a str,
     font_size: Pixels,
+    letter_spacing: Pixels,
     runs: &'a [FontRun],
     wrap_width: Option<Pixels>,
     force_width: Option<Pixels>,
@@ -692,6 +748,7 @@ impl AsCacheKeyRef for CacheKey {
         CacheKeyRef {
             text: &self.text,
             font_size: self.font_size,
+            letter_spacing: self.letter_spacing,
             runs: self.runs.as_slice(),
             wrap_width: self.wrap_width,
             force_width: self.force_width,
@@ -725,5 +782,10 @@ impl AsCacheKeyRef for CacheKeyRef<'_> {
 
 /// Focus patch: Hebrew, Arabic and the other right-to-left blocks, as in `LineWrapper`.
 fn has_right_to_left(text: &str) -> bool {
-    text.chars().any(|c| matches!(c, '\u{0590}'..='\u{08FF}' | '\u{FB1D}'..='\u{FDFF}' | '\u{FE70}'..='\u{FEFF}'))
+    text.chars().any(is_right_to_left)
+}
+
+/// Focus patch: a character of the Hebrew, Arabic and other right-to-left blocks.
+pub(crate) fn is_right_to_left(c: char) -> bool {
+    matches!(c, '\u{0590}'..='\u{08FF}' | '\u{FB1D}'..='\u{FDFF}' | '\u{FE70}'..='\u{FEFF}')
 }

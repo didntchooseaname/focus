@@ -3002,14 +3002,21 @@ impl Window {
         };
         let content_mask = self.content_mask();
         let element_opacity = self.element_opacity();
+        let mut bounds = bounds.scale(scale_factor);
+        let mut thickness = style.thickness.scale(scale_factor);
+        if !style.wavy && thickness.0 > 0. {
+            thickness = ScaledPixels(thickness.0.round().max(1.));
+            bounds.origin.y = bounds.origin.y.floor();
+            bounds.size.height = thickness;
+        }
 
         self.next_frame.scene.insert_primitive(Underline {
             order: 0,
             pad: 0,
-            bounds: bounds.scale(scale_factor),
+            bounds,
             content_mask: content_mask.scale(scale_factor),
             color: style.color.unwrap_or_default().opacity(element_opacity),
-            thickness: style.thickness.scale(scale_factor),
+            thickness,
             wavy: if style.wavy { 1 } else { 0 },
         });
     }

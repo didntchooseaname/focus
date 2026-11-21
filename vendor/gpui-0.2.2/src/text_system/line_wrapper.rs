@@ -7,6 +7,7 @@ pub struct LineWrapper {
     platform_text_system: Arc<dyn PlatformTextSystem>,
     pub(crate) font_id: FontId,
     pub(crate) font_size: Pixels,
+    pub(crate) letter_spacing: Pixels,
     cached_ascii_char_widths: [Option<Pixels>; 128],
     cached_other_char_widths: HashMap<char, Pixels>,
 }
@@ -18,12 +19,14 @@ impl LineWrapper {
     pub(crate) fn new(
         font_id: FontId,
         font_size: Pixels,
+        letter_spacing: Pixels,
         text_system: Arc<dyn PlatformTextSystem>,
     ) -> Self {
         Self {
             platform_text_system: text_system,
             font_id,
             font_size,
+            letter_spacing,
             cached_ascii_char_widths: [None; 128],
             cached_other_char_widths: HashMap::default(),
         }
@@ -42,6 +45,8 @@ impl LineWrapper {
         let mut last_candidate_width = px(0.);
         let mut last_wrap_ix = 0;
         let mut prev_c = '\0';
+        let mut breaks = LineBreaks::default();
+        let mut glue_width = px(0.);
         let mut index = 0;
         let mut candidates = fragments
             .iter()
@@ -52,23 +57,20 @@ impl LineWrapper {
                 let ix = index;
                 index += candidate.len_utf8();
                 let mut new_prev_c = prev_c;
+                let mut lead = Pixels::ZERO;
                 let item_width = match candidate {
                     WrapBoundaryCandidate::Char { character: c } => {
                         if c == '\n' {
                             continue;
                         }
+                        lead = self.spacing_between(prev_c, c);
 
-                        if Self::is_word_char(c) {
-                            if prev_c == ' ' && c != ' ' && first_non_whitespace_ix.is_some() {
-                                last_candidate_ix = ix;
-                                last_candidate_width = width;
-                            }
-                        } else {
-                            // CJK may not be space separated, e.g.: `Hello world你好世界`
-                            if c != ' ' && first_non_whitespace_ix.is_some() {
-                                last_candidate_ix = ix;
-                                last_candidate_width = width;
-                            }
+                        if LineBreaks::is_format(c) && !breaks.in_glue() {
+                            glue_width = width + lead;
+                        }
+                        if let Some(at) = breaks.next(ix, c) {
+                            last_candidate_ix = at;
+                            last_candidate_width = if at < ix { glue_width } else { width + lead };
                         }
 
                         if c != ' ' && first_non_whitespace_ix.is_none() {
@@ -77,12 +79,13 @@ impl LineWrapper {
 
                         new_prev_c = c;
 
-                        self.width_for_char(c)
+                        lead + self.width_for_char(c)
                     }
                     WrapBoundaryCandidate::Element {
                         width: element_width,
                         ..
                     } => {
+                        breaks.next(ix, '\u{FFFC}');
                         if prev_c == ' ' && first_non_whitespace_ix.is_some() {
                             last_candidate_ix = ix;
                             last_candidate_width = width;
@@ -111,11 +114,11 @@ impl LineWrapper {
                         last_candidate_ix = 0;
                     } else {
                         last_wrap_ix = ix;
-                        width = item_width;
+                        width = item_width - lead;
                     }
 
                     if let Some(indent) = indent {
-                        width += self.width_for_char(' ') * indent as f32;
+                        width += (self.width_for_char(' ') + self.letter_spacing) * indent as f32;
                     }
 
                     return Some(Boundary::new(last_wrap_ix, indent.unwrap_or(0)));
@@ -137,19 +140,25 @@ impl LineWrapper {
         runs: &mut Vec<TextRun>,
     ) -> SharedString {
         let mut width = px(0.);
-        let mut suffix_width = truncation_suffix
-            .chars()
-            .map(|c| self.width_for_char(c))
-            .fold(px(0.0), |a, x| a + x);
+        let mut suffix_width = px(0.);
+        let mut previous = '\0';
+        for c in truncation_suffix.chars() {
+            suffix_width += self.spacing_between(previous, c) + self.width_for_char(c);
+            previous = c;
+        }
+        let suffix_start = truncation_suffix.chars().next();
         let mut char_indices = line.char_indices();
         let mut truncate_ix = 0;
+        let mut previous = '\0';
         for (ix, c) in char_indices {
-            if width + suffix_width < truncate_width {
+            let joint = suffix_start.map_or(Pixels::ZERO, |s| self.spacing_between(previous, s));
+            if width + joint + suffix_width < truncate_width {
                 truncate_ix = ix;
             }
 
-            let char_width = self.width_for_char(c);
+            let char_width = self.spacing_between(previous, c) + self.width_for_char(c);
             width += char_width;
+            previous = c;
 
             if width.floor() > truncate_width {
                 let result =
@@ -192,6 +201,17 @@ impl LineWrapper {
         matches!(c, '⋯')
     }
 
+    /// Focus patch: the letter spacing that shaping puts between `previous` and `c`
+    /// (`LineLayout::apply_letter_spacing`); `'\0'` stands for the start of the line.
+    fn spacing_between(&self, previous: char, c: char) -> Pixels {
+        let right_to_left = super::line_layout::is_right_to_left;
+        if previous == '\0' || right_to_left(previous) || right_to_left(c) {
+            Pixels::ZERO
+        } else {
+            self.letter_spacing
+        }
+    }
+
     #[inline(always)]
     fn width_for_char(&mut self, c: char) -> Pixels {
         if (c as u32) < 128 {
@@ -224,6 +244,91 @@ impl LineWrapper {
                 }],
             )
             .width
+    }
+}
+
+/// Focus patch: where a line may break, read character after character in logical order.
+/// `LineWrapper::wrap_line`, `LineLayout::compute_wrap_boundaries` and the right-to-left
+/// path of `LineLayoutCache` share it, so their lines agree. A line may break before a word
+/// that follows a space, and before any other character but a space (CJK breaks between
+/// two characters), except before closing punctuation and after opening punctuation. The
+/// format characters (directional isolates, joiners) stay with the character after them.
+#[derive(Clone, Debug)]
+pub struct LineBreaks {
+    previous: char,
+    previous_opens: bool,
+    seen: bool,
+    glue: Option<usize>,
+}
+
+impl Default for LineBreaks {
+    fn default() -> Self {
+        LineBreaks {
+            previous: '\0',
+            previous_opens: false,
+            seen: false,
+            glue: None,
+        }
+    }
+}
+
+impl LineBreaks {
+    /// Reads `c`, at byte `ix` of the line. Returns where the line may break before `c`:
+    /// `ix`, or the first of the format characters right before it.
+    pub fn next(&mut self, ix: usize, c: char) -> Option<usize> {
+        if Self::is_format(c) {
+            self.glue.get_or_insert(ix);
+            return None;
+        }
+        let at = self.glue.take().unwrap_or(ix);
+        let previous = self.previous;
+        let breakable = if LineWrapper::is_word_char(c) {
+            previous == ' ' && c != ' '
+        } else {
+            c != ' '
+        };
+        let breakable = breakable
+            && self.seen
+            && !self.previous_opens
+            && !Self::closes(c, previous);
+        self.seen |= c != ' ';
+        self.previous_opens = Self::opens(c, previous);
+        self.previous = c;
+        breakable.then_some(at)
+    }
+
+    /// Whether format characters wait for the character they stay with.
+    pub fn in_glue(&self) -> bool {
+        self.glue.is_some()
+    }
+
+    /// Punctuation that never starts a line: `c` after `previous`.
+    pub fn closes(c: char, previous: char) -> bool {
+        matches!(
+            c,
+            ',' | '.' | ';' | ':' | '!' | '?' | ')' | ']' | '}' | '\u{2019}' | '\u{201D}' | '\u{BB}'
+                | '\u{203A}' | '\u{2026}' | '\u{2025}' | '\u{3001}' | '\u{3002}' | '\u{FF0C}'
+                | '\u{FF0E}' | '\u{FF1A}' | '\u{FF1B}' | '\u{FF01}' | '\u{FF1F}' | '\u{FF09}'
+                | '\u{FF3D}' | '\u{FF5D}' | '\u{300D}' | '\u{300F}' | '\u{3011}' | '\u{3015}'
+                | '\u{3009}' | '\u{300B}' | '\u{3017}' | '\u{3019}' | '\u{301B}' | '\u{301E}'
+                | '\u{301F}' | '\u{30FB}' | '\u{060C}' | '\u{061B}' | '\u{061F}' | '\u{06D4}'
+        ) || (c == '"' && !matches!(previous, ' ' | '\0') && !Self::opens(previous, ' '))
+    }
+
+    /// Punctuation that never ends a line: `c` after `previous`.
+    pub fn opens(c: char, previous: char) -> bool {
+        matches!(
+            c,
+            '(' | '[' | '{' | '\u{2018}' | '\u{201C}' | '\u{AB}' | '\u{2039}' | '\u{BF}' | '\u{A1}'
+                | '\u{FF08}' | '\u{FF3B}' | '\u{FF5B}' | '\u{300C}' | '\u{300E}' | '\u{3010}'
+                | '\u{3014}' | '\u{3008}' | '\u{300A}' | '\u{3016}' | '\u{3018}' | '\u{301A}'
+                | '\u{301D}'
+        ) || (c == '"' && (matches!(previous, ' ' | '\0') || Self::opens(previous, ' ')))
+    }
+
+    /// Invisible format characters: directional marks, embeddings and isolates, joiners.
+    pub fn is_format(c: char) -> bool {
+        matches!(c, '\u{200C}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2060}'..='\u{2069}' | '\u{FEFF}')
     }
 }
 
@@ -328,7 +433,7 @@ mod tests {
         let dispatcher = TestDispatcher::new(StdRng::seed_from_u64(0));
         let cx = TestAppContext::build(dispatcher, None);
         let id = cx.text_system().resolve_font(&font(".ZedMono"));
-        LineWrapper::new(id, px(16.), cx.text_system().platform_text_system.clone())
+        LineWrapper::new(id, px(16.), px(0.), cx.text_system().platform_text_system.clone())
     }
 
     fn generate_test_runs(input_run_len: &[usize]) -> Vec<TextRun> {

@@ -292,13 +292,33 @@ impl TextSystem {
 
     /// Returns a handle to a line wrapper, for the given font and font size.
     pub fn line_wrapper(self: &Arc<Self>, font: Font, font_size: Pixels) -> LineWrapperHandle {
+        self.line_wrapper_spaced(font, font_size, Pixels::ZERO)
+    }
+
+    /// Focus patch: [`Self::line_wrapper`] for text shaped with `letter_spacing`
+    /// ([`WindowTextSystem::shape_text_spaced`]).
+    pub fn line_wrapper_spaced(
+        self: &Arc<Self>,
+        font: Font,
+        font_size: Pixels,
+        letter_spacing: Pixels,
+    ) -> LineWrapperHandle {
         let lock = &mut self.wrapper_pool.lock();
         let font_id = self.resolve_font(&font);
         let wrappers = lock
-            .entry(FontIdWithSize { font_id, font_size })
+            .entry(FontIdWithSize {
+                font_id,
+                font_size,
+                letter_spacing,
+            })
             .or_default();
         let wrapper = wrappers.pop().unwrap_or_else(|| {
-            LineWrapper::new(font_id, font_size, self.platform_text_system.clone())
+            LineWrapper::new(
+                font_id,
+                font_size,
+                letter_spacing,
+                self.platform_text_system.clone(),
+            )
         });
 
         LineWrapperHandle {
@@ -371,6 +391,19 @@ impl WindowTextSystem {
         runs: &[TextRun],
         force_width: Option<Pixels>,
     ) -> ShapedLine {
+        self.shape_line_spaced(text, font_size, Pixels::ZERO, runs, force_width)
+    }
+
+    /// Focus patch: [`Self::shape_line`] with `letter_spacing` added between two characters
+    /// ([`LineLayout::apply_letter_spacing`]).
+    pub fn shape_line_spaced(
+        &self,
+        text: SharedString,
+        font_size: Pixels,
+        letter_spacing: Pixels,
+        runs: &[TextRun],
+        force_width: Option<Pixels>,
+    ) -> ShapedLine {
         debug_assert!(
             text.find('\n').is_none(),
             "text argument should not contain newlines"
@@ -396,7 +429,7 @@ impl WindowTextSystem {
             });
         }
 
-        let layout = self.layout_line(&text, font_size, runs, force_width);
+        let layout = self.layout_line_spaced(&text, font_size, letter_spacing, runs, force_width);
 
         ShapedLine {
             layout,
@@ -412,6 +445,20 @@ impl WindowTextSystem {
         &self,
         text: SharedString,
         font_size: Pixels,
+        runs: &[TextRun],
+        wrap_width: Option<Pixels>,
+        line_clamp: Option<usize>,
+    ) -> Result<SmallVec<[WrappedLine; 1]>> {
+        self.shape_text_spaced(text, font_size, Pixels::ZERO, runs, wrap_width, line_clamp)
+    }
+
+    /// Focus patch: [`Self::shape_text`] with `letter_spacing` added between two characters
+    /// ([`LineLayout::apply_letter_spacing`]), wrap boundaries included.
+    pub fn shape_text_spaced(
+        &self,
+        text: SharedString,
+        font_size: Pixels,
+        letter_spacing: Pixels,
         runs: &[TextRun],
         wrap_width: Option<Pixels>,
         line_clamp: Option<usize>,
@@ -481,6 +528,7 @@ impl WindowTextSystem {
             let layout = self.line_layout_cache.layout_wrapped_line(
                 &line_text,
                 font_size,
+                letter_spacing,
                 &font_runs,
                 wrap_width,
                 Some(max_wrap_lines - wrapped_lines),
@@ -541,6 +589,17 @@ impl WindowTextSystem {
         runs: &[TextRun],
         force_width: Option<Pixels>,
     ) -> Arc<LineLayout> {
+        self.layout_line_spaced(text, font_size, Pixels::ZERO, runs, force_width)
+    }
+
+    fn layout_line_spaced(
+        &self,
+        text: &str,
+        font_size: Pixels,
+        letter_spacing: Pixels,
+        runs: &[TextRun],
+        force_width: Option<Pixels>,
+    ) -> Arc<LineLayout> {
         let mut last_run = None::<&TextRun>;
         let mut last_font: Option<FontId> = None;
         let mut font_runs = self.font_runs_pool.lock().pop().unwrap_or_default();
@@ -578,6 +637,7 @@ impl WindowTextSystem {
         let layout = self.line_layout_cache.layout_line(
             &SharedString::new(text),
             font_size,
+            letter_spacing,
             &font_runs,
             force_width,
         );
@@ -592,6 +652,7 @@ impl WindowTextSystem {
 struct FontIdWithSize {
     font_id: FontId,
     font_size: Pixels,
+    letter_spacing: Pixels,
 }
 
 /// A handle into the text system, which can be used to compute the wrapped layout of text
@@ -608,6 +669,7 @@ impl Drop for LineWrapperHandle {
             .get_mut(&FontIdWithSize {
                 font_id: wrapper.font_id,
                 font_size: wrapper.font_size,
+                letter_spacing: wrapper.letter_spacing,
             })
             .unwrap()
             .push(wrapper);
@@ -760,6 +822,12 @@ impl TextRun {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(C)]
 pub struct GlyphId(pub(crate) u32);
+
+impl From<u32> for GlyphId {
+    fn from(id: u32) -> Self {
+        GlyphId(id)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct RenderGlyphParams {

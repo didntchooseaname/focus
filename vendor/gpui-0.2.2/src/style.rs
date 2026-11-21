@@ -376,6 +376,10 @@ pub struct TextStyle {
     /// The font style, e.g. italic
     pub font_style: FontStyle,
 
+    /// Focus patch: the space added between two characters once a line is shaped, as CSS
+    /// `letter-spacing`; none is added beside a right-to-left character.
+    pub letter_spacing: Pixels,
+
     /// The background color of the text
     pub background_color: Option<Hsla>,
 
@@ -410,6 +414,7 @@ impl Default for TextStyle {
             line_height: phi(),
             font_weight: FontWeight::default(),
             font_style: FontStyle::default(),
+            letter_spacing: Pixels::ZERO,
             background_color: None,
             underline: None,
             strikethrough: None,
