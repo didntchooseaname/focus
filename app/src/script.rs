@@ -36,6 +36,7 @@ pub enum Step {
     Listen,
     Tabs,
     Front,
+    Focused,
     Split,
     Group(bool),
     MoveTab {
@@ -325,6 +326,7 @@ pub fn parse(text: &str) -> Result<Vec<(usize, Step)>, String> {
             "listen" => Step::Listen,
             "tabs" => Step::Tabs,
             "front" => Step::Front,
+            "focused" => Step::Focused,
             "split" => Step::Split,
             "group" => Step::Group(match rest {
                 "1" => false,
@@ -538,6 +540,37 @@ pub fn parse(text: &str) -> Result<Vec<(usize, Step)>, String> {
 }
 
 const FRAME: Duration = Duration::from_millis(20);
+
+impl Shell {
+    fn focus_label(&self, window: &Window, cx: &gpui::App) -> String {
+        if let Some(name) = focus_kit::keyboard::focus_name(window, cx) {
+            return name.to_string();
+        }
+        let Some(focused) = window.focused(cx) else {
+            return "none".into();
+        };
+        let editor = self.active_editor().map(|editor| editor.read(cx));
+        let tree = self
+            .vault_views
+            .as_ref()
+            .map(|views| gpui::Focusable::focus_handle(views.tree.read(cx), cx));
+        if editor.is_some_and(|e| {
+            gpui::Focusable::focus_handle(e.typing_input().read(cx), cx) == focused
+        }) {
+            "editor".into()
+        } else if editor
+            .is_some_and(|e| gpui::Focusable::focus_handle(e.reading.read(cx), cx) == focused)
+        {
+            "reading".into()
+        } else if tree.is_some_and(|tree| tree == focused) {
+            "tree".into()
+        } else if self.focus == focused {
+            "window".into()
+        } else {
+            "other".into()
+        }
+    }
+}
 
 pub async fn run(shell: WeakEntity<Shell>, steps: Vec<(usize, Step)>, cx: &mut AsyncWindowContext) {
     let mut steps = steps.into_iter().peekable();
@@ -1315,6 +1348,7 @@ impl Shell {
                     line.map_or(0, |l| l + 1)
                 );
             }
+            Step::Focused => println!("focused: {}", self.focus_label(window, cx)),
             Step::Tabs => {
                 let titles = |tabs: &[gpui::Entity<crate::editor::NoteEditor>]| {
                     tabs.iter()
