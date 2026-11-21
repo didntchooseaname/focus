@@ -62,8 +62,9 @@ impl Field {
 impl RenderOnce for Field {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = *cx.tokens();
-        let focused =
-            self.forced.focus() || self.state.read(cx).focus_handle(cx).is_focused(window);
+        let handle = self.state.read(cx).focus_handle(cx);
+        crate::keyboard::name_focus(&handle, "field", cx);
+        let focused = self.forced.focus() || handle.is_focused(window);
         let border = if self.disabled {
             t.line
         } else if self.error.is_some() {
@@ -162,8 +163,9 @@ impl TextArea {
 impl RenderOnce for TextArea {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = *cx.tokens();
-        let focused =
-            self.forced.focus() || self.state.read(cx).focus_handle(cx).is_focused(window);
+        let handle = self.state.read(cx).focus_handle(cx);
+        crate::keyboard::name_focus(&handle, "field", cx);
+        let focused = self.forced.focus() || handle.is_focused(window);
         let border = if self.disabled {
             t.line
         } else if focused {

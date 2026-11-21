@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use gpui::{
     AnyView, App, ClickEvent, ElementId, FocusHandle, FontWeight, InteractiveElement, IntoElement,
     ParentElement, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, div,
@@ -7,11 +9,10 @@ use gpui::{
 use crate::dir::Flow as _;
 use crate::icons::{Icon, icon};
 use crate::interaction::{Forced, inset_ring};
+use crate::keyboard::{self, ClickHandler, with_press};
 use crate::tokens::{ActiveTokens, size};
 use crate::tooltip::Tooltip;
 use crate::typography::Type;
-
-type ClickHandler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ButtonKind {
@@ -32,6 +33,7 @@ pub struct Button {
     disabled: bool,
     forced: Forced,
     focus: Option<FocusHandle>,
+    tab_stop: bool,
     tooltip: Option<SharedString>,
     on_click: Option<ClickHandler>,
 }
@@ -56,6 +58,7 @@ impl Button {
             disabled: false,
             forced: Forced::Live,
             focus: None,
+            tab_stop: true,
             tooltip: None,
             on_click: None,
         }
@@ -84,11 +87,15 @@ impl Button {
         self.focus = Some(handle.clone());
         self
     }
+    pub fn tab_stop(mut self, tab_stop: bool) -> Self {
+        self.tab_stop = tab_stop;
+        self
+    }
     pub fn on_click(
         mut self,
         handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
     ) -> Self {
-        self.on_click = Some(Box::new(handler));
+        self.on_click = Some(Rc::new(handler));
         self
     }
 }
@@ -96,8 +103,18 @@ impl Button {
 impl RenderOnce for Button {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = *cx.tokens();
-        let focused =
-            self.forced.focus() || self.focus.as_ref().is_some_and(|f| f.is_focused(window));
+        let pressable = (self.forced == Forced::Live && !self.disabled)
+            .then_some(self.on_click)
+            .flatten()
+            .map(|handler| {
+                let focus =
+                    keyboard::control_focus(&self.id, self.focus, self.tab_stop, window, cx);
+                (focus, handler)
+            });
+        let focused = self.forced.focus()
+            || pressable
+                .as_ref()
+                .is_some_and(|(focus, _)| focus.is_focused(window));
         let (bg, ink, border, hover_bg, hover_ink, hover_border, press_bg) = match self.kind {
             ButtonKind::Primary => (
                 t.btn,
@@ -186,7 +203,6 @@ impl RenderOnce for Button {
             .when(self.kind == ButtonKind::Primary, |this| {
                 this.font_weight(FontWeight::SEMIBOLD)
             })
-            .when_some(self.focus, |this, handle| this.track_focus(&handle))
             .when(live, |this| {
                 this.cursor_pointer()
                     .hover(move |s| {
@@ -205,8 +221,8 @@ impl RenderOnce for Button {
             .when_some(self.tooltip.filter(|_| !self.disabled), |this, label| {
                 this.tooltip(move |_, cx| -> AnyView { Tooltip::view(label.clone(), None, cx) })
             })
-            .when_some(self.on_click.filter(|_| !self.disabled), |this, handler| {
-                this.on_click(handler)
+            .when_some(pressable, |this, (focus, handler)| {
+                with_press(this, keyboard::BUTTON, &focus, handler)
             })
     }
 }
@@ -224,6 +240,7 @@ pub struct IconButton {
     disabled: bool,
     dense: bool,
     forced: Forced,
+    tab_stop: bool,
     on_click: Option<ClickHandler>,
 }
 
@@ -239,6 +256,7 @@ impl IconButton {
             disabled: false,
             dense: false,
             forced: Forced::Live,
+            tab_stop: true,
             on_click: None,
         }
     }
@@ -266,18 +284,33 @@ impl IconButton {
         self.forced = forced;
         self
     }
+    pub fn tab_stop(mut self, tab_stop: bool) -> Self {
+        self.tab_stop = tab_stop;
+        self
+    }
     pub fn on_click(
         mut self,
         handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
     ) -> Self {
-        self.on_click = Some(Box::new(handler));
+        self.on_click = Some(Rc::new(handler));
         self
     }
 }
 
 impl RenderOnce for IconButton {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = *cx.tokens();
+        let pressable = (self.forced == Forced::Live && !self.disabled)
+            .then_some(self.on_click)
+            .flatten()
+            .map(|handler| {
+                let focus = keyboard::control_focus(&self.id, None, self.tab_stop, window, cx);
+                (focus, handler)
+            });
+        let focused = self.forced.focus()
+            || pressable
+                .as_ref()
+                .is_some_and(|(focus, _)| focus.is_focused(window));
         let ink = if self.disabled {
             t.ink_4
         } else if self.active || self.toggled || self.forced.hover() || self.forced.pressed() {
@@ -294,11 +327,7 @@ impl RenderOnce for IconButton {
         } else {
             t.bg.opacity(0.)
         };
-        let border = if self.forced.focus() {
-            t.ink
-        } else {
-            t.bg.opacity(0.)
-        };
+        let border = if focused { t.ink } else { t.bg.opacity(0.) };
         let live = self.forced == Forced::Live && !self.disabled;
         let glyph_size = if self.dense {
             size::ICON_DENSE
@@ -339,8 +368,8 @@ impl RenderOnce for IconButton {
                     Tooltip::view(label.clone(), shortcut.clone(), cx)
                 })
             })
-            .when_some(self.on_click.filter(|_| !self.disabled), |this, handler| {
-                this.on_click(handler)
+            .when_some(pressable, |this, (focus, handler)| {
+                with_press(this, keyboard::BUTTON, &focus, handler)
             })
     }
 }

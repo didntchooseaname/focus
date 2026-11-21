@@ -1,15 +1,16 @@
+use std::rc::Rc;
+
 use gpui::{
     App, ClickEvent, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce,
-    SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
+    SharedString, Styled, Window, div, prelude::FluentBuilder, px,
 };
 
 use crate::dir::Flow as _;
 use crate::icons::{Icon, icon};
 use crate::interaction::Forced;
+use crate::keyboard::{self, ClickHandler, with_press};
 use crate::tokens::{ActiveTokens, size};
 use crate::typography::Type;
-
-type Handler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>;
 
 const GROUP: &str = "focus-checkbox";
 
@@ -20,7 +21,8 @@ pub struct Checkbox {
     label: Option<SharedString>,
     disabled: bool,
     forced: Forced,
-    on_click: Option<Handler>,
+    tab_stop: bool,
+    on_click: Option<ClickHandler>,
 }
 
 impl Checkbox {
@@ -31,6 +33,7 @@ impl Checkbox {
             label: None,
             disabled: false,
             forced: Forced::Live,
+            tab_stop: true,
             on_click: None,
         }
     }
@@ -46,18 +49,33 @@ impl Checkbox {
         self.forced = forced;
         self
     }
+    pub fn tab_stop(mut self, tab_stop: bool) -> Self {
+        self.tab_stop = tab_stop;
+        self
+    }
     pub fn on_click(
         mut self,
         handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
     ) -> Self {
-        self.on_click = Some(Box::new(handler));
+        self.on_click = Some(Rc::new(handler));
         self
     }
 }
 
 impl RenderOnce for Checkbox {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = *cx.tokens();
+        let pressable = (self.forced == Forced::Live && !self.disabled)
+            .then_some(self.on_click)
+            .flatten()
+            .map(|handler| {
+                let focus = keyboard::control_focus(&self.id, None, self.tab_stop, window, cx);
+                (focus, handler)
+            });
+        let focused = self.forced.focus()
+            || pressable
+                .as_ref()
+                .is_some_and(|(focus, _)| focus.is_focused(window));
         let (fill, border) = if self.disabled {
             (
                 if self.checked {
@@ -109,7 +127,7 @@ impl RenderOnce for Checkbox {
                         this.group_hover(GROUP, move |s| s.border_color(t.ink_3))
                     })
                     .when(checked, |this| this.child(icon(Icon::CHECK, px(12.))))
-                    .when(self.forced.focus(), |this| {
+                    .when(focused, |this| {
                         this.child(
                             crate::Dir::inset(div().absolute(), px(-3.))
                                 .rounded(size::RADIUS)
@@ -126,8 +144,8 @@ impl RenderOnce for Checkbox {
                         .child(label),
                 )
             })
-            .when_some(self.on_click.filter(|_| !self.disabled), |this, handler| {
-                this.on_click(handler)
+            .when_some(pressable, |this, (focus, handler)| {
+                with_press(this, keyboard::CHECKBOX, &focus, handler)
             })
     }
 }

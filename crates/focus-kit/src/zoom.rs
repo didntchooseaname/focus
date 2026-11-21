@@ -52,7 +52,7 @@ impl RenderOnce for ZoomControls {
             .flex()
             .items_center()
             .gap(size::S1)
-            .child(self.out)
+            .child(self.out.tab_stop(false))
             .child(
                 div()
                     .mono_sm()
@@ -62,8 +62,8 @@ impl RenderOnce for ZoomControls {
                     .justify_center()
                     .child(self.percent),
             )
-            .child(self.zoom_in)
-            .child(self.fit)
-            .children(self.fit_width)
+            .child(self.zoom_in.tab_stop(false))
+            .child(self.fit.tab_stop(false))
+            .children(self.fit_width.map(|button| button.tab_stop(false)))
     }
 }

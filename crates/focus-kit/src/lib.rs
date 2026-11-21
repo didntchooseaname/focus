@@ -14,6 +14,7 @@ pub mod hatch;
 pub mod icons;
 pub mod interaction;
 pub mod kbd;
+pub mod keyboard;
 pub mod menu;
 pub mod note_tab;
 pub mod scrollbar;
@@ -41,6 +42,7 @@ pub use hatch::hatch;
 pub use icons::{Icon, icon};
 pub use interaction::Forced;
 pub use kbd::Kbd;
+pub use keyboard::{contain_tab, cycle_focus};
 pub use menu::{MenuRow, floating, menu, menu_separator};
 pub use note_tab::NoteTab;
 pub use scrollbar::{ScrollSource, Scrollbar, scrollbar};
@@ -54,6 +56,7 @@ pub use zoom::ZoomControls;
 
 pub fn init(mode: Mode, cx: &mut gpui::App) -> anyhow::Result<()> {
     fonts::install(cx)?;
+    keyboard::bind(cx);
     theme::register_markdown();
     theme::apply(mode, None, cx)
 }

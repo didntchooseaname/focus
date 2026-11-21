@@ -8,6 +8,7 @@ use gpui::{
 use crate::dir::Flow as _;
 use crate::icons::{Icon, icon};
 use crate::interaction::{Forced, inset_ring};
+use crate::keyboard::{self, StepLeft, StepRight};
 use crate::tokens::{ActiveTokens, size};
 use crate::typography::Type;
 
@@ -36,6 +37,7 @@ pub struct Segments {
     selected: usize,
     disabled: bool,
     forced: Option<(usize, Forced)>,
+    tab_stop: bool,
     on_select: Option<SelectHandler>,
 }
 
@@ -47,6 +49,7 @@ impl Segments {
             selected,
             disabled: false,
             forced: None,
+            tab_stop: true,
             on_select: None,
         }
     }
@@ -58,6 +61,10 @@ impl Segments {
         self.forced = Some((index, forced));
         self
     }
+    pub fn tab_stop(mut self, tab_stop: bool) -> Self {
+        self.tab_stop = tab_stop;
+        self
+    }
     pub fn on_select(mut self, handler: impl Fn(usize, &mut Window, &mut App) + 'static) -> Self {
         self.on_select = Some(Rc::new(handler));
         self
@@ -65,11 +72,40 @@ impl Segments {
 }
 
 impl RenderOnce for Segments {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = *cx.tokens();
         let disabled = self.disabled;
+        let count = self.items.len();
+        let selected = self.selected;
+        let steering = (self.forced.is_none() && !disabled)
+            .then(|| self.on_select.clone())
+            .flatten()
+            .map(|handler| {
+                let focus = keyboard::control_focus(&self.id, None, self.tab_stop, window, cx);
+                (focus, handler)
+            });
+        let focused = steering
+            .as_ref()
+            .is_some_and(|(focus, _)| focus.is_focused(window));
+        let step = move |left: bool, handler: &SelectHandler, window: &mut Window, cx: &mut App| {
+            let target = if keyboard::step_toward_end(left) {
+                (selected + 1).min(count.saturating_sub(1))
+            } else {
+                selected.saturating_sub(1)
+            };
+            if target != selected {
+                handler(target, window, cx);
+            }
+        };
         div()
             .id(self.id)
+            .when_some(steering, |this, (focus, handler)| {
+                let leftward = handler.clone();
+                this.key_context(keyboard::SEGMENTS)
+                    .on_action(move |_: &StepLeft, window, cx| step(true, &leftward, window, cx))
+                    .on_action(move |_: &StepRight, window, cx| step(false, &handler, window, cx))
+                    .child(keyboard::focus_anchor(&focus))
+            })
             .flow_row()
             .flex_none()
             .items_center()
@@ -123,7 +159,7 @@ impl RenderOnce for Segments {
                     .when(live && active, |this| {
                         this.active(move |s| s.bg(t.btn_press))
                     })
-                    .when(forced.focus(), |this| {
+                    .when(forced.focus() || (focused && active), |this| {
                         this.child(inset_ring(if active { t.btn_ink } else { t.ink }))
                     })
                     .when_some(item.icon, |this, glyph| {
