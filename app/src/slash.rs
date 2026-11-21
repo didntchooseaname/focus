@@ -570,7 +570,7 @@ pub fn render(
                     .px(size::S3)
                     .flow_row()
                     .items_end()
-                    .pb(px(4.))
+                    .pb(size::S1)
                     .ui_xs()
                     .text_color(t.ink_3)
                     .child(e.group.label())

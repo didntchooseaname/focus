@@ -367,8 +367,7 @@ impl HostsTable {
                             .appearance(false)
                             .px_0()
                             .py_0()
-                            .text_size(px(12.5))
-                            .line_height(px(18.)),
+                            .ui_sm(),
                     ),
             )
             .child(

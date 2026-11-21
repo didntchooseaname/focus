@@ -120,8 +120,7 @@ impl RenderOnce for Field {
                             Input::new(&self.state)
                                 .appearance(false)
                                 .disabled(self.disabled)
-                                .text_size(px(13.))
-                                .line_height(px(20.))
+                                .ui()
                                 .px_0()
                                 .py_0()
                                 .h(px(20.)),
@@ -193,8 +192,7 @@ impl RenderOnce for TextArea {
                 Input::new(&self.state)
                     .appearance(false)
                     .disabled(self.disabled)
-                    .text_size(px(13.))
-                    .line_height(px(20.))
+                    .ui()
                     .px_0()
                     .py_0(),
             )

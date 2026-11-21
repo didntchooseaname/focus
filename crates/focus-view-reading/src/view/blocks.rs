@@ -352,7 +352,7 @@ impl ReadingView {
                     div()
                         .flex_none()
                         .text_color(t.ink_3)
-                        .child(icon(Icon::LINK, px(14.))),
+                        .child(icon(Icon::LINK, size::ICON_DENSE)),
                 )
                 .child(
                     div()
@@ -436,7 +436,7 @@ impl ReadingView {
                 entries,
                 ordered,
             } => {
-                let spacing = if *tight { px(2.) } else { px(8.) };
+                let spacing = if *tight { px(2.) } else { size::S2 };
                 div()
                     .flex()
                     .flex_col()
@@ -1582,8 +1582,8 @@ impl ReadingView {
                     let group: SharedString = format!("image-{}", key_of(&image.source)).into();
                     let viewer = self.live.then(|| {
                         Dir::current()
-                            .end(div().absolute(), px(4.))
-                            .top(px(4.))
+                            .end(div().absolute(), size::S1)
+                            .top(size::S1)
                             .invisible()
                             .group_hover(group.clone(), |s| s.visible())
                             .child(control(

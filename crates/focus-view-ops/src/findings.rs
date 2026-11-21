@@ -1252,7 +1252,7 @@ impl Render for FindingsList {
                             this.child(deferred(anchored().snap_to_window().child(
                                 focus_kit::fade_in(
                                     "fade-ops-findings-menu",
-                                    self.menus.attach(menu(&t).mt(px(4.)), dismiss).children(
+                                    self.menus.attach(menu(&t).mt(size::S1), dismiss).children(
                                         rows.into_iter().enumerate().map(
                                             |(index, (text, checked))| {
                                                 MenuRow::new((id, index), text)

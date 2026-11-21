@@ -449,7 +449,7 @@ impl VersionsDialog {
                     .items_center()
                     .gap(size::S2)
                     .when(is_copy, |this| {
-                        this.child(div().flex_none().size(px(6.)).rounded_full().bg(t.warn))
+                        this.child(div().flex_none().size(size::DOT).rounded_full().bg(t.warn))
                     })
                     .child(
                         div()

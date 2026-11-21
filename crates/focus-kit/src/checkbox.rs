@@ -126,7 +126,9 @@ impl RenderOnce for Checkbox {
                     .when(live && !checked, |this| {
                         this.group_hover(GROUP, move |s| s.border_color(t.ink_3))
                     })
-                    .when(checked, |this| this.child(icon(Icon::CHECK, px(12.))))
+                    .when(checked, |this| {
+                        this.child(icon(Icon::CHECK, size::ICON_SMALL))
+                    })
                     .when(focused, |this| {
                         this.child(
                             crate::Dir::inset(div().absolute(), px(-3.))

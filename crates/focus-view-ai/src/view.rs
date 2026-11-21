@@ -419,7 +419,7 @@ impl AiPanel {
                 turn.chips.iter().map(|chip| {
                     dir.row()
                         .items_baseline()
-                        .gap(px(4.))
+                        .gap(size::S1)
                         .px(px(6.))
                         .py(px(2.))
                         .rounded(size::RADIUS)
@@ -1077,8 +1077,7 @@ impl AiPanel {
                     .disabled(no_backend)
                     .px_0()
                     .py_0()
-                    .text_size(px(13.))
-                    .line_height(px(20.)),
+                    .ui(),
             );
 
         let masking = self.mask.active().then(|| {
@@ -1091,7 +1090,7 @@ impl AiPanel {
             dir.row()
                 .id("ai-masking")
                 .items_center()
-                .gap(px(4.))
+                .gap(size::S1)
                 .px(size::S1)
                 .text_color(if count > 0 { t.ink } else { t.ink_3 })
                 .tooltip(tip(label))

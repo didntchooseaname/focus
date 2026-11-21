@@ -56,6 +56,9 @@ pub trait Type: Styled + Sized {
             .line_height(px(16.))
             .font_weight(FontWeight::NORMAL)
     }
+    fn mono_sm_in_row(self) -> Self {
+        self.mono_sm().line_height(px(18.))
+    }
     fn mono(self) -> Self {
         self.font_family(MONO)
             .text_size(px(12.5))

@@ -379,7 +379,7 @@ impl Shell {
             .px(size::S4)
             .border_b_1()
             .border_color(t.line)
-            .child(div().flex_none().size(px(6.)).rounded_full().bg(t.warn))
+            .child(div().flex_none().size(size::DOT).rounded_full().bg(t.warn))
             .child(
                 div()
                     .flex()

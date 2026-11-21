@@ -343,7 +343,7 @@ impl RenderOnce for IconButton {
             .flex_none()
             .items_center()
             .justify_center()
-            .size(px(28.))
+            .size(size::ICON_HIT)
             .child(
                 div()
                     .id("glyph")

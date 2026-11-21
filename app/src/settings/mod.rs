@@ -780,7 +780,7 @@ impl SettingsView {
                     .flex_1()
                     .min_w_0()
                     .gap(px(2.))
-                    .pt(px(4.))
+                    .pt(size::S1)
                     .child(div().ui().text_color(label_ink).child(setting.text().label))
                     .child(
                         div()
@@ -796,7 +796,7 @@ impl SettingsView {
                     .items_start()
                     .child(self.render_control(setting, off, cx)),
             )
-            .child(div().flex_none().w(px(28.)).child(if changed {
+            .child(div().flex_none().w(size::ICON_HIT).child(if changed {
                 IconButton::new(
                     SharedString::from(format!("reset-{}", setting.key)),
                     Icon::RESET,

@@ -490,7 +490,7 @@ pub(crate) fn dropdown(
         .when(open, |this| {
             let list = focus_kit::fade_in(
                 "fade-ops-dropdown",
-                menus.attach(menu(t).mt(px(4.)), dismiss).children(
+                menus.attach(menu(t).mt(size::S1), dismiss).children(
                     rows.into_iter()
                         .enumerate()
                         .map(|(index, (text, checked))| {

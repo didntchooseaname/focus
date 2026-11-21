@@ -12,7 +12,7 @@ use crate::typography::Type;
 
 type Handler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>;
 
-const LEAD: gpui::Pixels = px(8.);
+const LEAD: gpui::Pixels = size::S2;
 
 #[derive(IntoElement)]
 pub struct TreeRow {

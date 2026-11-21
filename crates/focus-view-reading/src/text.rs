@@ -665,7 +665,7 @@ impl RichText {
                 ));
             }
         }
-        let icon_size = px(12.);
+        let icon_size = focus_kit::size::ICON_SMALL;
         for (at, color) in &self.paints.icons {
             let Some(origin) = layout.position_for_index(*at) else {
                 continue;

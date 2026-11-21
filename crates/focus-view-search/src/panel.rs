@@ -1234,7 +1234,7 @@ impl SearchPanel {
                         .flex_shrink()
                         .min_w(px(24.))
                         .items_center()
-                        .gap(px(4.))
+                        .gap(size::S1)
                         .h(px(24.))
                         .px(size::S2)
                         .rounded(size::RADIUS)
@@ -1606,7 +1606,7 @@ impl SearchPanel {
                         .flex()
                         .flex_none()
                         .items_center()
-                        .gap(px(4.))
+                        .gap(size::S1)
                         .h(px(24.))
                         .px(size::S2)
                         .rounded(size::RADIUS)
@@ -1751,8 +1751,7 @@ impl SearchPanel {
                 div().flex_1().min_w_0().child(
                     Input::new(&self.editor)
                         .appearance(false)
-                        .text_size(px(11.5))
-                        .line_height(px(16.))
+                        .mono_sm()
                         .px_0()
                         .py_0()
                         .h(px(16.)),

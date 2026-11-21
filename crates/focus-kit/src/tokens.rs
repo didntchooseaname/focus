@@ -180,6 +180,7 @@ pub mod size {
     pub const ICON_DENSE: Pixels = px(14.);
     pub const ICON_SMALL: Pixels = px(12.);
     pub const ICON_BUTTON: Pixels = px(26.);
+    pub const ICON_HIT: Pixels = px(28.);
     pub const INDENT: Pixels = px(14.);
     pub const DOT: Pixels = px(6.);
     pub const CHECKBOX: Pixels = px(14.);

@@ -301,7 +301,7 @@ impl SettingsView {
                         )
                         .into_any_element()
                     })
-                    .child(div().flex_none().w(px(28.)).child(if changed {
+                    .child(div().flex_none().w(size::ICON_HIT).child(if changed {
                         IconButton::new(
                             SharedString::from(format!("shortcut-reset-{label}")),
                             Icon::RESET,
@@ -446,8 +446,8 @@ impl SettingsView {
                                     .map(|k| Kbd::new(focus_i18n::keys_text(k))),
                             ),
                         )
-                        .child(div().flex_none().w(px(28.)))
-                        .child(div().flex_none().w(px(28.)))
+                        .child(div().flex_none().w(size::ICON_HIT))
+                        .child(div().flex_none().w(size::ICON_HIT))
                 }))
                 .into_any_element(),
         )

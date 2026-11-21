@@ -818,8 +818,7 @@ fn value_input(
                 this.child(
                     Input::new(input)
                         .appearance(false)
-                        .text_size(px(12.5))
-                        .line_height(px(20.))
+                        .mono()
                         .px_0()
                         .py_0()
                         .h(px(20.)),

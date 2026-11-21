@@ -138,8 +138,8 @@ impl ReadingView {
         let group: gpui::SharedString = format!("pdf-embed-{item}-{page}").into();
         let button = self.live.then(|| {
             Dir::current()
-                .end(div().absolute(), px(4.))
-                .top(px(4.))
+                .end(div().absolute(), size::S1)
+                .top(size::S1)
                 .invisible()
                 .group_hover(group.clone(), |s| s.visible())
                 .child(

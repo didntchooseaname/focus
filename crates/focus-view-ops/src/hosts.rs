@@ -420,7 +420,7 @@ impl HostsTable {
                 .flex()
                 .items_center()
                 .gap(size::S2)
-                .min_h(px(26.))
+                .min_h(size::ROW)
                 .cursor_pointer()
                 .ui_sm()
                 .text_color(t.ink)
@@ -769,8 +769,7 @@ impl Render for HostsTable {
                                 .appearance(false)
                                 .px_0()
                                 .py_0()
-                                .text_size(px(12.5))
-                                .line_height(px(18.)),
+                                .ui_sm(),
                         ),
                 )
                 .children(message)

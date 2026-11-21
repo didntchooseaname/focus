@@ -300,7 +300,7 @@ impl Shell {
                         .flow_row()
                         .items_center()
                         .h_full()
-                        .px(px(4.))
+                        .px(size::S1)
                         .child(button)
                         .when(which == tab, |this| this.child(active_bar(&t)))
                 },
@@ -703,7 +703,7 @@ impl Shell {
                         .flex_1()
                         .min_w_0()
                         .ui_sm()
-                        .when(mono, |d| d.mono_sm().line_height(px(18.)))
+                        .when(mono, |d| d.mono_sm_in_row())
                         .text_color(t.ink_2)
                         .child(value),
                 )

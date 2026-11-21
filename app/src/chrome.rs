@@ -413,8 +413,7 @@ impl Shell {
                     div()
                         .flex_shrink()
                         .min_w_0()
-                        .mono_sm()
-                        .line_height(px(18.))
+                        .mono_sm_in_row()
                         .child(ellipsis(
                             editor
                                 .loose
@@ -487,21 +486,16 @@ impl Shell {
             .child(div().flex_1())
             .children(file_items)
             .when_some(graph_counts, |this, counts| {
-                this.child(item().mono_sm().line_height(px(18.)).child(counts))
+                this.child(item().mono_sm_in_row().child(counts))
             })
             .when_some(cursor, |this, cursor| {
-                this.child(
-                    item()
-                        .mono_sm()
-                        .line_height(px(18.))
-                        .child(focus_i18n::t_args(
-                            "ui-status-cursor",
-                            &[
-                                ("line", (cursor.line + 1).into()),
-                                ("column", (cursor.character + 1).into()),
-                            ],
-                        )),
-                )
+                this.child(item().mono_sm_in_row().child(focus_i18n::t_args(
+                    "ui-status-cursor",
+                    &[
+                        ("line", (cursor.line + 1).into()),
+                        ("column", (cursor.character + 1).into()),
+                    ],
+                )))
             })
             .when_some(editor, |this, editor| {
                 this.child(counted("ui-status-words", editor.meta.words as i64))
@@ -538,15 +532,10 @@ impl Shell {
                 )
             })
             .when_some(model, |this, model| {
-                this.child(item().mono_sm().line_height(px(18.)).child(model))
+                this.child(item().mono_sm_in_row().child(model))
             })
             .when_some(resident_memory(), |this, rss| {
-                this.child(
-                    item()
-                        .mono_sm()
-                        .line_height(px(18.))
-                        .child(focus_i18n::format_bytes(rss)),
-                )
+                this.child(item().mono_sm_in_row().child(focus_i18n::format_bytes(rss)))
             })
             .into_any_element()
     }
@@ -565,7 +554,7 @@ fn counted(key: &str, count: i64) -> gpui::Div {
     match around(&text, &shown) {
         Some((before, after)) => row
             .child(before.to_string())
-            .child(div().mono_sm().line_height(px(18.)).child(shown.clone()))
+            .child(div().mono_sm_in_row().child(shown.clone()))
             .child(after.to_string()),
         None => row.child(text),
     }

@@ -44,7 +44,7 @@ impl RenderOnce for Chip {
             .flow_row()
             .flex_none()
             .items_baseline()
-            .gap(px(4.))
+            .gap(size::S1)
             .px(px(6.))
             .py(px(2.))
             .rounded(size::RADIUS)
@@ -56,13 +56,7 @@ impl RenderOnce for Chip {
                 .flow(chip)
                 .gap(px(1.))
                 .child(div().text_color(t.ink_3).child("#"))
-                .child(
-                    div()
-                        .mono_sm()
-                        .line_height(px(18.))
-                        .text_color(t.ink_2)
-                        .child(tag),
-                );
+                .child(div().mono_sm_in_row().text_color(t.ink_2).child(tag));
         }
         for part in self.parts {
             chip = match part {

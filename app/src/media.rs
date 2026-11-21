@@ -5,7 +5,7 @@ use focus_view_media::raster::Kind;
 use focus_view_media::{ImageEvent, ImageView, PdfEvent, PdfView, ZoomAction};
 use gpui::{
     AnyElement, AppContext, Context, Entity, IntoElement, ParentElement, Styled, Subscription,
-    Window, div, px,
+    Window, div,
 };
 
 use crate::shell::{Pane, Shell};
@@ -407,8 +407,7 @@ impl Shell {
             div()
                 .flex_shrink()
                 .min_w_0()
-                .mono_sm()
-                .line_height(px(18.))
+                .mono_sm_in_row()
                 .child(ellipsis(path))
                 .into_any_element()
         });
@@ -420,8 +419,7 @@ impl Shell {
                     .flow_row()
                     .flex_none()
                     .items_center()
-                    .mono_sm()
-                    .line_height(px(18.))
+                    .mono_sm_in_row()
                     .text_color(t.ink_3)
                     .child(text)
                     .into_any_element()

@@ -310,8 +310,7 @@ impl Render for NotePicker {
                         div().flex_1().ui_lg().text_color(t.ink).child(
                             Input::new(&self.input)
                                 .appearance(false)
-                                .text_size(px(14.))
-                                .line_height(px(22.))
+                                .ui_lg()
                                 .px_0()
                                 .py_0()
                                 .h(px(22.)),

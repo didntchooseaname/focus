@@ -307,7 +307,7 @@ impl Render for OpsDashboard {
                             .flex()
                             .items_center()
                             .gap(size::S3)
-                            .h(px(26.))
+                            .h(size::ROW)
                             .cursor_pointer()
                             .hover(move |s| s.bg(t.card_2))
                             .on_click(cx.listener(move |_, _, _, cx| {
@@ -360,7 +360,7 @@ impl Render for OpsDashboard {
                                 .flex()
                                 .items_center()
                                 .gap(size::S3)
-                                .h(px(26.))
+                                .h(size::ROW)
                                 .cursor_pointer()
                                 .hover(move |s| s.bg(t.card_2))
                                 .on_click(cx.listener(move |_, _, _, cx| {
