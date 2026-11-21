@@ -408,6 +408,18 @@ impl Shell {
         let t = *cx.tokens();
         let (second, focused) = (view.second, view.focused);
         let front = view.active.filter(|_| view.active_pane.is_none());
+        let slot = usize::from(second);
+        let shown = view
+            .active_pane
+            .map(|pane| view.tabs.len() + pane)
+            .or(view.active)
+            .map(|item| (item, view.tabs.len() + view.panes.len()));
+        if shown != self.tab_front[slot] {
+            self.tab_front[slot] = shown;
+            if let Some((item, _)) = shown {
+                self.tab_scroll[slot].scroll_to_item(item);
+            }
+        }
         let carried = |item: TabItem, title: String| DraggedTab {
             second,
             item,
@@ -431,6 +443,7 @@ impl Shell {
             .flex_none()
             .h(size::TAB_BAR)
             .overflow_x_scroll()
+            .track_scroll(&self.tab_scroll[slot])
             .drag_over::<DraggedTab>(move |style, dragged, _, _| {
                 if dragged.second != second {
                     style.bg(t.card_2)
@@ -462,6 +475,13 @@ impl Shell {
                     ),
                     None => editor.meta.title.to_string(),
                 };
+                let tip: gpui::SharedString = editor
+                    .loose
+                    .as_deref()
+                    .unwrap_or(&editor.meta.path)
+                    .display()
+                    .to_string()
+                    .into();
                 let forced = match self.forced(&format!("tab:{i}")) {
                     Forced::Live if !focused && front == Some(i) && !editor.dirty => Forced::Hover,
                     forced if focused => forced,
@@ -488,9 +508,17 @@ impl Shell {
                     (if second { "tab-drag-2" } else { "tab-drag" }, i),
                     carried(TabItem::Note(entity), title),
                 )
+                .tooltip(move |_, cx| focus_kit::tooltip::Tooltip::view(tip.clone(), None, cx))
+                .on_mouse_up(
+                    MouseButton::Middle,
+                    cx.listener(move |this, _, window, cx| {
+                        this.focus_group(second, window, cx);
+                        this.close_tab(i, window, cx)
+                    }),
+                )
                 .on_mouse_down(
                     MouseButton::Right,
-                    cx.listener(move |this, event: &gpui::MouseDownEvent, _, cx| {
+                    cx.listener(move |this, event: &gpui::MouseDownEvent, window, cx| {
                         this.open_tab_menu(
                             TabMenu {
                                 second,
@@ -498,6 +526,7 @@ impl Shell {
                                 x: event.position.x,
                                 y: event.position.y,
                             },
+                            window,
                             cx,
                         )
                     }),
@@ -539,9 +568,20 @@ impl Shell {
                         this.close_pane(index, window, cx)
                     }
                 }));
+                let tip: gpui::SharedString = label.clone().into();
                 draggable(
                     (if second { "pane-drag-2" } else { "pane-drag" }, i),
                     carried(TabItem::Pane(pane), label),
+                )
+                .tooltip(move |_, cx| focus_kit::tooltip::Tooltip::view(tip.clone(), None, cx))
+                .on_mouse_up(
+                    MouseButton::Middle,
+                    cx.listener(move |this, _, window, cx| {
+                        this.focus_group(second, window, cx);
+                        if let Some(index) = this.panes.iter().position(|p| *p == pane) {
+                            this.close_pane(index, window, cx)
+                        }
+                    }),
                 )
                 .child(tab)
             }))

@@ -183,6 +183,7 @@ fn main() -> anyhow::Result<()> {
         }
         focus_md::mermaid::init_fonts(&focus_kit::fonts::text_faces());
         actions::bind(cx);
+        compose::menu::publish_field_menu_text(cx);
         focus_view_reading::bind(cx);
         focus_view_ai::bind(cx);
         focus_view_vault::bind(cx);

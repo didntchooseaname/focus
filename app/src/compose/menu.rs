@@ -183,3 +183,21 @@ impl Render for EditorMenu {
             ))
     }
 }
+
+pub fn publish_field_menu_text(cx: &mut gpui::App) {
+    let row = |key: &str, keys: &str| {
+        (
+            gpui::SharedString::from(focus_i18n::t(key)),
+            gpui::SharedString::from(focus_i18n::keys_text(keys)),
+        )
+    };
+    focus_kit::field_menu::set_text(
+        focus_kit::field_menu::FieldMenuText {
+            cut: row("ui-editor-cut", "ctrl-x"),
+            copy: row("ui-action-copy", "ctrl-c"),
+            paste: row("ui-editor-paste", "ctrl-v"),
+            select_all: row("ui-editor-select-all", "ctrl-a"),
+        },
+        cx,
+    );
+}

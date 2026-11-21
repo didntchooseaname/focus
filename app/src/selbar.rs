@@ -220,6 +220,8 @@ impl Shell {
                         highlighted.map_or(count - 1, |h| (h + count - 1) % count),
                     ));
                 }
+                "home" if plain => self.selbar.menu = Some(Some(0)),
+                "end" if plain => self.selbar.menu = Some(Some(count - 1)),
                 "enter" if plain => {
                     if let Some(block) = highlighted.and_then(|h| Block::ALL.get(h)) {
                         self.bar_press(Press::TypeOf(*block), window, cx);

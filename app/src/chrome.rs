@@ -11,6 +11,8 @@ use crate::actions::*;
 use crate::editor::ViewMode;
 use crate::shell::Shell;
 
+const CRUMB_WHOLE: usize = 12;
+
 pub fn resident_memory() -> Option<u64> {
     let statm = std::fs::read_to_string("/proc/self/statm").ok()?;
     let pages: u64 = statm.split_whitespace().nth(1)?.parse().ok()?;
@@ -124,9 +126,18 @@ impl Shell {
                     .ui()
                     .overflow_hidden()
                     .children(crumbs.into_iter().enumerate().map(|(i, (crumb, folder))| {
+                        let starts = self.crumb_starts.clone();
+                        let whole = crumb.chars().count() <= CRUMB_WHOLE;
+                        let tip: SharedString = match &folder {
+                            Some(path) if !path.as_os_str().is_empty() => {
+                                path.display().to_string().into()
+                            }
+                            _ => crumb.clone(),
+                        };
                         div()
                             .flow_row()
-                            .flex_shrink()
+                            .when(whole, |this| this.flex_shrink_0())
+                            .when(!whole, |this| this.flex_shrink())
                             .min_w_0()
                             .items_center()
                             .gap(size::S2)
@@ -136,19 +147,38 @@ impl Shell {
                             .child(
                                 div()
                                     .id(("crumb", i))
+                                    .relative()
                                     .min_w_0()
                                     .px(px(2.))
                                     .rounded(size::RADIUS)
                                     .text_color(t.ink_3)
+                                    .tooltip(move |_, cx| {
+                                        focus_kit::tooltip::Tooltip::view(tip.clone(), None, cx)
+                                    })
+                                    .child(
+                                        gpui::canvas(
+                                            move |bounds, _, _| {
+                                                let mut starts = starts.borrow_mut();
+                                                if starts.len() <= i {
+                                                    starts.resize(i + 1, bounds.origin.x);
+                                                }
+                                                starts[i] = bounds.origin.x;
+                                            },
+                                            |_, _, _, _| {},
+                                        )
+                                        .absolute()
+                                        .size_full(),
+                                    )
                                     .when_some(folder, |this, folder| {
                                         this.cursor_pointer()
                                             .hover(move |s| s.text_color(t.ink).bg(t.card_2))
                                             .active(move |s| s.bg(t.card_3))
                                             .on_click(cx.listener(
-                                                move |this, event: &gpui::ClickEvent, _, cx| {
+                                                move |this, event: &gpui::ClickEvent, window, cx| {
                                                     this.open_crumb_menu(
                                                         folder.clone(),
                                                         event.position().x,
+                                                        window,
                                                         cx,
                                                     )
                                                 },
@@ -158,6 +188,7 @@ impl Shell {
                             )
                     }))
                     .when_some(title, |this, title| {
+                        let tip = title.clone();
                         this.child(div().flex_none().text_color(t.ink_4).child("/"))
                             .child(
                                 div()
@@ -173,6 +204,9 @@ impl Shell {
                                     .on_click(
                                         cx.listener(|this, _, _, cx| this.reveal_note_in_files(cx)),
                                     )
+                                    .tooltip(move |_, cx| {
+                                        focus_kit::tooltip::Tooltip::view(tip.clone(), None, cx)
+                                    })
                                     .child(ellipsis(title)),
                             )
                     }),
@@ -223,9 +257,10 @@ impl Shell {
                         Segment::new(focus_i18n::t("ui-view-reading")),
                     ],
                     match view {
+                        Some(ViewMode::Source) => 0,
                         Some(ViewMode::Live) => 1,
                         Some(ViewMode::Reading) => 2,
-                        _ => 0,
+                        None => 3,
                     },
                 )
                 .disabled(view.is_none())

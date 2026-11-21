@@ -339,50 +339,69 @@ impl Shell {
         split.share = clamp_share(start / width);
     }
 
-    pub fn open_tab_menu(&mut self, menu: TabMenu, cx: &mut Context<Self>) {
+    pub fn open_tab_menu(&mut self, menu: TabMenu, window: &mut Window, cx: &mut Context<Self>) {
         self.overlay = Overlay::TabMenu(menu);
+        self.menu_cursor = focus_kit::MenuCursor::default();
+        focus_kit::focus_menu(&self.menu_focus, window, cx);
         cx.notify();
     }
 
-    pub fn render_tab_menu(&self, menu: TabMenu, cx: &mut Context<Self>) -> gpui::AnyElement {
-        use gpui::{InteractiveElement as _, MouseButton, prelude::FluentBuilder as _};
-        let t = *cx.tokens();
-        let TabMenu {
-            second,
-            index,
-            x,
-            y,
-        } = menu;
-        let split = focus_kit::MenuRow::new("tab-menu-split", focus_i18n::t("ui-cmd-split-right"))
-            .shortcut(crate::actions::shortcut("ui-cmd-split-right"))
-            .on_click(cx.listener(move |this, _, window, cx| {
-                this.close_overlay(window, cx);
-                this.focus_group(second, window, cx);
-                this.split_right(Some(index), window, cx);
-            }));
-        let close = focus_kit::MenuRow::new("tab-menu-close", focus_i18n::t("ui-cmd-close-tab"))
-            .shortcut(crate::actions::shortcut("ui-cmd-close-tab"))
-            .on_click(cx.listener(move |this, _, window, cx| {
-                this.close_overlay(window, cx);
-                this.focus_group(second, window, cx);
-                this.close_tab(index, window, cx);
-            }));
+    pub(crate) fn tab_menu_entries(
+        &self,
+        menu: TabMenu,
+        cx: &gpui::App,
+    ) -> Vec<(TabCommand, focus_kit::MenuEntry)> {
         let tabs = match &self.split {
-            Some(split) if self.focused_second() != second => &split.other.tabs,
+            Some(split) if self.focused_second() != menu.second => &split.other.tabs,
             _ => &self.tabs,
         };
-        let note = tabs.get(index).map(|tab| tab.read(cx).id);
+        let note = tabs.get(menu.index).map(|tab| tab.read(cx).id);
         let in_vault = note
             .and_then(|note| self.library.as_ref()?.note(note))
             .is_some();
-        let versions =
-            focus_kit::MenuRow::new("tab-menu-versions", focus_i18n::t("ui-menu-versions"))
-                .on_click(cx.listener(move |this, _, window, cx| {
-                    this.close_overlay(window, cx);
-                    if let Some(note) = note {
-                        this.show_versions(note, window, cx);
-                    }
-                }));
+        let mut entries = vec![(
+            TabCommand::Split,
+            focus_kit::MenuEntry::new("tab-menu-split", focus_i18n::t("ui-cmd-split-right"))
+                .shortcut(crate::actions::shortcut("ui-cmd-split-right")),
+        )];
+        if in_vault && let Some(note) = note {
+            entries.push((
+                TabCommand::Versions(note),
+                focus_kit::MenuEntry::new("tab-menu-versions", focus_i18n::t("ui-menu-versions")),
+            ));
+        }
+        entries.push((
+            TabCommand::Close,
+            focus_kit::MenuEntry::new("tab-menu-close", focus_i18n::t("ui-cmd-close-tab"))
+                .shortcut(crate::actions::shortcut("ui-cmd-close-tab")),
+        ));
+        entries
+    }
+
+    pub(crate) fn run_tab_command(
+        &mut self,
+        command: TabCommand,
+        menu: TabMenu,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.close_overlay(window, cx);
+        match command {
+            TabCommand::Split => {
+                self.focus_group(menu.second, window, cx);
+                self.split_right(Some(menu.index), window, cx);
+            }
+            TabCommand::Versions(note) => self.show_versions(note, window, cx),
+            TabCommand::Close => {
+                self.focus_group(menu.second, window, cx);
+                self.close_tab(menu.index, window, cx);
+            }
+        }
+    }
+
+    pub fn render_tab_menu(&self, menu: TabMenu, cx: &mut Context<Self>) -> gpui::AnyElement {
+        use gpui::{InteractiveElement as _, MouseButton};
+        let focus = self.menu_focus.clone();
         div()
             .id("tab-menu-veil")
             .absolute()
@@ -397,15 +416,11 @@ impl Shell {
             )
             .child(focus_kit::fade_in(
                 "fade-tab-menu",
-                focus_kit::menu(&t)
-                    .id("tab-menu")
+                focus_kit::keyboard_menu(self, &focus, cx)
                     .absolute()
-                    .top(y)
-                    .left(x)
-                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .child(split)
-                    .when(in_vault, |menu| menu.child(versions))
-                    .child(close),
+                    .top(menu.y)
+                    .left(menu.x)
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation()),
                 cx,
             ))
             .into_any_element()
@@ -414,4 +429,11 @@ impl Shell {
     pub fn tab_ghost(title: SharedString, cx: &mut gpui::App) -> Entity<TabGhost> {
         cx.new(|_| TabGhost(title))
     }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum TabCommand {
+    Split,
+    Versions(focus_core::NoteId),
+    Close,
 }

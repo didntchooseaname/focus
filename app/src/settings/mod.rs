@@ -14,8 +14,8 @@ use std::time::{Duration, Instant};
 
 use focus_kit::Flow as _;
 use focus_kit::{
-    ActiveTokens, Button, ButtonKind, Checkbox, Field, Icon, IconButton, MenuRow, Segment,
-    Segments, TextArea, TreeRow, Type, menu, size,
+    ActiveTokens, Button, ButtonKind, Checkbox, Field, Icon, IconButton, Segment, Segments,
+    TextArea, TreeRow, Type, size,
 };
 use gpui::{
     AnyElement, App, AppContext, Bounds, Context, Corner, Entity, EventEmitter, FocusHandle,
@@ -78,8 +78,10 @@ pub struct SettingsView {
     inputs: HashMap<&'static str, Entity<InputState>>,
     errors: HashMap<&'static str, SharedString>,
     open_menu: Option<&'static str>,
-    menu_highlight: usize,
+    select_focus: HashMap<&'static str, FocusHandle>,
     menu_closed: Option<Instant>,
+    menu_cursor: focus_kit::MenuCursor,
+    menu_focus: FocusHandle,
     acted: Option<(&'static str, u64)>,
     pub facts: Facts,
     scroll: ScrollHandle,
@@ -228,8 +230,14 @@ impl SettingsView {
             inputs,
             errors: HashMap::new(),
             open_menu: None,
-            menu_highlight: 0,
+            select_focus: SETTINGS
+                .iter()
+                .filter(|setting| matches!(&setting.control, Control::Choice(options) if options.len() > 4))
+                .map(|setting| (setting.key, cx.focus_handle()))
+                .collect(),
             menu_closed: None,
+            menu_cursor: focus_kit::MenuCursor::default(),
+            menu_focus: cx.focus_handle(),
             acted: None,
             recent_focus: facts
                 .recent
@@ -274,9 +282,11 @@ impl SettingsView {
             ("server", _) => self.open_server_draft(None, window, cx),
             ("menu", key) => {
                 self.open_menu = schema::setting(key).map(|setting| setting.key);
-                self.menu_highlight = self
-                    .open_menu
-                    .map_or(0, |key| self.prefs.read(cx).choice(key));
+                self.menu_cursor = focus_kit::MenuCursor::at(
+                    self.open_menu
+                        .map_or(0, |key| self.prefs.read(cx).choice(key)),
+                );
+                focus_kit::focus_menu(&self.menu_focus, window, cx);
             }
             ("record", label) => {
                 if let Some(group) = shortcuts::groups().into_iter().find(|g| g.label == label) {
@@ -366,28 +376,28 @@ impl SettingsView {
     fn select_keys(
         &mut self,
         key: &'static str,
-        count: usize,
         event: &KeyDownEvent,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if event.keystroke.modifiers.modified() {
+        if event.keystroke.modifiers.modified()
+            || !matches!(event.keystroke.key.as_str(), "down" | "up")
+            || self.open_menu == Some(key)
+        {
             return;
         }
-        let down = match event.keystroke.key.as_str() {
-            "down" => true,
-            "up" => false,
-            _ => return,
-        };
         cx.stop_propagation();
-        if self.open_menu != Some(key) {
-            self.open_menu = Some(key);
-            self.menu_highlight = self.prefs.read(cx).choice(key);
-        } else if down {
-            self.menu_highlight = (self.menu_highlight + 1).min(count - 1);
-        } else {
-            self.menu_highlight = self.menu_highlight.saturating_sub(1);
-        }
+        self.open_menu = Some(key);
+        self.menu_cursor = focus_kit::MenuCursor::at(self.prefs.read(cx).choice(key));
+        focus_kit::focus_menu(&self.menu_focus, window, cx);
         cx.notify();
+    }
+
+    fn focus_select(&self, key: Option<&'static str>, window: &mut Window) {
+        match key.and_then(|key| self.select_focus.get(key)) {
+            Some(select) => window.focus(select),
+            None => window.focus(&self.focus),
+        }
     }
 
     fn scroll_content(&mut self, to: Scroll, cx: &mut Context<Self>) {
@@ -527,31 +537,34 @@ impl SettingsView {
             Control::Choice(options) => {
                 let selected = prefs.choice(key);
                 let open = self.open_menu == Some(key) && !off;
-                let count = options.len();
                 div()
                     .relative()
                     .when(!off, |this| {
-                        this.on_key_down(cx.listener(move |this, event: &KeyDownEvent, _, cx| {
-                            this.select_keys(key, count, event, cx)
-                        }))
+                        this.on_key_down(cx.listener(
+                            move |this, event: &KeyDownEvent, window, cx| {
+                                this.select_keys(key, event, window, cx)
+                            },
+                        ))
                     })
                     .child(
                         Button::new(key, schema::option_label(options[selected]))
                             .icon(Icon::CHEVRON_DOWN)
                             .disabled(off)
-                            .on_click(cx.listener(move |this, _, _, cx| {
+                            .when_some(self.select_focus.get(key), |button, focus| {
+                                button.track_focus(focus)
+                            })
+                            .on_click(cx.listener(move |this, _, window, cx| {
                                 let just_closed = this
                                     .menu_closed
                                     .is_some_and(|at| at.elapsed() < Duration::from_millis(200));
-                                if this.open_menu == Some(key) {
-                                    let index = this.menu_highlight;
-                                    this.open_menu = None;
-                                    this.prefs.update(cx, |prefs, cx| {
-                                        prefs.set(key, Value::Choice(index), cx)
-                                    });
-                                } else if !just_closed {
-                                    this.open_menu = Some(key);
-                                    this.menu_highlight = selected;
+                                this.open_menu = if this.open_menu == Some(key) || just_closed {
+                                    None
+                                } else {
+                                    Some(key)
+                                };
+                                if this.open_menu.is_some() {
+                                    this.menu_cursor = focus_kit::MenuCursor::default();
+                                    focus_kit::focus_menu(&this.menu_focus, window, cx);
                                 }
                                 cx.notify();
                             })),
@@ -561,29 +574,8 @@ impl SettingsView {
                             anchored().anchor(Corner::TopRight).snap_to_window().child(
                                 focus_kit::fade_in(
                                     "fade-settings-menu",
-                                    menu(&t)
-                                        .mt(px(4.))
-                                        .occlude()
-                                        .on_mouse_down_out(cx.listener(
-                                            |this, _: &gpui::MouseDownEvent, _, cx| {
-                                                this.menu_closed = Some(Instant::now());
-                                                this.open_menu = None;
-                                                cx.notify();
-                                            },
-                                        ))
-                                        .children(options.iter().enumerate().map(
-                                            |(index, option)| {
-                                                MenuRow::new(index, schema::option_label(option))
-                                                    .checked(index == selected)
-                                                    .current(index == self.menu_highlight)
-                                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                                        this.open_menu = None;
-                                                        this.prefs.update(cx, |prefs, cx| {
-                                                            prefs.set(key, Value::Choice(index), cx)
-                                                        });
-                                                    }))
-                                            },
-                                        )),
+                                    focus_kit::keyboard_menu(self, &self.menu_focus.clone(), cx)
+                                        .mt(size::S1),
                                     cx,
                                 ),
                             ),
@@ -1165,5 +1157,59 @@ impl Render for SettingsView {
                             )),
                     ),
             )
+    }
+}
+
+impl focus_kit::KeyboardMenu for SettingsView {
+    fn menu_name(&self) -> &'static str {
+        "choice-menu"
+    }
+
+    fn menu_items(&self, cx: &gpui::App) -> Vec<focus_kit::MenuItem> {
+        let Some(key) = self.open_menu else {
+            return Vec::new();
+        };
+        let Some(Control::Choice(options)) = schema::setting(key).map(|s| &s.control) else {
+            return Vec::new();
+        };
+        let selected = self.prefs.read(cx).choice(key);
+        options
+            .iter()
+            .enumerate()
+            .map(|(index, option)| {
+                focus_kit::MenuItem::from(
+                    focus_kit::MenuEntry::new(
+                        format!("choice-{index}"),
+                        schema::option_label(option),
+                    )
+                    .checked(index == selected),
+                )
+            })
+            .collect()
+    }
+
+    fn menu_cursor(&self) -> focus_kit::MenuCursor {
+        self.menu_cursor
+    }
+
+    fn set_menu_cursor(&mut self, cursor: focus_kit::MenuCursor) {
+        self.menu_cursor = cursor;
+    }
+
+    fn menu_run(&mut self, row: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let key = self.open_menu.take();
+        if let Some(key) = key {
+            self.prefs
+                .update(cx, |prefs, cx| prefs.set(key, Value::Choice(row), cx));
+        }
+        self.focus_select(key, window);
+        cx.notify();
+    }
+
+    fn menu_dismiss(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.menu_closed = Some(Instant::now());
+        let key = self.open_menu.take();
+        self.focus_select(key, window);
+        cx.notify();
     }
 }

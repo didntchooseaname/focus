@@ -196,8 +196,12 @@ impl Palette {
     pub fn choose_template(
         &mut self,
         templates: Vec<(NoteId, std::path::PathBuf)>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.input.update(cx, |input, cx| {
+            input.set_placeholder(focus_i18n::t("ui-palette-template-placeholder"), window, cx)
+        });
         self.templates = Some(templates);
         self.refilter(cx);
         cx.notify();
@@ -530,6 +534,7 @@ impl Render for Palette {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = *cx.tokens();
         let has_hits = !self.hits.is_empty();
+        let templates = self.templates.is_some();
         let top = window.viewport_size().height * 0.16;
         let visible = self.hits.len().min(size::PALETTE_VISIBLE);
         let list_height = size::PALETTE_ROW * visible as f32;
@@ -860,7 +865,17 @@ impl Render for Palette {
                     .border_color(t.line)
                     .ui_sm()
                     .text_color(t.ink_3)
-                    .when(has_hits, |this| {
+                    .when(has_hits && templates, |this| {
+                        this.child(
+                            div()
+                                .flow_row()
+                                .items_center()
+                                .gap(size::S2)
+                                .child(Kbd::new(focus_i18n::t("ui-key-enter")))
+                                .child(focus_i18n::t("ui-palette-create")),
+                        )
+                    })
+                    .when(has_hits && !templates, |this| {
                         this.child(
                             div()
                                 .flow_row()

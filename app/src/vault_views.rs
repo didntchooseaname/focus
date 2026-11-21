@@ -327,7 +327,9 @@ impl Shell {
             focus_view_vault::templates(library.vault(), &self.text_pref("general.templates", cx));
         self.open_palette("", window, cx);
         if let crate::shell::Overlay::Palette { view, .. } = &self.overlay {
-            view.update(cx, |palette, cx| palette.choose_template(templates, cx));
+            view.update(cx, |palette, cx| {
+                palette.choose_template(templates, window, cx)
+            });
         }
     }
 

@@ -107,8 +107,10 @@ pub enum Step {
     Key(String),
     Type(String),
     Mouse(f32, f32),
+    RightMouse(f32, f32),
     Pick(String),
     Menu,
+    KeyMenu,
     Wait(u64),
     Mark(String),
     Shot(String),
@@ -504,13 +506,16 @@ pub fn parse(text: &str) -> Result<Vec<(usize, Step)>, String> {
                 Step::Key(keys)
             }
             "type" => Step::Type(need("text")?),
-            "mouse" => {
+            "mouse" | "rmouse" => {
                 let place = rest
                     .split_once(char::is_whitespace)
                     .and_then(|(x, y)| Some((x.parse().ok()?, y.trim().parse().ok()?)));
-                match place {
-                    Some((x, y)) => Step::Mouse(x, y),
-                    None => return Err(fail("expected: mouse <x> <y>, in window pixels")),
+                match (place, word) {
+                    (Some((x, y)), "mouse") => Step::Mouse(x, y),
+                    (Some((x, y)), _) => Step::RightMouse(x, y),
+                    (None, _) => {
+                        return Err(fail("expected: mouse|rmouse <x> <y>, in window pixels"));
+                    }
                 }
             }
             "pick" => Step::Pick(need("title, a row of the open menu from 0, or the id of an entry")?),
@@ -525,6 +530,7 @@ pub fn parse(text: &str) -> Result<Vec<(usize, Step)>, String> {
             "viewer" => Step::Viewer(crate::media::ViewerStep::parse(rest).map_err(|e| fail(&e))?),
             "status" => Step::Status,
             "menu" => Step::Menu,
+            "keymenu" => Step::KeyMenu,
             "embeds" => Step::Embeds,
             "zoom" => Step::Zoom(
                 rest.parse()
@@ -651,6 +657,11 @@ pub async fn run(shell: WeakEntity<Shell>, steps: Vec<(usize, Step)>, cx: &mut A
                 cx.update(|window, cx| press_at(at, window, cx))
                     .map_err(|e| e.to_string())
             }
+            Step::RightMouse(x, y) => {
+                let at = gpui::point(gpui::px(*x), gpui::px(*y));
+                cx.update(|window, cx| press_with(at, gpui::MouseButton::Right, window, cx))
+                    .map_err(|e| e.to_string())
+            }
             Step::Pick(row) => {
                 settle(&shell, cx).await;
                 let shown = shell
@@ -702,7 +713,16 @@ pub async fn run(shell: WeakEntity<Shell>, steps: Vec<(usize, Step)>, cx: &mut A
 }
 
 fn press_at(at: gpui::Point<gpui::Pixels>, window: &mut Window, cx: &mut gpui::App) {
-    use gpui::{MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, PlatformInput};
+    press_with(at, gpui::MouseButton::Left, window, cx)
+}
+
+fn press_with(
+    at: gpui::Point<gpui::Pixels>,
+    button: gpui::MouseButton,
+    window: &mut Window,
+    cx: &mut gpui::App,
+) {
+    use gpui::{MouseDownEvent, MouseMoveEvent, MouseUpEvent, PlatformInput};
     let modifiers = gpui::Modifiers::default();
     window.dispatch_event(
         PlatformInput::MouseMove(MouseMoveEvent {
@@ -714,7 +734,7 @@ fn press_at(at: gpui::Point<gpui::Pixels>, window: &mut Window, cx: &mut gpui::A
     );
     window.dispatch_event(
         PlatformInput::MouseDown(MouseDownEvent {
-            button: MouseButton::Left,
+            button,
             position: at,
             modifiers,
             click_count: 1,
@@ -724,7 +744,7 @@ fn press_at(at: gpui::Point<gpui::Pixels>, window: &mut Window, cx: &mut gpui::A
     );
     window.dispatch_event(
         PlatformInput::MouseUp(MouseUpEvent {
-            button: MouseButton::Left,
+            button,
             position: at,
             modifiers,
             click_count: 1,
@@ -1195,6 +1215,10 @@ impl Shell {
             Step::Viewer(step) => self.run_viewer_step(*step, window, cx)?,
             Step::Status => println!("status: {}", self.status_line(cx)),
             Step::Menu => println!("menu: {}", self.menu_line()),
+            Step::KeyMenu => println!(
+                "keymenu: {}",
+                focus_kit::drawn_menu(window, cx).unwrap_or_else(|| "none".to_string())
+            ),
             Step::Embeds => {
                 for embed in self.embeds_drawn(cx)? {
                     println!("embed: {embed}");
@@ -1286,7 +1310,7 @@ impl Shell {
                 if *rank > path.parent().map_or(0, |p| p.iter().count()) {
                     return Err(format!("no breadcrumb segment of rank {rank}"));
                 }
-                self.open_crumb_menu(folder, gpui::px(140. + 90. * *rank as f32), cx);
+                self.open_crumb_menu(folder, gpui::px(140. + 90. * *rank as f32), window, cx);
             }
             Step::Substitute(on) => {
                 let ops = self.ops.as_ref().ok_or("Ops mode is off")?;
@@ -1732,6 +1756,7 @@ impl Shell {
             | Step::Key(_)
             | Step::Type(_)
             | Step::Mouse(..)
+            | Step::RightMouse(..)
             | Step::Pick(_)
             | Step::Shot(_)
             | Step::Snap(_)

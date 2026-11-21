@@ -152,6 +152,12 @@ pub struct Shell {
     pub split: Option<crate::groups::Split>,
     pub layout: Layout,
     pub overlay: Overlay,
+    pub menu_cursor: focus_kit::MenuCursor,
+    pub menu_focus: gpui::FocusHandle,
+    pub crumb_scroll: gpui::ScrollHandle,
+    pub tab_scroll: [gpui::ScrollHandle; 2],
+    pub tab_front: [Option<(usize, usize)>; 2],
+    pub crumb_starts: std::rc::Rc<std::cell::RefCell<Vec<Pixels>>>,
     pub modal: crate::modal::ModalFocus,
     pub screen: Screen,
     pub prefs: Entity<Prefs>,
@@ -289,6 +295,12 @@ impl Shell {
             split: None,
             layout: Layout::default(),
             overlay: Overlay::None,
+            menu_cursor: focus_kit::MenuCursor::default(),
+            menu_focus: cx.focus_handle(),
+            crumb_scroll: gpui::ScrollHandle::new(),
+            tab_scroll: Default::default(),
+            tab_front: [None; 2],
+            crumb_starts: Default::default(),
             modal: crate::modal::ModalFocus::new(cx),
             screen: Screen::Workspace,
             prefs,
@@ -398,6 +410,7 @@ impl Shell {
             return;
         }
         gpui_component::set_locale(&code);
+        crate::compose::menu::publish_field_menu_text(cx);
         self.slash_catalog = crate::editing::SlashCatalog::new();
         self.slash = None;
         window.set_window_title(&focus_i18n::t("ui-app-name"));
@@ -995,6 +1008,15 @@ impl Shell {
         self.slash = None;
         window.focus(&self.focus);
         self.focus_file(pane, window, cx);
+        let shown = match pane {
+            Pane::File(id) => self.files.get(id).and_then(|page| {
+                let root = self.library.as_ref()?.vault().root().to_path_buf();
+                let path = page.path.strip_prefix(&root).unwrap_or(&page.path);
+                Some(std::sync::Arc::from(path))
+            }),
+            _ => None,
+        };
+        self.reveal_in_tree(shown, cx);
         cx.notify();
     }
 
@@ -1193,7 +1215,7 @@ impl Shell {
                     this.sync_twin(editor, window, cx);
                 }
                 EditorEvent::Crumb { folder, at } => {
-                    this.open_crumb_menu_at(folder.clone(), at.x, at.y + px(12.), cx)
+                    this.open_crumb_menu_at(folder.clone(), at.x, at.y + px(12.), window, cx)
                 }
                 EditorEvent::Variable(menu) => this.on_variable_menu(menu, window, cx),
                 EditorEvent::OpenAt {
@@ -2129,8 +2151,15 @@ impl Shell {
         let at = menu.drawn_at?;
         let t = *cx.tokens();
         let weak = cx.entity().downgrade();
+        let room = window.viewport_size().height
+            - size::STATUS_BAR
+            - if self.layout.bottom_open {
+                self.layout.bottom_h
+            } else {
+                px(0.)
+            };
         let menu = self.slash.as_ref()?;
-        Some(crate::slash::render(
+        let (element, below) = crate::slash::render(
             &t,
             &menu.entries,
             menu.kind == crate::editing::MenuKind::Commands,
@@ -2139,6 +2168,10 @@ impl Shell {
             &menu.query,
             at,
             window.viewport_size(),
+            room,
+            menu.below
+                .filter(|(top, _)| *top == at.top())
+                .map(|(_, below)| below),
             &menu.scroll,
             move |index, window, cx| {
                 let _ = weak.update(cx, |shell, cx| shell.pick_slash(index, window, cx));
@@ -2153,7 +2186,11 @@ impl Shell {
                 }
             },
             cx,
-        ))
+        );
+        if let Some(menu) = self.slash.as_mut() {
+            menu.below = Some((at.top(), below));
+        }
+        Some(element)
     }
 }
 
@@ -2319,7 +2356,9 @@ impl Render for Shell {
             .children(overlay)
             .children(self.render_preview(cx))
             .children(self.render_slash(window, cx))
-            .children(self.render_notices(cx));
+            .children(self.render_notices(cx))
+            .children(focus_kit::field_menu::layer(cx))
+            .on_action(cx.listener(Self::open_last_crumb_menu));
         let root = self.bind_actions(root, cx);
         root.when(self.drag.is_some(), |root| {
             root.cursor(

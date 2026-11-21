@@ -1,5 +1,5 @@
 mod dialogs;
-mod menu;
+pub(crate) mod menu;
 mod picker;
 
 use std::ops::Range;
