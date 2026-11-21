@@ -18,6 +18,7 @@ pub struct Segment {
     pub label: SharedString,
     pub icon: Option<Icon>,
     pub note: Option<SharedString>,
+    pub disabled: bool,
 }
 
 impl Segment {
@@ -26,8 +27,22 @@ impl Segment {
             label: label.into(),
             icon: None,
             note: None,
+            disabled: false,
         }
     }
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
+}
+
+fn step_target(selected: usize, enabled: &[bool], toward_end: bool) -> usize {
+    let found = if toward_end {
+        (selected + 1..enabled.len()).find(|index| enabled[*index])
+    } else {
+        (0..selected).rev().find(|index| enabled[*index])
+    };
+    found.unwrap_or(selected)
 }
 
 #[derive(IntoElement)]
@@ -75,8 +90,8 @@ impl RenderOnce for Segments {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = *cx.tokens();
         let disabled = self.disabled;
-        let count = self.items.len();
         let selected = self.selected;
+        let enabled: Rc<[bool]> = self.items.iter().map(|item| !item.disabled).collect();
         let steering = (self.forced.is_none() && !disabled)
             .then(|| self.on_select.clone())
             .flatten()
@@ -88,11 +103,7 @@ impl RenderOnce for Segments {
             .as_ref()
             .is_some_and(|(focus, _)| focus.is_focused(window));
         let step = move |left: bool, handler: &SelectHandler, window: &mut Window, cx: &mut App| {
-            let target = if keyboard::step_toward_end(left) {
-                (selected + 1).min(count.saturating_sub(1))
-            } else {
-                selected.saturating_sub(1)
-            };
+            let target = step_target(selected, &enabled, keyboard::step_toward_end(left));
             if target != selected {
                 handler(target, window, cx);
             }
@@ -101,8 +112,11 @@ impl RenderOnce for Segments {
             .id(self.id)
             .when_some(steering, |this, (focus, handler)| {
                 let leftward = handler.clone();
+                let step_left = step.clone();
                 this.key_context(keyboard::SEGMENTS)
-                    .on_action(move |_: &StepLeft, window, cx| step(true, &leftward, window, cx))
+                    .on_action(move |_: &StepLeft, window, cx| {
+                        step_left(true, &leftward, window, cx)
+                    })
                     .on_action(move |_: &StepRight, window, cx| step(false, &handler, window, cx))
                     .child(keyboard::focus_anchor(&focus))
             })
@@ -121,7 +135,8 @@ impl RenderOnce for Segments {
                     Some((i, forced)) if i == index => forced,
                     _ => Forced::Live,
                 };
-                let (bg, ink) = if disabled {
+                let off = disabled || item.disabled;
+                let (bg, ink) = if off && !(active && !disabled) {
                     (if active { t.card_3 } else { t.bg.opacity(0.) }, t.ink_4)
                 } else if active {
                     (
@@ -136,7 +151,7 @@ impl RenderOnce for Segments {
                     (t.bg.opacity(0.), t.ink_2)
                 };
                 let on_select = self.on_select.clone();
-                let live = forced == Forced::Live && !disabled;
+                let live = forced == Forced::Live && !off;
                 div()
                     .id(index)
                     .relative()
@@ -174,9 +189,23 @@ impl RenderOnce for Segments {
                                 .child(note),
                         )
                     })
-                    .when_some(on_select.filter(|_| !disabled), |this, handler| {
+                    .when_some(on_select.filter(|_| !off), |this, handler| {
                         this.on_click(move |_, window, cx| handler(index, window, cx))
                     })
             }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::step_target;
+
+    #[test]
+    fn the_arrows_skip_disabled_segments() {
+        let enabled = [true, true, false, true];
+        assert_eq!(step_target(1, &enabled, true), 3);
+        assert_eq!(step_target(3, &enabled, false), 1);
+        assert_eq!(step_target(3, &enabled, true), 3);
+        assert_eq!(step_target(0, &[true, false], true), 0);
     }
 }
