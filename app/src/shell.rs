@@ -152,6 +152,7 @@ pub struct Shell {
     pub split: Option<crate::groups::Split>,
     pub layout: Layout,
     pub overlay: Overlay,
+    pub modal: crate::modal::ModalFocus,
     pub screen: Screen,
     pub prefs: Entity<Prefs>,
     pub search: Entity<focus_view_search::SearchPanel>,
@@ -288,6 +289,7 @@ impl Shell {
             split: None,
             layout: Layout::default(),
             overlay: Overlay::None,
+            modal: crate::modal::ModalFocus::new(cx),
             screen: Screen::Workspace,
             prefs,
             search,
@@ -1541,7 +1543,7 @@ impl Shell {
 
     pub fn close_overlay(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.overlay = Overlay::None;
-        self.focus_content(window, cx);
+        self.give_focus_back(window, cx);
         cx.notify();
     }
 
@@ -2157,6 +2159,7 @@ impl Shell {
 
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.remember_focus_giver(window, cx);
         if !self.first_frame_seen {
             self.first_frame_seen = true;
             let this = cx.entity().downgrade();
@@ -2287,6 +2290,7 @@ impl Render for Shell {
                 cx,
             )),
         };
+        let overlay = overlay.map(|overlay| self.scope_overlay(overlay));
         let root = div()
             .id("focus")
             .key_context(CONTEXT)

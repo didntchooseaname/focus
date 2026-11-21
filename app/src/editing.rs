@@ -411,6 +411,9 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
+        if self.keys_outside_overlay(event, window, cx) {
+            return true;
+        }
         let keystroke = &event.keystroke;
         let plain = !keystroke.modifiers.control
             && !keystroke.modifiers.alt

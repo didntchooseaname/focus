@@ -25,6 +25,7 @@ mod library;
 mod live;
 mod loose;
 mod media;
+mod modal;
 mod moving;
 mod notices;
 mod obsidian;
@@ -176,6 +177,9 @@ fn main() -> anyhow::Result<()> {
             eprintln!("focus: interface initialization: {error:#}");
             cx.quit();
             return;
+        }
+        if scripted {
+            focus_kit::keyboard::record_focus_names(cx);
         }
         focus_md::mermaid::init_fonts(&focus_kit::fonts::text_faces());
         actions::bind(cx);
