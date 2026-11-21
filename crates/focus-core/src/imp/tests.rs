@@ -864,6 +864,20 @@ fn an_h1_that_is_the_file_name_gives_the_stem() {
     );
 }
 
+#[test]
+fn a_template_placeholder_title_gives_the_stem() {
+    let path = Path::new("Templates/Finding draft.md");
+    assert_eq!(
+        title_for(path, Some("{{title}}"), &[]),
+        (Arc::from("Finding draft"), true)
+    );
+    let props = [("title".to_string(), PropValue::Text("{{title}}".into()))];
+    assert_eq!(
+        title_for(path, None, &props),
+        (Arc::from("Finding draft"), true)
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn a_link_out_of_the_vault_is_known_from_the_walk() {

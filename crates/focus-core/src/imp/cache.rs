@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const MAGIC: &[u8; 4] = b"FCSC";
-const VERSION: u32 = 9;
+const VERSION: u32 = 10;
 pub(crate) const FILE_NAME: &str = "meta.bin";
 
 #[derive(Debug, Clone)]

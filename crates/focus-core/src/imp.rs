@@ -151,14 +151,16 @@ pub(crate) fn fold_char(c: char) -> char {
 }
 
 fn title_for(path: &Path, h1: Option<&str>, props: &[(String, PropValue)]) -> (Arc<str>, bool) {
-    if let Some(t) = h1.filter(|t| !t.is_empty() && !t.eq_ignore_ascii_case(&fsx::file_name(path)))
-    {
+    if let Some(t) = h1.filter(|t| {
+        !t.is_empty() && !t.contains("{{") && !t.eq_ignore_ascii_case(&fsx::file_name(path))
+    }) {
         return (Arc::from(t), false);
     }
     for (k, v) in props {
         if k.eq_ignore_ascii_case("title")
             && let PropValue::Text(t) = v
             && !t.trim().is_empty()
+            && !t.contains("{{")
         {
             return (Arc::from(t.trim()), false);
         }
