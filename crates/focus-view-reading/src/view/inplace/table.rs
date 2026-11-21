@@ -953,7 +953,7 @@ struct TableMenu {
 }
 
 impl TableMenu {
-    fn popup(&self, opened: Opened) -> Option<AnyElement> {
+    fn popup(&self, opened: Opened, cx: &App) -> Option<AnyElement> {
         let focus = self.focus.clone()?;
         let t = self.t;
         let mut rows = Vec::new();
@@ -985,7 +985,8 @@ impl TableMenu {
                     .anchor(opened.corner)
                     .position(opened.at)
                     .snap_to_window()
-                    .child(
+                    .child(focus_kit::fade_in(
+                        "fade-table-menu",
                         focus_kit::menu(&t)
                             .id("table-menu")
                             .occlude()
@@ -1003,7 +1004,8 @@ impl TableMenu {
                                 }
                             })
                             .children(rows),
-                    ),
+                        cx,
+                    )),
             )
             .with_priority(2)
             .into_any_element(),
@@ -1012,7 +1014,7 @@ impl TableMenu {
 }
 
 impl RenderOnce for TableMenu {
-    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = self.t;
         let table = self.table;
         let button = (self.editable && (self.hovered || self.opened.is_some()))
@@ -1049,7 +1051,7 @@ impl RenderOnce for TableMenu {
                 )
                 .with_priority(1)
             });
-        let popup = self.opened.and_then(|opened| self.popup(opened));
+        let popup = self.opened.and_then(|opened| self.popup(opened, cx));
         let (hover, press, record) = (self.view.clone(), self.view.clone(), self.record.clone());
         div()
             .id(ElementId::from((

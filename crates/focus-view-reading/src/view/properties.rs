@@ -470,7 +470,8 @@ impl ReadingView {
                 gpui::anchored()
                     .position(menu.at + point(px(0.), px(4.)))
                     .snap_to_window()
-                    .child(
+                    .child(focus_kit::fade_in(
+                        "fade-prop-type-menu",
                         focus_kit::menu(t)
                             .id("prop-type-menu")
                             .occlude()
@@ -497,7 +498,8 @@ impl ReadingView {
                                     )),
                             )
                             .children(children),
-                    ),
+                        cx,
+                    )),
             )
             .with_priority(1)
             .into_any_element(),

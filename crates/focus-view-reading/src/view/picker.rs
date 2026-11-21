@@ -706,7 +706,8 @@ impl ReadingView {
                 gpui::anchored()
                     .position(picker.position + point(px(0.), px(4.)))
                     .snap_to_window()
-                    .child(
+                    .child(focus_kit::fade_in(
+                        "fade-language-picker",
                         focus_kit::floating(t)
                             .id("language-picker")
                             .occlude()
@@ -751,7 +752,8 @@ impl ReadingView {
                                         .child(focus_i18n::t(empty)),
                                 )
                             }),
-                    ),
+                        cx,
+                    )),
             )
             .with_priority(1)
             .into_any_element(),
@@ -938,7 +940,8 @@ impl ReadingView {
             gpui::anchored()
                 .position(picker.position + point(px(0.), px(4.)))
                 .snap_to_window()
-                .child(
+                .child(focus_kit::fade_in(
+                    "fade-variables-menu",
                     focus_kit::floating(&t)
                         .id("variables-menu")
                         .occlude()
@@ -983,7 +986,8 @@ impl ReadingView {
                             )
                         })
                         .child(div().flex().flex_col().py(size::S1).children(rows)),
-                ),
+                    cx,
+                )),
         )
         .with_priority(1)
         .into_any_element()

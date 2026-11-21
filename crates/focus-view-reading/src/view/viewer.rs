@@ -275,7 +275,7 @@ impl ReadingView {
                                 .child(
                                     focus_kit::floating(t).p(size::S1).child(
                                         button("viewer-close", Icon::CLOSE, "reading-viewer-close")
-                                            .shortcut("Esc")
+                                            .shortcut(focus_i18n::keys_text("escape"))
                                             .on_click(cx.listener(|this, _, _, cx| {
                                                 this.viewer = None;
                                                 cx.notify();
