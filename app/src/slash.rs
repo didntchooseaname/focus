@@ -454,6 +454,25 @@ const WIDTH: Pixels = px(320.);
 const VISIBLE: f32 = 8.;
 pub const VISIBLE_ROWS: usize = VISIBLE as usize;
 
+pub fn child_of(
+    catalog: &[Entry],
+    grouped: bool,
+    hits: &[Hit],
+    query: &str,
+    rank: usize,
+) -> Option<usize> {
+    hits.get(rank)?;
+    if !(grouped && query.trim().is_empty()) {
+        return Some(rank);
+    }
+    let mut last = None;
+    let titles = hits[..=rank]
+        .iter()
+        .filter(|hit| last.replace(catalog[hit.entry].group) != Some(catalog[hit.entry].group))
+        .count();
+    Some(rank + titles)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn render(
     t: &Tokens,
@@ -607,6 +626,8 @@ pub fn render(
         .child(
             floating(t)
                 .id("slash-menu")
+                .occlude()
+                .on_any_mouse_down(|_, _, cx| cx.stop_propagation())
                 .on_mouse_down_out(move |_, window, cx| on_dismiss(window, cx))
                 .max_h(height)
                 .overflow_y_scroll()
@@ -619,7 +640,24 @@ pub fn render(
 
 #[cfg(test)]
 mod tests {
-    use super::{catalog, filter, score};
+    use super::{catalog, child_of, filter, score};
+
+    #[test]
+    fn a_row_is_drawn_after_the_titles_of_the_groups_above_it() {
+        focus_i18n::set_language("en").expect("English is embedded");
+        let entries = catalog();
+        let all = filter(&entries, "", &[]);
+        let lists = all
+            .iter()
+            .position(|hit| entries[hit.entry].id == "bullets")
+            .expect("the catalog lists bullets");
+        assert_eq!(child_of(&entries, true, &all, "", 0), Some(1));
+        assert_eq!(child_of(&entries, true, &all, "", lists), Some(lists + 2));
+        assert_eq!(child_of(&entries, false, &all, "", lists), Some(lists));
+        let found = filter(&entries, "bul", &[]);
+        assert_eq!(child_of(&entries, true, &found, "bul", 0), Some(0));
+        assert_eq!(child_of(&entries, true, &all, "", all.len()), None);
+    }
 
     #[test]
     fn subsequence_scores_word_starts() {

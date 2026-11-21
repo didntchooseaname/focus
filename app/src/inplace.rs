@@ -1,6 +1,8 @@
-use gpui::{Bounds, Context, Entity, EntityInputHandler, Focusable, Pixels, Subscription, Window};
+use std::ops::Range;
+
+use gpui::{Bounds, Context, EntityInputHandler, Focusable, Pixels, Subscription, Window};
 use gpui_component::RopeExt as _;
-use gpui_component::input::{InputState, Position};
+use gpui_component::input::Position;
 
 use crate::editor::{NoteEditor, ViewMode};
 
@@ -51,12 +53,13 @@ impl NoteEditor {
     }
 
     pub(crate) fn keep_field_unfocused(
-        input: &Entity<InputState>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Subscription {
-        let focus = input.read(cx).focus_handle(cx);
-        cx.on_focus(&focus, window, |this: &mut NoteEditor, window, cx| {
+        cx.on_focus_lost(window, |this: &mut NoteEditor, window, cx| {
+            if !this.input.read(cx).focus_handle(cx).is_focused(window) {
+                return;
+            }
             let read_caret = this.view == ViewMode::Reading && this.reading.read(cx).caret_shown();
             if (this.edit_in_place && this.view == ViewMode::Live && this.live.is_none())
                 || read_caret
@@ -64,6 +67,30 @@ impl NoteEditor {
                 window.focus(&this.reading.read(cx).focus_handle(cx));
             }
         })
+    }
+
+    pub fn replace_range(
+        &mut self,
+        range: Range<usize>,
+        text: &str,
+        caret: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.caret_in_view(cx) {
+            let at = range.start + caret;
+            self.reading.update(cx, |reading, cx| {
+                reading.replace_in_place(range, text, at..at, window, cx);
+                reading.show_caret(window, cx);
+            });
+            return;
+        }
+        crate::editing::replace(&self.typing_input(), range, text, caret, window, cx);
+    }
+
+    pub fn source_if_unseen(&mut self, cx: &mut Context<Self>) {
+        self.reading
+            .update(cx, |reading, cx| reading.source_if_unseen(cx));
     }
 
     pub fn open_caret_source(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {

@@ -43,6 +43,24 @@ pub struct Slash {
     pub hits: Vec<Hit>,
     pub selected: usize,
     pub scroll: ScrollHandle,
+    pub drawn_at: Option<Bounds<Pixels>>,
+}
+
+impl Slash {
+    fn child(&self, rank: usize) -> Option<usize> {
+        slash::child_of(
+            &self.entries,
+            self.kind == MenuKind::Commands,
+            &self.hits,
+            &self.query,
+            rank,
+        )
+    }
+
+    fn select(&mut self, rank: usize) {
+        self.selected = rank;
+        self.scroll.scroll_to_item(self.child(rank).unwrap_or(0));
+    }
 }
 
 pub struct SlashCatalog {
@@ -153,7 +171,7 @@ fn utf16(input: &InputState, range: Range<usize>) -> Range<usize> {
     text.offset_to_offset_utf16(range.start)..text.offset_to_offset_utf16(range.end)
 }
 
-fn replace(
+pub(crate) fn replace(
     input: &Entity<InputState>,
     range: Range<usize>,
     text: &str,
@@ -307,6 +325,7 @@ impl Shell {
             hits: Vec::new(),
             selected: 0,
             scroll: ScrollHandle::new(),
+            drawn_at: None,
         });
         self.refilter_menu(String::new(), cx);
         cx.notify();
@@ -331,8 +350,7 @@ impl Shell {
             }
         }
         menu.query = query;
-        menu.selected = 0;
-        menu.scroll.scroll_to_item(0);
+        menu.select(0);
     }
 
     pub fn intercept(
@@ -392,22 +410,15 @@ impl Shell {
         if let Some(menu) = &mut self.slash {
             let count = menu.hits.len();
             match keystroke.key.as_str() {
-                "down" if plain && count > 0 => {
-                    menu.selected = (menu.selected + 1) % count;
-                    menu.scroll.scroll_to_item(menu.selected);
-                }
-                "up" if plain && count > 0 => {
-                    menu.selected = (menu.selected + count - 1) % count;
-                    menu.scroll.scroll_to_item(menu.selected);
-                }
+                "down" if plain && count > 0 => menu.select((menu.selected + 1) % count),
+                "up" if plain && count > 0 => menu.select((menu.selected + count - 1) % count),
                 "pageup" | "pagedown" if plain && count > 0 => {
                     let page = slash::VISIBLE_ROWS;
-                    menu.selected = if keystroke.key == "pageup" {
+                    menu.select(if keystroke.key == "pageup" {
                         menu.selected.saturating_sub(page)
                     } else {
                         (menu.selected + page).min(count - 1)
-                    };
-                    menu.scroll.scroll_to_item(menu.selected);
+                    });
                 }
                 "enter" | "tab" if plain => {
                     let pick = menu.selected;
@@ -417,6 +428,9 @@ impl Shell {
                     if menu.kind == MenuKind::Notes {
                         self.slash_catalog.dismissed_link = Some(menu.anchor);
                     }
+                    menu.editor
+                        .clone()
+                        .update(cx, |editor, cx| editor.source_if_unseen(cx));
                     self.slash = None;
                 }
                 _ => return false,
@@ -462,6 +476,13 @@ impl Shell {
         false
     }
 
+    fn chain_menu(&mut self, from: &Slash, kind: MenuKind, anchor: usize, cx: &mut Context<Self>) {
+        self.open_menu(&from.editor, kind, anchor, cx);
+        if let Some(menu) = &mut self.slash {
+            menu.drawn_at = from.drawn_at;
+        }
+    }
+
     pub fn pick_slash(&mut self, index: usize, window: &mut Window, cx: &mut Context<Self>) {
         let Some(menu) = self.slash.take() else {
             return;
@@ -471,6 +492,20 @@ impl Shell {
         };
         let entry = menu.entries[hit.entry].clone();
         let input = menu.editor.read(cx).typing_input();
+        let editor = menu.editor.clone();
+        let replace = |range: Range<usize>,
+                       text: &str,
+                       caret: usize,
+                       window: &mut Window,
+                       cx: &mut Context<Self>| {
+            editor.update(cx, |editor, cx| {
+                editor.replace_range(range, text, caret, window, cx)
+            })
+        };
+        let seen = |cx: &mut Context<Self>| {
+            editor.update(cx, |editor, cx| editor.source_if_unseen(cx));
+            cx.notify();
+        };
         let cursor = input.read(cx).cursor();
         let range = menu.anchor..cursor.max(menu.anchor + 1);
         let query_range = menu.anchor + menu.kind.trigger().len()
@@ -483,9 +518,8 @@ impl Shell {
                     .slice(query_range.end..input.read(cx).text().len())
                     .to_string();
                 let skip = if after_fence.starts_with('\n') { 1 } else { 0 };
-                replace(&input, query_range, id, id.len() + skip, window, cx);
-                cx.notify();
-                return;
+                replace(query_range, id, id.len() + skip, window, cx);
+                return seen(cx);
             }
             Insert::Note { title, path } => {
                 let rest = input
@@ -518,7 +552,7 @@ impl Shell {
                     let encoded = target.replace(' ', "%20");
                     let text = format!("[{title}]({encoded}.md)");
                     let cursor = text.len();
-                    replace(&input, menu.anchor..end, &text, cursor, window, cx);
+                    replace(menu.anchor..end, &text, cursor, window, cx);
                 } else {
                     let closing = if rest.starts_with("]]") { "" } else { "]]" };
                     let shown = if target == *title {
@@ -527,17 +561,14 @@ impl Shell {
                         format!("{target}|{title}")
                     };
                     let text = format!("{shown}{closing}");
-                    replace(&input, query_range, &text, shown.len() + 2, window, cx);
+                    replace(query_range, &text, shown.len() + 2, window, cx);
                 }
-                cx.notify();
-                return;
+                return seen(cx);
             }
             Insert::Unavailable => return,
             Insert::ChooseTemplate => {
-                replace(&input, range.clone(), "/", 1, window, cx);
-                let editor = menu.editor.clone();
-                self.open_menu(&editor, MenuKind::Templates, range.start, cx);
-                return;
+                replace(range.clone(), "/", 1, window, cx);
+                return self.chain_menu(&menu, MenuKind::Templates, range.start, cx);
             }
             Insert::VaultTemplate(template) => {
                 let Some(library) = self.library.clone() else {
@@ -568,12 +599,11 @@ impl Shell {
                     time,
                 );
                 let whole = 0..input.read(cx).text().len();
-                replace(&input, whole, &text, caret, window, cx);
-                cx.notify();
-                return;
+                replace(whole, &text, caret, window, cx);
+                return seen(cx);
             }
             Insert::Ai(action) => {
-                replace(&input, range, "", 0, window, cx);
+                replace(range, "", 0, window, cx);
                 match action.as_str() {
                     "ask" => self.show_ai(window, cx),
                     "translate" => {
@@ -589,7 +619,7 @@ impl Shell {
                 return;
             }
             Insert::Attachment => {
-                replace(&input, range, "", 0, window, cx);
+                replace(range, "", 0, window, cx);
                 self.pick_attachment(window, cx);
                 return;
             }
@@ -599,20 +629,32 @@ impl Shell {
             Insert::DateTime => chrono::Local::now().format("%Y-%m-%d %H:%M").to_string() + "$0",
             Insert::Toc => table_of_contents(&input.read(cx).value()),
         };
+        let insertion =
+            if insertion.starts_with("---") && under_text(input.read(cx).text(), range.start) {
+                format!("\n{insertion}")
+            } else {
+                insertion
+            };
         let at = insertion.find("$0").unwrap_or(insertion.len());
         let text = insertion.replacen("$0", "", 1);
-        replace(&input, range.clone(), &text, at, window, cx);
-        let editor = menu.editor.clone();
+        replace(range.clone(), &text, at, window, cx);
         match entry.id.as_str() {
-            "codeblock" => self.open_menu(&editor, MenuKind::Languages, range.start, cx),
-            "wikilink" => self.open_menu(&editor, MenuKind::Notes, range.start, cx),
-            _ => {}
+            "codeblock" => self.chain_menu(&menu, MenuKind::Languages, range.start, cx),
+            "wikilink" => self.chain_menu(&menu, MenuKind::Notes, range.start, cx),
+            _ => seen(cx),
         }
         self.slash_catalog.recent.retain(|id| id != &entry.id);
         self.slash_catalog.recent.insert(0, entry.id.clone());
         self.slash_catalog.recent.truncate(5);
         cx.notify();
     }
+}
+
+fn under_text(text: &gpui_component::Rope, at: usize) -> bool {
+    let row = text.offset_to_position(at).line as usize;
+    row > 0
+        && text.line_start_offset(row) == at
+        && !text.slice_line(row - 1).to_string().trim().is_empty()
 }
 
 fn link_target(from: &std::path::Path, to: &std::path::Path, form: usize, unique: bool) -> String {
@@ -813,6 +855,17 @@ mod tests {
             Some((11, "b")),
             "the last one"
         );
+    }
+
+    #[test]
+    fn a_line_start_right_under_text_is_told_from_one_after_a_blank_line() {
+        let under =
+            |text: &str, at: usize| super::under_text(&gpui_component::Rope::from(text), at);
+        assert!(under("Notes.\n/", 7));
+        assert!(!under("Notes.\n\n/", 8), "a blank line above");
+        assert!(!under("/", 0), "the first line");
+        assert!(!under("Notes. /", 7), "inside a line");
+        assert!(!under("Notes.\n  /", 9), "after an indent");
     }
 
     #[test]

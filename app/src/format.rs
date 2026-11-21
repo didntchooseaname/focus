@@ -778,7 +778,8 @@ pub fn apply_in_place(
     };
     if let Some(change) = change {
         reading.update(cx, |reading, cx| {
-            reading.replace_in_place(change.range, &change.text, change.select, window, cx)
+            reading.replace_in_place(change.range, &change.text, change.select, window, cx);
+            reading.source_if_unseen(cx);
         });
     }
     true
@@ -803,7 +804,8 @@ pub fn set_block_type(
     };
     if in_place {
         reading.update(cx, |reading, cx| {
-            reading.replace_in_place(change.range, &change.text, change.select, window, cx)
+            reading.replace_in_place(change.range, &change.text, change.select, window, cx);
+            reading.source_if_unseen(cx);
         });
     } else {
         write_field(&input, change, window, cx);

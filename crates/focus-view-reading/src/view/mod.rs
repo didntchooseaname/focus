@@ -1799,6 +1799,7 @@ impl Render for ReadingView {
         let t = *cx.tokens();
         self.read_frame(window, cx);
         self.keep_caret_line();
+        self.open_unseen(window, cx);
         self.keep_caret_visible(window);
         self.registry.clear();
         self.drawn_images.borrow_mut().clear();

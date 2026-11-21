@@ -232,7 +232,7 @@ impl NoteEditor {
         )];
         let mut subscriptions = subscriptions;
         subscriptions.extend(Self::listen_reading(&reading, window, cx));
-        subscriptions.push(Self::keep_field_unfocused(&input, window, cx));
+        subscriptions.push(Self::keep_field_unfocused(window, cx));
         NoteEditor {
             id: meta.id,
             meta,

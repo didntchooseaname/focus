@@ -456,6 +456,7 @@ impl Shell {
         if gpui::Focusable::focus_handle(input.read(cx), cx) == focused
             || in_find
             || self.slash.is_some()
+            || !matches!(self.overlay, crate::shell::Overlay::None)
         {
             return;
         }

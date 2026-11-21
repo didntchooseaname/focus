@@ -1303,8 +1303,10 @@ impl Shell {
 
     pub fn focus_content(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         match self.active_editor().cloned() {
-            Some(editor) if editor.read(cx).view == ViewMode::Source => {
-                let input = editor.read(cx).input.clone();
+            Some(editor)
+                if editor.read(cx).view == ViewMode::Source || editor.read(cx).live.is_some() =>
+            {
+                let input = editor.read(cx).typing_input();
                 input.update(cx, |input, cx| input.focus(window, cx));
             }
             Some(editor) => {
@@ -2091,11 +2093,13 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<gpui::AnyElement> {
-        let menu = self.slash.as_ref()?;
+        let menu = self.slash.as_mut()?;
         let anchor = menu.anchor;
-        let at = menu
+        let drawn = menu
             .editor
-            .update(cx, |editor, cx| editor.anchor_bounds(anchor, window, cx))?;
+            .update(cx, |editor, cx| editor.anchor_bounds(anchor, window, cx));
+        menu.drawn_at = drawn.or(menu.drawn_at);
+        let at = menu.drawn_at?;
         let t = *cx.tokens();
         let weak = cx.entity().downgrade();
         let menu = self.slash.as_ref()?;

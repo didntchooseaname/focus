@@ -73,7 +73,17 @@ pub(super) struct Editing {
     reveal_to: Option<usize>,
     field: Option<String>,
     blank: Option<(String, usize)>,
+    unseen: Unseen,
 }
+
+#[derive(Clone, Copy, PartialEq)]
+enum Unseen {
+    Ignored,
+    Asked,
+    Painted(u8),
+}
+
+const UNSEEN_FRAMES: u8 = 6;
 
 impl Editing {
     fn new() -> Self {
@@ -89,6 +99,7 @@ impl Editing {
             reveal_to: None,
             field: None,
             blank: None,
+            unseen: Unseen::Ignored,
         }
     }
 }
@@ -269,6 +280,73 @@ impl ReadingView {
     pub fn remove_caret(&mut self, cx: &mut Context<Self>) {
         if self.editing.take().is_some() {
             cx.notify();
+        }
+    }
+
+    pub fn source_if_unseen(&mut self, cx: &mut Context<Self>) {
+        if self.live
+            && let Some(editing) = &mut self.editing
+        {
+            editing.unseen = Unseen::Asked;
+            cx.notify();
+        }
+    }
+
+    pub(super) fn open_unseen(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let asked = self.editing.as_ref().map_or(Unseen::Ignored, |e| e.unseen);
+        if !self.live || asked == Unseen::Ignored {
+            return;
+        }
+        let Some(frame) = &self.in_place_frame else {
+            return;
+        };
+        let built = self
+            .in_place_text
+            .as_ref()
+            .is_some_and(|text| text.len() == frame.text.len() && *text == frame.text);
+        if !built {
+            return;
+        }
+        let head = frame.head;
+        let at = frame.text.offset_to_position(head);
+        let key_item = self.key_item_at(head, &frame.text);
+        let viewport = self.list.viewport_bounds();
+        let on_screen = match key_item.checked_sub(1) {
+            None => true,
+            Some(item) => self
+                .row_of(item as usize)
+                .and_then(|row| self.list.bounds_for_item(row))
+                .is_some_and(|row| row.intersects(&viewport)),
+        };
+        let next = match asked {
+            Unseen::Painted(_) if self.bounds_for_byte(head).is_some() => Unseen::Ignored,
+            Unseen::Painted(frames) if on_screen || frames >= UNSEEN_FRAMES => {
+                let (kind, lines) = self.live_block_at(at.line).unwrap_or_else(|| {
+                    let holder = self.built.as_ref().and_then(|built| {
+                        built.items.iter().find(|item| {
+                            item.lines.start <= at.line
+                                && at.line < item.lines.end.max(item.lines.start + 1)
+                        })
+                    });
+                    let lines = holder.map_or(at.line..at.line + 1, |item| item.lines.clone());
+                    (LiveKind::Block, lines)
+                });
+                cx.emit(super::LiveOpen {
+                    kind,
+                    lines,
+                    line: at.line,
+                    column: at.character,
+                });
+                Unseen::Ignored
+            }
+            Unseen::Painted(frames) => Unseen::Painted(frames + 1),
+            _ => Unseen::Painted(0),
+        };
+        if let Some(editing) = &mut self.editing {
+            editing.unseen = next;
+        }
+        if next != Unseen::Ignored {
+            window.request_animation_frame();
         }
     }
 
