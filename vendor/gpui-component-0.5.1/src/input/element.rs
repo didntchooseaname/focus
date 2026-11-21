@@ -380,20 +380,21 @@ impl TextElement {
         builder.build().ok()
     }
 
+    /// The ranges of the search matches and the index of the current one.
+    fn search_matches(&self, cx: &App) -> Option<(Rc<Vec<Range<usize>>>, usize)> {
+        let panel = self.state.read(cx).search_panel.clone()?;
+        let panel = panel.read(cx);
+        let matcher = panel.matcher()?;
+        Some((matcher.matched_ranges.clone(), matcher.current_match_ix))
+    }
+
     fn layout_search_matches(
         &self,
         last_layout: &LastLayout,
         bounds: &Bounds<Pixels>,
         cx: &mut App,
     ) -> Vec<(Path<Pixels>, bool)> {
-        let search_panel = self.state.read(cx).search_panel.clone();
-        let Some((ranges, current_match_ix)) = search_panel.and_then(|panel| {
-            if let Some(matcher) = panel.read(cx).matcher() {
-                Some((matcher.matched_ranges.clone(), matcher.current_match_ix))
-            } else {
-                None
-            }
-        }) else {
+        let Some((ranges, current_match_ix)) = self.search_matches(cx) else {
             return vec![];
         };
 
@@ -650,6 +651,7 @@ impl TextElement {
         font_size: Pixels,
         runs: &[TextRun],
         bg_segments: &[(Range<usize>, Hsla)],
+        match_ink: Option<&MatchInk>,
         window: &mut Window,
     ) -> Vec<LineLayout> {
         let is_single_line = state.mode.is_single_line();
@@ -712,6 +714,10 @@ impl TextElement {
                         &line_runs,
                         bg_segments,
                     )
+                };
+                let line_runs = match match_ink {
+                    Some(ink) => ink.mark(visible_range_offset.start + offset + range.start, line_runs),
+                    None => line_runs,
                 };
 
                 let sub_line: SharedString = line[range.clone()].to_string().into();
@@ -1058,6 +1064,12 @@ impl Element for TextElement {
         let document_colors = state
             .lsp
             .document_colors_for_range(&text, &last_layout.visible_range);
+        let match_ink = self.search_matches(cx).map(|(ranges, current)| MatchInk {
+            ranges,
+            current,
+            current_color: cx.theme().primary_foreground,
+            underline: cx.theme().muted_foreground,
+        });
         let mut lines = Self::layout_lines(
             &state,
             &display_text,
@@ -1065,6 +1077,7 @@ impl Element for TextElement {
             text_size,
             &runs,
             &document_colors,
+            match_ink.as_ref(),
             window,
         );
         let align_width = wrap_width.unwrap_or(bounds.size.width - last_layout.line_number_width);
@@ -1337,10 +1350,11 @@ impl Element for TextElement {
             window.paint_path(path, cx.theme().border.opacity(0.85));
         }
 
-        // Focus: search matches are painted even in an inactive window, the others on `accent`
-        // (Focus `card_3`), the current one on the selection colour (QA defect M3).
+        // Focus: search matches are painted even in an inactive window (QA defect M3), the
+        // current one in inverse video on `primary` (Focus `btn`), the others on `accent`
+        // (Focus `card_3`); their text is marked by `MatchInk` (DESIGN 2).
         for (path, is_active) in prepaint.search_match_paths.iter() {
-            window.paint_path(path.clone(), if *is_active { cx.theme().selection } else { cx.theme().accent });
+            window.paint_path(path.clone(), if *is_active { cx.theme().primary } else { cx.theme().accent });
         }
 
         // Paint selections
@@ -1531,6 +1545,63 @@ pub(super) fn runs_for_range(
     }
 
     result
+}
+
+/// Focus patch: the text of the search matches, as DESIGN 2 draws them: the current match in
+/// `current_color` (Focus `btn_ink`, on `primary`), the others underlined by 1 px of
+/// `underline` (Focus `ink_3`). A match drops the background of the runs it covers.
+pub(super) struct MatchInk {
+    ranges: Rc<Vec<Range<usize>>>,
+    current: usize,
+    current_color: Hsla,
+    underline: Hsla,
+}
+
+impl MatchInk {
+    /// The runs of a line that starts at byte `start_offset` of the text, cut at the edges
+    /// of the matches.
+    fn mark(&self, start_offset: usize, runs: Vec<TextRun>) -> Vec<TextRun> {
+        let mut result = Vec::with_capacity(runs.len());
+        let mut cursor = start_offset;
+        for run in runs {
+            let end = cursor + run.len;
+            let mut at = cursor;
+            let first = self.ranges.partition_point(|r| r.end <= at);
+            for (ix, range) in self.ranges.iter().enumerate().skip(first) {
+                if range.start >= end {
+                    break;
+                }
+                let (from, to) = (range.start.max(at), range.end.min(end));
+                if from >= to {
+                    continue;
+                }
+                if from > at {
+                    result.push(TextRun { len: from - at, ..run.clone() });
+                }
+                let mut marked = TextRun {
+                    len: to - from,
+                    background_color: None,
+                    ..run.clone()
+                };
+                if ix == self.current {
+                    marked.color = self.current_color;
+                } else {
+                    marked.underline = Some(UnderlineStyle {
+                        thickness: px(1.),
+                        color: Some(self.underline),
+                        wavy: false,
+                    });
+                }
+                result.push(marked);
+                at = to;
+            }
+            if end > at {
+                result.push(TextRun { len: end - at, ..run });
+            }
+            cursor = end;
+        }
+        result
+    }
 }
 
 fn split_runs_by_bg_segments(
