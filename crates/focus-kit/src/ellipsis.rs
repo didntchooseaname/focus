@@ -147,6 +147,9 @@ impl Element for Ellipsis {
                 .text_system()
                 .shape_line(cut, layout.font_size, &runs, None)
         };
+        if let Err(error) = line.paint_background(bounds.origin, layout.line_height, window, cx) {
+            eprintln!("focus-kit: text background not painted: {error:#}");
+        }
         if let Err(error) = line.paint(bounds.origin, layout.line_height, window, cx) {
             eprintln!("focus-kit: text not painted: {error:#}");
         }
