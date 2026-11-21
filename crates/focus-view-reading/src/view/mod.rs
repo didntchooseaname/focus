@@ -1635,6 +1635,7 @@ impl ReadingView {
             weight: FontWeight::NORMAL,
             italic: false,
             tinted: self.typesetting.tinted,
+            tracking: 0.,
         }
     }
 
@@ -1695,6 +1696,7 @@ impl ReadingView {
         .min_w_0()
         .font_family(base.family.clone())
         .text_size(base.size)
+        .letter_spacing(base.size * base.tracking)
         .line_height(line_height)
         .text_color(base.color)
         .child(
@@ -1728,6 +1730,7 @@ impl ReadingView {
             line_height: px((40. * self.reading_scale()).round()),
             color: t.ink,
             weight: FontWeight::SEMIBOLD,
+            tracking: focus_kit::typography::TRACKING_TIGHT,
             ..self.base(t)
         };
         div()

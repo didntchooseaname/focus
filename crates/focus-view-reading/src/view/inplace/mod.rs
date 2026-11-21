@@ -125,7 +125,7 @@ pub(super) struct Decor {
     pub caret: Option<(usize, Hsla)>,
     pub selection: Option<Range<usize>>,
     pub marked: Option<Range<usize>>,
-    pub found: Vec<(Range<usize>, Hsla)>,
+    pub found: Vec<crate::text::Found>,
 }
 
 pub(super) fn texts<'a>(node: &'a Node, out: &mut Vec<&'a Rich>) {
@@ -584,8 +584,10 @@ impl ReadingView {
                     continue;
                 };
                 if let Some(shown) = map.shown_range(&(start..end)) {
-                    let color = if index == *current { t.sel } else { t.card_3 };
-                    decor.found.push((shown, color));
+                    decor.found.push(crate::text::Found {
+                        range: shown,
+                        current: index == *current,
+                    });
                 }
             }
         }

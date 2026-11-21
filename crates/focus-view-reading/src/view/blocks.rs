@@ -167,12 +167,16 @@ impl ReadingView {
         }
         let display: SharedString = focus_kit::typography::DISPLAY.into();
         let text = self.typesetting.text_font.clone();
-        let (family, size_px, line, color) = match level {
-            1 => (display, 26., 32., t.ink),
-            2 => (display, 20., 28., t.ink),
-            3 => (text, 16.5, 24., t.ink),
-            4 => (text, 14.5, 22., t.ink),
-            _ => (text, 14.5, 22., t.ink_2),
+        let (tight, snug) = (
+            focus_kit::typography::TRACKING_TIGHT,
+            focus_kit::typography::TRACKING_SNUG,
+        );
+        let (family, size_px, line, color, tracking) = match level {
+            1 => (display, 26., 32., t.ink, tight),
+            2 => (display, 20., 28., t.ink, snug),
+            3 => (text, 16.5, 24., t.ink, 0.),
+            4 => (text, 14.5, 22., t.ink, 0.),
+            _ => (text, 14.5, 22., t.ink_2, 0.),
         };
         let k = self.reading_scale();
         Base {
@@ -181,6 +185,7 @@ impl ReadingView {
             line_height: px((line * k).round()),
             color,
             weight: FontWeight::SEMIBOLD,
+            tracking,
             ..self.base(t)
         }
     }
@@ -1203,6 +1208,7 @@ impl ReadingView {
             weight: FontWeight::NORMAL,
             italic: false,
             tinted: self.typesetting.tinted,
+            tracking: 0.,
         };
         let decorated = self.decorated(item, lang, code);
         let raw = self.raw_code.contains(&(item, code.ord));

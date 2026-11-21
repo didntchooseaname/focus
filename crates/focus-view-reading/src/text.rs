@@ -3,7 +3,7 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use focus_kit::Tokens;
+use focus_kit::{ActiveTokens as _, Tokens};
 use focus_md::highlight::Token;
 use gpui::{
     App, Bounds, Element, ElementId, Font, FontStyle, FontWeight, GlobalElementId, Hsla,
@@ -99,6 +99,7 @@ pub struct Base {
     pub weight: FontWeight,
     pub italic: bool,
     pub tinted: bool,
+    pub tracking: f32,
 }
 
 fn token_style(token: Token, t: &Tokens, tinted: bool) -> (Hsla, FontWeight, bool) {
@@ -261,14 +262,21 @@ pub struct RichText {
     key: TextKey,
     rich: Arc<Rich>,
     styled: StyledText,
+    runs: Vec<TextRun>,
     selection: Option<Range<usize>>,
     selection_color: Hsla,
     registry: Registry,
     map: Option<Arc<SourceMap>>,
     caret: Option<(usize, Hsla)>,
     marked: Option<Range<usize>>,
-    found: Vec<(Range<usize>, Hsla)>,
+    found: Vec<Found>,
     paints: Paints,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Found {
+    pub range: Range<usize>,
+    pub current: bool,
 }
 
 #[derive(Clone, Default)]
@@ -346,11 +354,12 @@ impl RichText {
         selection_color: Hsla,
         registry: Registry,
     ) -> Self {
-        let styled = StyledText::new(rich.text.clone()).with_runs(runs);
+        let styled = StyledText::new(rich.text.clone());
         RichText {
             key,
             rich,
             styled,
+            runs,
             selection,
             selection_color,
             registry,
@@ -372,7 +381,7 @@ impl RichText {
         map: Option<Arc<SourceMap>>,
         caret: Option<(usize, Hsla)>,
         marked: Option<Range<usize>>,
-        found: Vec<(Range<usize>, Hsla)>,
+        found: Vec<Found>,
     ) -> Self {
         self.map = map;
         self.caret = caret;
@@ -403,6 +412,8 @@ impl Element for RichText {
         window: &mut Window,
         cx: &mut App,
     ) -> (LayoutId, ()) {
+        let runs = found_runs(std::mem::take(&mut self.runs), &self.found, cx.tokens());
+        self.styled = StyledText::new(self.rich.text.clone()).with_runs(runs);
         self.styled.request_layout(id, inspector, window, cx)
     }
 
@@ -438,11 +449,16 @@ impl Element for RichText {
         window: &mut Window,
         cx: &mut App,
     ) {
+        let t = cx.tokens();
         let ranges = self
             .found
             .iter()
-            .cloned()
+            .map(|found| {
+                let color = if found.current { t.btn } else { t.card_3 };
+                (found.range.clone(), color)
+            })
             .chain(self.selection.clone().map(|r| (r, self.selection_color)));
+        self.paint_boxes(bounds, window);
         for (range, color) in ranges.filter(|(r, _)| r.start < r.end) {
             let layout = self.styled.layout();
             let line = layout.line_height();
@@ -473,7 +489,6 @@ impl Element for RichText {
                 window.paint_quad(quad(point(bounds.left(), end.y), end.x));
             }
         }
-        self.paint_boxes(bounds, window);
         self.styled
             .paint(id, inspector, bounds, state, prepaint, window, cx);
         self.paint_marks(bounds, window, cx);
@@ -506,6 +521,59 @@ impl Element for RichText {
             ));
         }
     }
+}
+
+fn found_runs(runs: Vec<TextRun>, found: &[Found], t: &Tokens) -> Vec<TextRun> {
+    if found.is_empty() {
+        return runs;
+    }
+    let mut out = Vec::with_capacity(runs.len() + 2 * found.len());
+    let mut cursor = 0;
+    for run in runs {
+        let end = cursor + run.len;
+        let mut at = cursor;
+        let mut cuts: Vec<&Found> = found
+            .iter()
+            .filter(|f| f.range.start < end && f.range.end > cursor && f.range.start < f.range.end)
+            .collect();
+        cuts.sort_by_key(|f| f.range.start);
+        for found in cuts {
+            let (from, to) = (found.range.start.max(at), found.range.end.min(end));
+            if from >= to {
+                continue;
+            }
+            if from > at {
+                out.push(TextRun {
+                    len: from - at,
+                    ..run.clone()
+                });
+            }
+            let mut marked = TextRun {
+                len: to - from,
+                background_color: None,
+                ..run.clone()
+            };
+            if found.current {
+                marked.color = t.btn_ink;
+            } else {
+                marked.underline = Some(UnderlineStyle {
+                    thickness: px(1.),
+                    color: Some(t.ink_3),
+                    wavy: false,
+                });
+            }
+            out.push(marked);
+            at = to;
+        }
+        if end > at {
+            out.push(TextRun {
+                len: end - at,
+                ..run
+            });
+        }
+        cursor = end;
+    }
+    out
 }
 
 impl RichText {
