@@ -16,7 +16,7 @@ flowchart LR
   B --- D["Panneau du bas<br>Journal, Tâches, Liens cassés"]
 ```
 
-- La barre gauche contient l'arbre des fichiers, le panneau de recherche, les tags avec leurs compteurs et les signets lus dans `.obsidian/bookmarks.json`. Ctrl B l'affiche ou la masque.
+- La barre gauche contient l'arbre des fichiers, le panneau de recherche, les tags avec leurs compteurs et les signets lus dans `.obsidian/bookmarks.json`. Ctrl Maj B l'affiche ou la masque.
 - La barre droite montre le plan de la note, ses liens, des informations sur elle, et les onglets IA et Ops. Ctrl Alt B l'affiche ou la masque.
 - Le panneau du bas s'ouvre avec Ctrl J.
 - La barre de titre a les boutons précédent et suivant, le fil d'Ariane de la note, le champ Rechercher qui ouvre la palette, et le sélecteur des trois vues.

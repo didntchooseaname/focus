@@ -9,17 +9,29 @@
 | Ctrl K, Ctrl P, Ctrl O | 打开命令面板 |
 | Ctrl Shift P | 打开命令面板并显示命令 |
 | Ctrl , | 打开设置 |
-| Ctrl B | 显示或隐藏左侧栏 |
+| Ctrl Shift B | 显示或隐藏左侧栏 |
 | Ctrl Alt B | 显示或隐藏右侧栏 |
 | Ctrl J | 显示或隐藏底部面板 |
-| Ctrl Shift F | 打开搜索面板 |
-| Ctrl Shift E | 打开文件树 |
-| Ctrl E | 在编辑和阅读之间切换 |
+| Ctrl Shift F | 搜索仓库，焦点位于搜索框 |
+| Ctrl Shift E | 打开文件树，焦点位于打开的笔记 |
+| Ctrl E | 在阅读和笔记先前所在的编辑视图之间切换 |
 | Ctrl W | 关闭标签页 |
 | Ctrl Tab, Ctrl Shift Tab | 下一个标签页，上一个标签页 |
 | Ctrl \ | 向右拆分：笔记移到另一组标签页 |
 | Alt Left, Alt Right | 在导航历史中后退、前进 |
 | Escape | 关闭打开的菜单、命令面板或对话框 |
+| Ctrl N | 新建笔记并立即输入名称；Enter 进入正文 |
+| Ctrl S | 立即保存笔记 |
+| Ctrl Shift T | 重新打开已关闭的标签页 |
+| Ctrl Page Down, Ctrl Page Up | 下一个标签页，上一个标签页 |
+| Ctrl 1 至 Ctrl 8, Ctrl 9 | 对应序号的标签页，最后一个标签页 |
+| Ctrl F, Ctrl H | 在笔记中查找、查找和替换 |
+| F3, Shift F3 | 查找栏的下一个、上一个匹配 |
+| F6, Shift F6 | 将焦点移到下一个、上一个区域：笔记、左侧栏、右侧栏、底部面板 |
+| Ctrl =, Ctrl -, Ctrl 0 | 放大、缩小界面，恢复到 100 %（也可用 Ctrl 加滚轮） |
+| F11 | 全屏 |
+| F1, Ctrl / | 设置中的键盘快捷键 |
+| Ctrl Q | 退出 |
 
 ## 命令面板与列表
 
@@ -40,11 +52,16 @@
 | Ctrl Shift C | 行内代码 |
 | Ctrl Shift K | 链接 |
 | Ctrl Shift H | 标题 |
-| Ctrl Shift 8 | 无序列表 |
+| Ctrl Shift 8, Ctrl * | 无序列表 |
 | Ctrl L | 任务列表 |
+| Tab, Shift Tab | 缩进、减少缩进列表项 |
+| Ctrl Z, Ctrl Shift Z, Ctrl Y | 撤销、重做 |
+| Ctrl Shift V | 粘贴为纯文本 |
+| Shift Page Up, Shift Page Down | 按页选择 |
+| Shift F10, Menu | 在光标处打开上下文菜单 |
 | `/` | 斜杠菜单，见[[slash-menu\|斜杠菜单]] |
 
-在源码编辑器中 Ctrl B 是粗体，在其他位置它用于显示或隐藏左侧栏。
+Ctrl B 在编辑和 Live 中为粗体；在阅读中不起作用。
 
 ## 实时视图
 
@@ -75,6 +92,7 @@
 |---|---|
 | Ctrl C | 复制所选文本 |
 | Ctrl A | 选中整篇笔记 |
+| Ctrl F, Ctrl H | 查找、查找和替换：查找栏打开时笔记显示源码，关闭后回到阅读并停在匹配处 |
 | 点击链接 | 打开目标 |
 | Ctrl 加点击链接 | 在新标签页中打开目标 |
 

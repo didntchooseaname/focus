@@ -250,7 +250,7 @@ Open a folder with `--vault`, or pick one on the first launch screen. Focus writ
 | `Ctrl Shift P` | open the palette on commands |
 | `Ctrl Shift F` | search the vault |
 | `Ctrl E` | switch between editing and reading |
-| `Ctrl B`, `Ctrl Alt B`, `Ctrl J` | left bar, right bar, bottom panel |
+| `Ctrl Shift B`, `Ctrl Alt B`, `Ctrl J` | left bar, right bar, bottom panel |
 | `Ctrl ,` | settings |
 | `Ctrl Tab` | next tab |
 | `Ctrl \` | split right: the note goes to the other group of tabs |

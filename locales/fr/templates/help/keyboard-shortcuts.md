@@ -9,17 +9,29 @@ Les raccourcis par endroit. La même liste, avec ceux que vous avez changés, es
 | Ctrl K, Ctrl P, Ctrl O | ouvrir la palette |
 | Ctrl Maj P | ouvrir la palette sur les commandes |
 | Ctrl , | ouvrir les réglages |
-| Ctrl B | afficher ou masquer la barre gauche |
+| Ctrl Maj B | afficher ou masquer la barre gauche |
 | Ctrl Alt B | afficher ou masquer la barre droite |
 | Ctrl J | afficher ou masquer le panneau du bas |
-| Ctrl Maj F | ouvrir le panneau de recherche |
-| Ctrl Maj E | ouvrir l'arbre des fichiers |
-| Ctrl E | alterner entre édition et lecture |
+| Ctrl Maj F | rechercher dans le coffre, le focus dans le champ de recherche |
+| Ctrl Maj E | ouvrir l'arbre des fichiers, le focus sur la note ouverte |
+| Ctrl E | alterner entre Lecture et la vue où la note était modifiée |
 | Ctrl W | fermer l'onglet |
 | Ctrl Tab, Ctrl Maj Tab | onglet suivant, onglet précédent |
 | Ctrl \ | scinder à droite : la note passe dans l'autre groupe d'onglets |
 | Alt Gauche, Alt Droite | précédent, suivant dans l'historique de navigation |
 | Échap | fermer le menu, la palette ou la boîte de dialogue ouverts |
+| Ctrl N | nouvelle note, son nom se tape aussitôt ; Entrée passe à son texte |
+| Ctrl S | enregistrer la note maintenant |
+| Ctrl Maj T | rouvrir l'onglet fermé |
+| Ctrl Page suiv., Ctrl Page préc. | onglet suivant, onglet précédent |
+| Ctrl 1 à Ctrl 8, Ctrl 9 | onglet de ce rang, dernier onglet |
+| Ctrl F, Ctrl H | rechercher, rechercher et remplacer dans la note |
+| F3, Maj F3 | occurrence suivante, précédente de la barre de recherche |
+| F6, Maj F6 | passer le focus à la zone suivante, précédente : note, barre gauche, barre droite, panneau du bas |
+| Ctrl =, Ctrl -, Ctrl 0 | zoom avant, arrière sur l'interface, retour à 100 % (aussi Ctrl et la molette) |
+| F11 | plein écran |
+| F1, Ctrl / | raccourcis clavier dans les réglages |
+| Ctrl Q | quitter |
 
 ## Palette et listes
 
@@ -40,11 +52,16 @@ Les raccourcis par endroit. La même liste, avec ceux que vous avez changés, es
 | Ctrl Maj C | code en ligne |
 | Ctrl Maj K | lien |
 | Ctrl Maj H | titre |
-| Ctrl Maj 8 | liste à puces |
+| Ctrl Maj 8, Ctrl * | liste à puces |
 | Ctrl L | liste de tâches |
+| Tab, Maj Tab | indenter, désindenter l'élément de liste |
+| Ctrl Z, Ctrl Maj Z, Ctrl Y | annuler, rétablir |
+| Ctrl Maj V | coller en texte brut |
+| Maj Page préc., Maj Page suiv. | sélectionner par page |
+| Maj F10, Menu | menu contextuel au curseur |
 | `/` | menu « / », voir [[slash-menu\|Le menu « / »]] |
 
-Dans l'éditeur de source Ctrl B met en gras ; ailleurs il bascule la barre gauche.
+Ctrl B met en gras en Édition et en Live ; en Lecture il ne fait rien.
 
 ## Vue Live
 
@@ -75,6 +92,7 @@ Le panneau a ses propres raccourcis tant qu'il a le focus. Les opérateurs sont 
 |---|---|
 | Ctrl C | copier le texte sélectionné |
 | Ctrl A | sélectionner toute la note |
+| Ctrl F, Ctrl H | rechercher, rechercher et remplacer : la note montre sa source tant que la barre est ouverte et revient en Lecture sur l'occurrence à sa fermeture |
 | Clic sur un lien | ouvrir la cible |
 | Ctrl clic sur un lien | ouvrir la cible dans un nouvel onglet |
 

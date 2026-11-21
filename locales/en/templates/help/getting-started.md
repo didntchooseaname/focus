@@ -16,7 +16,7 @@ flowchart LR
   B --- D["Bottom panel<br>Journal, Tasks, Broken links"]
 ```
 
-- The left bar holds the file tree, the search panel, the tags with their counters and the bookmarks read from `.obsidian/bookmarks.json`. Toggle it with Ctrl B.
+- The left bar holds the file tree, the search panel, the tags with their counters and the bookmarks read from `.obsidian/bookmarks.json`. Toggle it with Ctrl Shift B.
 - The right bar shows the outline of the note, its links, information about it, and the AI and Ops tabs. Toggle it with Ctrl Alt B.
 - The bottom panel opens with Ctrl J.
 - The title bar has back and forward buttons, the breadcrumb of the note, the Search field that opens the palette, and the switch between the three views.
