@@ -3,9 +3,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use focus_core::{LinkOut, NodeKind, TrashKind, TreeSnapshot, Vault, VaultEvent};
+use focus_kit::Flow as _;
 use focus_kit::{
-    ActiveTokens, Button, ButtonKind, Field, Icon, MenuRow, Tokens, TreeRow, Type, menu,
-    menu_separator, size,
+    ActiveTokens, Button, ButtonKind, Field, Icon, KeyboardMenu, MENU_CONTEXT, MenuConfirm,
+    MenuCursor, MenuDismiss, MenuEntry, MenuItem, MenuNext, MenuPrevious, MenuRow, Tokens, TreeRow,
+    Type, keyboard_menu, menu, menu_separator, size,
 };
 use gpui::{
     AnyElement, App, AppContext as _, Context, DragMoveEvent, Entity, EventEmitter, ExternalPaths,
@@ -189,6 +191,8 @@ pub struct FileTree {
     filter: Entity<InputState>,
     renaming: Option<Renaming>,
     menu: Option<(Option<Arc<Path>>, Point<Pixels>)>,
+    menu_cursor: MenuCursor,
+    menu_focus: FocusHandle,
     confirm: Option<Arc<Path>>,
     confirm_scope: FocusHandle,
     confirm_primary: FocusHandle,
@@ -211,6 +215,13 @@ impl EventEmitter<ImportStatus> for FileTree {}
 impl Focusable for FileTree {
     fn focus_handle(&self, _: &App) -> FocusHandle {
         self.focus.clone()
+    }
+}
+
+fn stem_len(kind: NodeKind, name: &str) -> usize {
+    match kind {
+        NodeKind::Note | NodeKind::Folder => name.len(),
+        _ => name.rfind('.').filter(|dot| *dot > 0).unwrap_or(name.len()),
     }
 }
 
@@ -319,6 +330,8 @@ impl FileTree {
             filter,
             renaming: None,
             menu: None,
+            menu_cursor: MenuCursor::default(),
+            menu_focus: cx.focus_handle(),
             confirm: None,
             confirm_scope: cx.focus_handle(),
             confirm_primary: cx.focus_handle(),
@@ -690,6 +703,7 @@ impl FileTree {
             return;
         };
         let name = display_name(node.kind, &node.name);
+        let stem = stem_len(node.kind, &name);
         let input = cx.new(|cx| InputState::new(window, cx).default_value(name));
         let subscription = cx.subscribe_in(
             &input,
@@ -707,11 +721,9 @@ impl FileTree {
                 _ => {}
             },
         );
-        input.update(cx, |state, cx| state.focus(window, cx));
-        window.on_next_frame(|window, cx| {
-            if let Ok(select_all) = gpui::Keystroke::parse("ctrl-a") {
-                window.dispatch_keystroke(select_all, cx);
-            }
+        input.update(cx, |state, cx| {
+            state.focus(window, cx);
+            state.set_selection(0, stem, cx);
         });
         self.renaming = Some(Renaming {
             path,
@@ -1175,29 +1187,33 @@ impl FileTree {
         }
     }
 
-    fn on_key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
-        let key = event.keystroke.key.as_str();
-        if let Some(query) = self
+    fn step_mover(&mut self, step: isize, cx: &mut Context<Self>) {
+        let Some(query) = self
             .moving
             .as_ref()
             .map(|m| m.input.read(cx).value().to_string())
-        {
-            let count = self.folders(&query).len().max(1);
-            let Some(moving) = self.moving.as_mut() else {
-                return;
-            };
-            match key {
-                "down" => moving.selected = (moving.selected + 1) % count,
-                "up" => moving.selected = (moving.selected + count - 1) % count,
-                "escape" => {
-                    self.moving = None;
-                    window.focus(&self.focus);
-                }
-                _ => return,
-            }
-            cx.stop_propagation();
+        else {
+            return;
+        };
+        let count = self.folders(&query).len().max(1) as isize;
+        if let Some(moving) = self.moving.as_mut() {
+            moving.selected = (moving.selected as isize + step).rem_euclid(count) as usize;
             cx.notify();
         }
+    }
+
+    fn confirm_mover(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(moving) = self.moving.as_ref() else {
+            return;
+        };
+        let query = moving.input.read(cx).value().to_string();
+        let chosen = self.folders(&query).get(moving.selected).cloned();
+        window.focus(&self.focus);
+        match chosen {
+            Some(folder) => self.move_into(folder, cx),
+            None => self.moving = None,
+        }
+        cx.notify();
     }
 
     fn action_target(&self) -> Option<Arc<Path>> {
@@ -1239,19 +1255,29 @@ impl FileTree {
             return focus_kit::Dir::current()
                 .pad_start(
                     div().w_full().h(size::list_row()).flex().items_center(),
-                    px(8. + 14. * depth as f32 + 22.),
+                    px(8. + 14. * depth as f32 + 17.),
                 )
-                .pr(size::S2)
-                .bg(t.card_3)
+                .pad_end(size::S2)
                 .child(
-                    div().flex_1().min_w_0().ui().child(
-                        Input::new(&renaming.input)
-                            .appearance(false)
-                            .h(px(22.))
-                            .px_0()
-                            .py_0()
-                            .ui(),
-                    ),
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .h(size::list_row() - size::S1)
+                        .px(size::S1)
+                        .flex()
+                        .items_center()
+                        .rounded(size::RADIUS)
+                        .border_1()
+                        .border_color(t.ink)
+                        .bg(t.bg_2)
+                        .ui()
+                        .child(
+                            Input::new(&renaming.input)
+                                .appearance(false)
+                                .px_0()
+                                .py_0()
+                                .ui(),
+                        ),
                 )
                 .into_any_element();
         }
@@ -1270,9 +1296,11 @@ impl FileTree {
         let menu_path = path.clone();
         let bounds = self.selected_bounds.clone();
         let unread = node.link_out == Some(LinkOut::NotFollowed);
+        let tip: SharedString = path.display().to_string().into();
         div()
             .id(("tree-row", index as usize))
             .relative()
+            .tooltip(move |_, cx| focus_kit::tooltip::Tooltip::view(tip.clone(), None, cx))
             .when(focused, |this| {
                 this.child(
                     gpui::canvas(move |b, _, _| bounds.set(Some(b)), |_, _, _, _| {})
@@ -1356,15 +1384,6 @@ impl FileTree {
             .into_any_element()
     }
 
-    fn paste_row(&self, target: &Option<Arc<Path>>, cx: &mut Context<Self>) -> AnyElement {
-        let folder = self.paste_folder(target.as_deref());
-        MenuRow::new("menu-paste", focus_i18n::t("vault-menu-paste"))
-            .shortcut(shortcut(17))
-            .disabled(self.paste_ready != Some(true))
-            .on_click(cx.listener(move |this, _, _, cx| this.paste_files(folder.clone(), cx)))
-            .into_any_element()
-    }
-
     fn click_row(
         &mut self,
         index: u32,
@@ -1383,18 +1402,24 @@ impl FileTree {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        window.focus(&self.focus);
         self.selected = Some(path.clone());
-        self.open_menu(Some(path), at, cx);
+        self.open_menu(Some(path), at, window, cx);
     }
 
     fn empty_menu(&mut self, at: Point<Pixels>, window: &mut Window, cx: &mut Context<Self>) {
-        window.focus(&self.focus);
-        self.open_menu(None, at, cx);
+        self.open_menu(None, at, window, cx);
     }
 
-    fn open_menu(&mut self, target: Option<Arc<Path>>, at: Point<Pixels>, cx: &mut Context<Self>) {
+    fn open_menu(
+        &mut self,
+        target: Option<Arc<Path>>,
+        at: Point<Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.menu = Some((target, at));
+        self.menu_cursor = MenuCursor::default();
+        focus_kit::focus_menu(&self.menu_focus, window, cx);
         self.paste_ready = None;
         let copied = self.copied.is_some();
         self._paste_check = Some(cx.spawn(async move |this, cx| {
@@ -1411,193 +1436,157 @@ impl FileTree {
         cx.notify();
     }
 
-    fn render_menu(&self, t: &Tokens, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let (target, at) = self.menu.clone()?;
+    fn menu_entries(&self, cx: &App) -> Vec<Option<(TreeCommand, MenuEntry)>> {
+        let Some((target, _)) = self.menu.clone() else {
+            return Vec::new();
+        };
         let node = target.as_ref().and_then(|p| self.node(p));
         let is_note = node.is_some_and(|n| n.kind == NodeKind::Note);
-        let row = |id: &'static str, key: &str, keys: Option<String>| {
-            let r = MenuRow::new(id, focus_i18n::t(key));
-            match keys {
-                Some(k) => r.shortcut(k),
-                None => r,
-            }
-        };
-        let mut items: Vec<AnyElement> = Vec::new();
-        if is_note {
-            let id = node.and_then(|n| n.note);
-            items.push(
-                row("menu-open-tab", "vault-menu-open-tab", None)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.menu = None;
-                        if let Some(note) = id {
-                            cx.emit(VaultViewEvent::OpenNote {
-                                note,
-                                line: None,
-                                new_tab: true,
-                            });
-                        }
-                        cx.notify();
-                    }))
-                    .into_any_element(),
-            );
-            if let Some(note) = id {
-                items.push(
-                    row("menu-versions", "vault-menu-versions", None)
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.menu = None;
-                            cx.emit(VaultViewEvent::ShowVersions(note));
-                            cx.notify();
-                        }))
-                        .into_any_element(),
-                );
-            }
-            items.push(menu_separator(t).into_any_element());
+        let entry = |id: &'static str, key: &str| MenuEntry::new(id, focus_i18n::t(key));
+        let mut items = Vec::new();
+        if is_note && let Some(note) = node.and_then(|n| n.note) {
+            items.push(Some((
+                TreeCommand::OpenTab(note),
+                entry("menu-open-tab", "vault-menu-open-tab"),
+            )));
+            items.push(Some((
+                TreeCommand::Versions(note),
+                entry("menu-versions", "vault-menu-versions"),
+            )));
+            items.push(None);
         }
         if let Some(path) = target
             .clone()
             .filter(|_| node.is_some_and(|n| !matches!(n.kind, NodeKind::Note | NodeKind::Folder)))
         {
-            items.push(
-                row("menu-open-system", "ui-cmd-open-system", None)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.menu = None;
-                        cx.emit(VaultViewEvent::OpenWithSystem(path.to_path_buf()));
-                        cx.notify();
-                    }))
-                    .into_any_element(),
-            );
-            items.push(menu_separator(t).into_any_element());
+            items.push(Some((
+                TreeCommand::OpenSystem(path.to_path_buf()),
+                entry("menu-open-system", "ui-cmd-open-system"),
+            )));
+            items.push(None);
         }
-        let at_new = target.clone();
-        items.push(
-            row("menu-new-note", "vault-menu-new-note", Some(shortcut(7)))
-                .on_click(cx.listener(move |this, _, window, cx| {
-                    this.create(false, at_new.clone(), window, cx)
-                }))
-                .into_any_element(),
-        );
-        let at_new = target.clone();
-        items.push(
-            row(
-                "menu-new-folder",
-                "vault-menu-new-folder",
-                Some(shortcut(8)),
-            )
-            .on_click(
-                cx.listener(move |this, _, window, cx| {
-                    this.create(true, at_new.clone(), window, cx)
-                }),
-            )
-            .into_any_element(),
-        );
+        items.push(Some((
+            TreeCommand::NewNote,
+            entry("menu-new-note", "vault-menu-new-note").shortcut(shortcut(7)),
+        )));
+        items.push(Some((
+            TreeCommand::NewFolder,
+            entry("menu-new-folder", "vault-menu-new-folder").shortcut(shortcut(8)),
+        )));
+        let paste = |at: &Option<Arc<Path>>| {
+            Some((
+                TreeCommand::Paste(self.paste_folder(at.as_deref())),
+                entry("menu-paste", "vault-menu-paste")
+                    .shortcut(shortcut(17))
+                    .enabled(self.paste_ready == Some(true)),
+            ))
+        };
         if let Some(path) = target.clone().filter(|p| !self.unread_link(p)) {
-            items.push(menu_separator(t).into_any_element());
-            let p = path.clone();
-            items.push(
-                row("menu-rename", "vault-menu-rename", Some(shortcut(5)))
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        this.start_rename(p.clone(), window, cx)
-                    }))
-                    .into_any_element(),
-            );
+            items.push(None);
+            items.push(Some((
+                TreeCommand::Rename(path.clone()),
+                entry("menu-rename", "vault-menu-rename").shortcut(shortcut(5)),
+            )));
             if is_note {
-                let p = path.clone();
-                items.push(
-                    row("menu-duplicate", "vault-menu-duplicate", Some(shortcut(9)))
-                        .on_click(cx.listener(move |this, _, _, cx| this.duplicate(p.clone(), cx)))
-                        .into_any_element(),
-                );
+                items.push(Some((
+                    TreeCommand::Duplicate(path.clone()),
+                    entry("menu-duplicate", "vault-menu-duplicate").shortcut(shortcut(9)),
+                )));
             }
-            let p = path.clone();
-            items.push(
-                row("menu-move", "vault-menu-move", Some(shortcut(10)))
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        this.start_move(p.clone(), window, cx)
-                    }))
-                    .into_any_element(),
-            );
+            items.push(Some((
+                TreeCommand::Move(path.clone()),
+                entry("menu-move", "vault-menu-move").shortcut(shortcut(10)),
+            )));
             if let Some(note) = node.and_then(|n| n.note).filter(|_| is_note) {
-                items.push(
-                    row("menu-merge", "vault-menu-merge", None)
-                        .on_click(cx.listener(move |this, _, _, cx| this.merge(note, cx)))
-                        .into_any_element(),
-                );
+                items.push(Some((
+                    TreeCommand::Merge(note),
+                    entry("menu-merge", "vault-menu-merge"),
+                )));
             }
-            items.push(menu_separator(t).into_any_element());
-            let p = path.clone();
-            items.push(
-                row("menu-copy", "vault-menu-copy", Some(shortcut(16)))
-                    .on_click(cx.listener(move |this, _, _, cx| this.copy_file(p.clone(), cx)))
-                    .into_any_element(),
-            );
-            items.push(self.paste_row(&target, cx));
-            let p = path.clone();
-            items.push(
-                row("menu-copy-path", "vault-menu-copy-path", Some(shortcut(11)))
-                    .on_click(cx.listener(move |this, _, _, cx| this.copy(p.clone(), false, cx)))
-                    .into_any_element(),
-            );
+            items.push(None);
+            items.push(Some((
+                TreeCommand::Copy(path.clone()),
+                entry("menu-copy", "vault-menu-copy").shortcut(shortcut(16)),
+            )));
+            items.push(paste(&target));
+            items.push(Some((
+                TreeCommand::CopyPath(path.clone()),
+                entry("menu-copy-path", "vault-menu-copy-path").shortcut(shortcut(11)),
+            )));
             if is_note {
-                let p = path.clone();
-                items.push(
-                    row("menu-copy-link", "vault-menu-copy-link", Some(shortcut(12)))
-                        .on_click(cx.listener(move |this, _, _, cx| this.copy(p.clone(), true, cx)))
-                        .into_any_element(),
-                );
-                if let Some(bookmarks) = self.bookmarks.clone() {
+                items.push(Some((
+                    TreeCommand::CopyLink(path.clone()),
+                    entry("menu-copy-link", "vault-menu-copy-link").shortcut(shortcut(12)),
+                )));
+                if let Some(bookmarks) = &self.bookmarks {
                     let marked = bookmarks.read(cx).is_bookmarked(&path);
-                    let p = path.clone();
-                    items.push(
-                        row(
+                    items.push(Some((
+                        TreeCommand::Bookmark(path.clone()),
+                        entry(
                             "menu-bookmark",
                             if marked {
                                 "vault-menu-unbookmark"
                             } else {
                                 "vault-menu-bookmark"
                             },
-                            None,
-                        )
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.menu = None;
-                            bookmarks.update(cx, |bookmarks, cx| bookmarks.toggle(&p, cx));
-                            cx.notify();
-                        }))
-                        .into_any_element(),
-                    );
+                        ),
+                    )));
                 }
             }
-            items.push(menu_separator(t).into_any_element());
-            let p = path.clone();
-            items.push(
-                row("menu-trash", "vault-menu-trash", Some(shortcut(6)))
-                    .danger(true)
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        this.request_trash(p.clone(), window, cx)
-                    }))
-                    .into_any_element(),
-            );
+            items.push(None);
+            items.push(Some((
+                TreeCommand::Trash(path),
+                entry("menu-trash", "vault-menu-trash")
+                    .shortcut(shortcut(6))
+                    .danger(true),
+            )));
         } else if target.is_none() {
-            items.push(menu_separator(t).into_any_element());
-            items.push(self.paste_row(&None, cx));
+            items.push(None);
+            items.push(paste(&None));
         }
+        items
+    }
+
+    fn run_command(&mut self, command: TreeCommand, window: &mut Window, cx: &mut Context<Self>) {
+        let target = self.menu.take().and_then(|(target, _)| target);
+        match command {
+            TreeCommand::OpenTab(note) => cx.emit(VaultViewEvent::OpenNote {
+                note,
+                line: None,
+                new_tab: true,
+            }),
+            TreeCommand::Versions(note) => cx.emit(VaultViewEvent::ShowVersions(note)),
+            TreeCommand::OpenSystem(path) => cx.emit(VaultViewEvent::OpenWithSystem(path)),
+            TreeCommand::NewNote => self.create(false, target, window, cx),
+            TreeCommand::NewFolder => self.create(true, target, window, cx),
+            TreeCommand::Rename(path) => self.start_rename(path, window, cx),
+            TreeCommand::Duplicate(path) => self.duplicate(path, cx),
+            TreeCommand::Move(path) => self.start_move(path, window, cx),
+            TreeCommand::Merge(note) => self.merge(note, cx),
+            TreeCommand::Copy(path) => self.copy_file(path, cx),
+            TreeCommand::Paste(folder) => self.paste_files(folder, cx),
+            TreeCommand::CopyPath(path) => self.copy(path, false, cx),
+            TreeCommand::CopyLink(path) => self.copy(path, true, cx),
+            TreeCommand::Bookmark(path) => {
+                if let Some(bookmarks) = self.bookmarks.clone() {
+                    bookmarks.update(cx, |bookmarks, cx| bookmarks.toggle(&path, cx));
+                }
+            }
+            TreeCommand::Trash(path) => self.request_trash(path, window, cx),
+        }
+        if self.menu_focus.is_focused(window) {
+            window.focus(&self.focus);
+        }
+        cx.notify();
+    }
+
+    fn render_menu(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let (_, at) = self.menu.clone()?;
+        let focus = self.menu_focus.clone();
         Some(
-            gpui::deferred(
-                gpui::anchored()
-                    .position(at)
-                    .snap_to_window()
-                    .child(focus_kit::fade_in(
-                        "fade-tree-menu",
-                        menu(t)
-                            .id("tree-menu")
-                            .occlude()
-                            .on_mouse_down_out(cx.listener(|this, _, _, cx| {
-                                this.menu = None;
-                                cx.notify();
-                            }))
-                            .children(items),
-                        cx,
-                    )),
-            )
+            gpui::deferred(gpui::anchored().position(at).snap_to_window().child(
+                focus_kit::fade_in("fade-tree-menu", keyboard_menu(self, &focus, cx), cx),
+            ))
             .with_priority(1)
             .into_any_element(),
         )
@@ -1702,19 +1691,33 @@ impl FileTree {
             .take(8)
             .map(|(i, folder)| {
                 let folder = folder.clone();
-                let label = if folder.as_os_str().is_empty() {
-                    focus_i18n::t("vault-root")
+                let (label, parent) = if folder.as_os_str().is_empty() {
+                    (focus_i18n::t("vault-root"), None)
                 } else {
-                    folder.to_string_lossy().into_owned()
+                    (
+                        folder
+                            .file_name()
+                            .map(|name| name.to_string_lossy().into_owned())
+                            .unwrap_or_default(),
+                        folder
+                            .parent()
+                            .filter(|parent| !parent.as_os_str().is_empty())
+                            .map(|parent| parent.to_string_lossy().into_owned()),
+                    )
                 };
-                MenuRow::new(("move-to", i), label)
-                    .icon(Icon::FOLDER)
-                    .highlighted(i == moving.selected)
-                    .on_click(cx.listener(move |this, _, _, cx| {
+                let mut row = MenuRow::new(("move-to", i), label).icon(Icon::FOLDER);
+                if let Some(parent) = parent {
+                    row = row
+                        .detail(parent)
+                        .tooltip(folder.to_string_lossy().into_owned());
+                }
+                row.highlighted(i == moving.selected).on_click(cx.listener(
+                    move |this, _, _, cx| {
                         if let Some(path) = this.moving.take().map(|m| m.path) {
                             this.drop_into(path, folder.clone(), cx);
                         }
-                    }))
+                    },
+                ))
             });
         Some(focus_kit::fade_in(
             "fade-move-menu",
@@ -1724,6 +1727,17 @@ impl FileTree {
                 .left(size::S1)
                 .right(size::S1)
                 .occlude()
+                .key_context(MENU_CONTEXT)
+                .on_action(cx.listener(|this, _: &MenuPrevious, _, cx| this.step_mover(-1, cx)))
+                .on_action(cx.listener(|this, _: &MenuNext, _, cx| this.step_mover(1, cx)))
+                .on_action(
+                    cx.listener(|this, _: &MenuConfirm, window, cx| this.confirm_mover(window, cx)),
+                )
+                .on_action(cx.listener(|this, _: &MenuDismiss, window, cx| {
+                    this.moving = None;
+                    window.focus(&this.focus);
+                    cx.notify();
+                }))
                 .child(
                     menu(t)
                         .child(
@@ -1770,7 +1784,6 @@ impl Render for FileTree {
             .flex()
             .flex_col()
             .bg(t.bg)
-            .capture_key_down(cx.listener(Self::on_key))
             .on_key_down(cx.listener(Self::type_ahead_key))
             .on_action(cx.listener(|this, _: &SelectPrevious, _, cx| {
                 let row = this.selected_row().map_or(0, |r| r.saturating_sub(1));
@@ -1825,14 +1838,8 @@ impl Render for FileTree {
                     this.trash(path, cx);
                     return;
                 }
-                if let Some(moving) = this.moving.as_ref() {
-                    let query = moving.input.read(cx).value().to_string();
-                    let chosen = this.folders(&query).get(moving.selected).cloned();
-                    window.focus(&this.focus);
-                    match chosen {
-                        Some(folder) => this.move_into(folder, cx),
-                        None => this.moving = None,
-                    }
+                if this.moving.is_some() {
+                    this.confirm_mover(window, cx);
                     return;
                 }
                 if let Some(index) = this.selected_row().map(|r| this.rows[r]) {
@@ -1887,12 +1894,12 @@ impl Render for FileTree {
             .on_action(cx.listener(|this, _: &FocusFilter, window, cx| {
                 this.filter.update(cx, |state, cx| state.focus(window, cx))
             }))
-            .on_action(cx.listener(|this, _: &ContextMenu, _, cx| {
+            .on_action(cx.listener(|this, _: &ContextMenu, window, cx| {
                 let at = match (this.selected_row(), this.selected_bounds.get()) {
                     (Some(_), Some(row)) => row.bottom_left() + gpui::point(px(24.), px(0.)),
                     _ => gpui::point(px(24.), px(72.)),
                 };
-                this.open_menu(this.selected.clone(), at, cx);
+                this.open_menu(this.selected.clone(), at, window, cx);
             }))
             .on_action(cx.listener(|this, _: &Dismiss, window, cx| {
                 if let Some(renaming) = this.renaming.take() {
@@ -1900,7 +1907,7 @@ impl Render for FileTree {
                     if renaming.then_write {
                         cx.emit(VaultViewEvent::WriteNote);
                     }
-                } else if this.confirm.is_some() {
+                } else if this.moving.take().is_some() || this.confirm.is_some() {
                     window.focus(&this.focus);
                 }
                 this.menu = None;
@@ -1970,7 +1977,7 @@ impl Render for FileTree {
                     ))
                     .children(self.render_mover(&t, cx)),
             )
-            .children(self.render_menu(&t, cx))
+            .children(self.render_menu(cx))
             .children(self.render_confirm(&t, cx))
     }
 }
@@ -1982,10 +1989,82 @@ fn outside(position: Point<Pixels>, size: gpui::Size<Pixels>) -> bool {
         || position.y >= size.height
 }
 
+#[derive(Clone)]
+enum TreeCommand {
+    OpenTab(focus_core::NoteId),
+    Versions(focus_core::NoteId),
+    OpenSystem(PathBuf),
+    NewNote,
+    NewFolder,
+    Rename(Arc<Path>),
+    Duplicate(Arc<Path>),
+    Move(Arc<Path>),
+    Merge(focus_core::NoteId),
+    Copy(Arc<Path>),
+    Paste(PathBuf),
+    CopyPath(Arc<Path>),
+    CopyLink(Arc<Path>),
+    Bookmark(Arc<Path>),
+    Trash(Arc<Path>),
+}
+
+impl KeyboardMenu for FileTree {
+    fn menu_name(&self) -> &'static str {
+        "tree-menu"
+    }
+
+    fn menu_items(&self, cx: &App) -> Vec<MenuItem> {
+        self.menu_entries(cx)
+            .into_iter()
+            .map(|item| match item {
+                Some((_, entry)) => MenuItem::Row(entry),
+                None => MenuItem::Separator,
+            })
+            .collect()
+    }
+
+    fn menu_cursor(&self) -> MenuCursor {
+        self.menu_cursor
+    }
+
+    fn set_menu_cursor(&mut self, cursor: MenuCursor) {
+        self.menu_cursor = cursor;
+    }
+
+    fn menu_run(&mut self, row: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let command = self
+            .menu_entries(cx)
+            .into_iter()
+            .flatten()
+            .nth(row)
+            .map(|(command, _)| command);
+        if let Some(command) = command {
+            self.run_command(command, window, cx);
+        }
+    }
+
+    fn menu_dismiss(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.menu = None;
+        window.focus(&self.focus);
+        cx.notify();
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{contains_folded, outside};
+    use super::{contains_folded, outside, stem_len};
+    use focus_core::NodeKind;
     use gpui::{point, px, size};
+
+    #[test]
+    fn a_rename_selects_the_name_without_its_extension() {
+        assert_eq!(stem_len(NodeKind::Note, "Evidence handling"), 17);
+        assert_eq!(stem_len(NodeKind::Folder, "v1.2 reports"), 12);
+        assert_eq!(stem_len(NodeKind::Attachment, "scope-map.png"), 9);
+        assert_eq!(stem_len(NodeKind::Attachment, "archive.tar.gz"), 11);
+        assert_eq!(stem_len(NodeKind::Other, ".gitignore"), 10);
+        assert_eq!(stem_len(NodeKind::Other, "README"), 6);
+    }
 
     #[test]
     fn a_drag_leaves_the_window_past_any_edge() {

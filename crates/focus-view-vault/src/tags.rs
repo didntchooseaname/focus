@@ -2,7 +2,10 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use focus_core::{NoteId, Vault, VaultEvent};
-use focus_kit::{ActiveTokens, MenuRow, Tokens, TreeRow, Type, menu, size};
+use focus_kit::{
+    ActiveTokens, KeyboardMenu, MenuCursor, MenuEntry, MenuItem, Tokens, TreeRow, Type,
+    keyboard_menu, size,
+};
 use gpui::{
     AnyElement, App, AppContext, Context, EventEmitter, FocusHandle, Focusable, InteractiveElement,
     IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, Render,
@@ -99,6 +102,8 @@ pub struct TagTree {
     focus: FocusHandle,
     selected: Option<usize>,
     menu: Option<(String, Point<Pixels>)>,
+    menu_cursor: MenuCursor,
+    menu_focus: FocusHandle,
     type_ahead: crate::keys::TypeAhead,
 }
 
@@ -122,6 +127,8 @@ impl TagTree {
             focus: cx.focus_handle(),
             selected: None,
             menu: None,
+            menu_cursor: MenuCursor::default(),
+            menu_focus: cx.focus_handle(),
             type_ahead: Default::default(),
         };
         tree.load(cx);
@@ -182,10 +189,18 @@ impl TagTree {
         self.index.counts.get(key).map(|(label, _)| label.clone())
     }
 
-    fn open_menu(&mut self, row: usize, at: Point<Pixels>, cx: &mut Context<Self>) {
+    fn open_menu(
+        &mut self,
+        row: usize,
+        at: Point<Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if let Some(full) = self.full(row) {
             self.selected = Some(row);
             self.menu = Some((full, at));
+            self.menu_cursor = MenuCursor::default();
+            focus_kit::focus_menu(&self.menu_focus, window, cx);
             cx.notify();
         }
     }
@@ -228,14 +243,10 @@ impl TagTree {
         }
     }
 
-    fn on_key(&mut self, event: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
+    fn on_key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         let keys = &event.keystroke;
         let plain = !keys.modifiers.modified();
         match keys.key.as_str() {
-            "escape" if self.menu.is_some() => {
-                self.menu = None;
-                cx.notify();
-            }
             RENAME_KEY if plain => {
                 if let Some(tag) = self.selected.and_then(|row| self.full(row)) {
                     self.rename(tag, cx);
@@ -245,7 +256,7 @@ impl TagTree {
                 if let Some(row) = self.selected
                     && let Some(at) = self.row_point(row)
                 {
-                    self.open_menu(row, at, cx);
+                    self.open_menu(row, at, window, cx);
                 }
             }
             _ => return,
@@ -261,8 +272,7 @@ impl TagTree {
         let Some(at) = self.row_point(row) else {
             return false;
         };
-        window.focus(&self.focus);
-        self.open_menu(row, at, cx);
+        self.open_menu(row, at, window, cx);
         true
     }
 
@@ -276,32 +286,13 @@ impl TagTree {
         }
     }
 
-    fn render_menu(&self, t: &Tokens, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let (tag, at) = self.menu.clone()?;
+    fn render_menu(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let (_, at) = self.menu.clone()?;
+        let focus = self.menu_focus.clone();
         Some(
-            gpui::deferred(
-                gpui::anchored()
-                    .position(at)
-                    .snap_to_window()
-                    .child(focus_kit::fade_in(
-                        "fade-tag-menu",
-                        menu(t)
-                            .id("tag-menu")
-                            .occlude()
-                            .on_mouse_down_out(cx.listener(|this, _, _, cx| {
-                                this.menu = None;
-                                cx.notify();
-                            }))
-                            .child(
-                                MenuRow::new("tag-menu-rename", focus_i18n::t("vault-menu-rename"))
-                                    .shortcut(focus_i18n::keys_text(RENAME_KEY))
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.rename(tag.clone(), cx)
-                                    })),
-                            ),
-                        cx,
-                    )),
-            )
+            gpui::deferred(gpui::anchored().position(at).snap_to_window().child(
+                focus_kit::fade_in("fade-tag-menu", keyboard_menu(self, &focus, cx), cx),
+            ))
             .with_priority(1)
             .into_any_element(),
         )
@@ -322,8 +313,7 @@ impl TagTree {
             .on_mouse_down(
                 MouseButton::Right,
                 cx.listener(move |this, event: &MouseDownEvent, window, cx| {
-                    window.focus(&this.focus);
-                    this.open_menu(row, event.position, cx);
+                    this.open_menu(row, event.position, window, cx);
                 }),
             )
             .child(
@@ -429,7 +419,7 @@ impl Render for TagTree {
                 "tag-tree-scrollbar",
                 self.scroll.clone(),
             ))
-            .children(self.render_menu(&t, cx))
+            .children(self.render_menu(cx))
     }
 }
 
@@ -447,6 +437,40 @@ impl crate::keys::Keyed for TagTree {
         {
             cx.emit(VaultViewEvent::SearchTag(full));
         }
+    }
+}
+
+impl KeyboardMenu for TagTree {
+    fn menu_name(&self) -> &'static str {
+        "tag-menu"
+    }
+
+    fn menu_items(&self, _: &App) -> Vec<MenuItem> {
+        vec![MenuItem::from(
+            MenuEntry::new("tag-menu-rename", focus_i18n::t("vault-menu-rename"))
+                .shortcut(focus_i18n::keys_text(RENAME_KEY)),
+        )]
+    }
+
+    fn menu_cursor(&self) -> MenuCursor {
+        self.menu_cursor
+    }
+
+    fn set_menu_cursor(&mut self, cursor: MenuCursor) {
+        self.menu_cursor = cursor;
+    }
+
+    fn menu_run(&mut self, _: usize, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some((tag, _)) = self.menu.clone() {
+            window.focus(&self.focus);
+            self.rename(tag, cx);
+        }
+    }
+
+    fn menu_dismiss(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.menu = None;
+        window.focus(&self.focus);
+        cx.notify();
     }
 }
 

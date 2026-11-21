@@ -10,6 +10,11 @@ use gpui::{
     UniformListScrollHandle, Window, div, prelude::FluentBuilder, px, uniform_list,
 };
 
+use std::ops::Range;
+
+use focus_md::{BlockKind, Inline, InlineKind, ParseOptions};
+use gpui::{FontStyle, FontWeight, HighlightStyle, StrikethroughStyle, UnderlineStyle};
+
 use crate::groups::{Grouped, Row, Rows};
 use crate::{Tone, VaultViewEvent, error_message};
 
@@ -223,7 +228,7 @@ impl TaskList {
                             .map(|this| focus_kit::Dir::current().flow(this))
                             .text_color(if task.done { t.ink_3 } else { t.ink_2 })
                             .when(task.done, |this| this.line_through())
-                            .child(focus_kit::ellipsis(task.text.clone()))
+                            .child(task_text(&task.text, t))
                             .on_click(cx.listener(move |this, event: &gpui::ClickEvent, _, cx| {
                                 this.selected = Some(row);
                                 cx.emit(VaultViewEvent::OpenNote {
@@ -334,5 +339,124 @@ impl crate::keys::Keyed for TaskList {
             line: target.1,
             new_tab: false,
         });
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Mark {
+    Link,
+    Code,
+    Strong,
+    Emphasis,
+    Strike,
+}
+
+fn task_runs(source: &str) -> (String, Vec<(Range<usize>, Mark)>) {
+    let document = focus_md::parse(source, &ParseOptions { hard_breaks: false });
+    let Some(inlines) = document.blocks.first().and_then(|block| match &block.kind {
+        BlockKind::Paragraph(inlines) => Some(inlines),
+        _ => None,
+    }) else {
+        return (source.to_string(), Vec::new());
+    };
+    let mut text = String::new();
+    let mut marks = Vec::new();
+    push_runs(inlines, None, &mut text, &mut marks);
+    (text, marks)
+}
+
+fn push_runs(
+    inlines: &[Inline],
+    mark: Option<Mark>,
+    text: &mut String,
+    marks: &mut Vec<(Range<usize>, Mark)>,
+) {
+    fn push(
+        piece: &str,
+        mark: Option<Mark>,
+        text: &mut String,
+        marks: &mut Vec<(Range<usize>, Mark)>,
+    ) {
+        let start = text.len();
+        text.push_str(piece);
+        if let Some(mark) = mark.filter(|_| !piece.is_empty()) {
+            marks.push((start..text.len(), mark));
+        }
+    }
+    for inline in inlines {
+        match &inline.kind {
+            InlineKind::Text(piece) | InlineKind::Math(piece) => push(piece, mark, text, marks),
+            InlineKind::Code(piece) => push(piece, Some(Mark::Code), text, marks),
+            InlineKind::Tag(tag) => push(&format!("#{tag}"), mark, text, marks),
+            InlineKind::Image(image) => push(&image.alt, mark, text, marks),
+            InlineKind::SoftBreak | InlineKind::HardBreak => push(" ", mark, text, marks),
+            InlineKind::Strong(children) => {
+                push_runs(children, Some(mark.unwrap_or(Mark::Strong)), text, marks)
+            }
+            InlineKind::Emphasis(children) => {
+                push_runs(children, Some(mark.unwrap_or(Mark::Emphasis)), text, marks)
+            }
+            InlineKind::Strike(children) => {
+                push_runs(children, Some(mark.unwrap_or(Mark::Strike)), text, marks)
+            }
+            InlineKind::Highlight(children) => push_runs(children, mark, text, marks),
+            InlineKind::Link(link) if link.children.is_empty() => {
+                push(&link.target, Some(Mark::Link), text, marks)
+            }
+            InlineKind::Link(link) => push_runs(&link.children, Some(Mark::Link), text, marks),
+            InlineKind::FootnoteRef(_) | InlineKind::BlockId(_) | InlineKind::Html(_) => {}
+        }
+    }
+}
+
+fn task_text(source: &str, t: &Tokens) -> focus_kit::ellipsis::Ellipsis {
+    let (text, marks) = task_runs(source);
+    focus_kit::ellipsis(text).highlights(marks.into_iter().map(|(range, mark)| {
+        let style = match mark {
+            Mark::Link => HighlightStyle {
+                color: Some(t.ink),
+                underline: Some(UnderlineStyle {
+                    thickness: px(1.),
+                    color: Some(t.line_2),
+                    wavy: false,
+                }),
+                ..Default::default()
+            },
+            Mark::Code => HighlightStyle {
+                background_color: Some(t.card_2),
+                ..Default::default()
+            },
+            Mark::Strong => HighlightStyle {
+                font_weight: Some(FontWeight::SEMIBOLD),
+                ..Default::default()
+            },
+            Mark::Emphasis => HighlightStyle {
+                font_style: Some(FontStyle::Italic),
+                ..Default::default()
+            },
+            Mark::Strike => HighlightStyle {
+                strikethrough: Some(StrikethroughStyle {
+                    thickness: px(1.),
+                    color: None,
+                }),
+                ..Default::default()
+            },
+        };
+        (range, style)
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Mark, task_runs};
+
+    #[test]
+    fn a_task_reads_as_text_with_its_links_marked() {
+        let (text, marks) = task_runs("Notes synced, see [[Note-taking for exams]]");
+        assert_eq!(text, "Notes synced, see Note-taking for exams");
+        assert_eq!(marks, vec![(18..39, Mark::Link)]);
+        let (text, marks) = task_runs("Run `nmap` on **every** host");
+        assert_eq!(text, "Run nmap on every host");
+        assert_eq!(marks, vec![(4..8, Mark::Code), (12..17, Mark::Strong)]);
     }
 }

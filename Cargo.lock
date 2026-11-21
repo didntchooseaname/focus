@@ -2278,6 +2278,7 @@ dependencies = [
  "focus-core",
  "focus-i18n",
  "focus-kit",
+ "focus-md",
  "gpui",
  "gpui-component",
 ]
