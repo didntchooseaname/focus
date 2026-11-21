@@ -83,7 +83,13 @@ quit
 SCRIPT
 FOCUS_CONFIG_DIR=$work/config FOCUS_SHOT_DIR=$work "$root/tools/shot.sh" "$work/second.focus" "$work/vault" >"$work/second.log" 2>&1 &
 first=$!
-for _ in $(seq 100); do grep -q "^listening " "$work/second.log" 2>/dev/null && break; sleep 0.1; done
+for _ in $(seq 6500); do grep -q "^listening " "$work/second.log" 2>/dev/null && break; sleep 0.1; done
+if ! grep -q "^listening " "$work/second.log" 2>/dev/null; then
+    echo "FAIL the first window listens"
+    kill "$first" 2>/dev/null
+    wait "$first" 2>/dev/null
+    exit 1
+fi
 socket=$(sed -n "s/^listening //p" "$work/second.log")
 rights=$(stat -c %a "$socket" 2>/dev/null)
 started=$(date +%s%N)

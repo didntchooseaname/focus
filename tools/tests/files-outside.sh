@@ -81,7 +81,13 @@ quit
 SCRIPT
 shoot switch &
 first=$!
-for _ in $(seq 100); do grep -q "^listening " "$work/switch.log" 2>/dev/null && break; sleep 0.1; done
+for _ in $(seq 6500); do grep -q "^listening " "$work/switch.log" 2>/dev/null && break; sleep 0.1; done
+if ! grep -q "^listening " "$work/switch.log" 2>/dev/null; then
+    echo "FAIL the first window listens"
+    kill "$first" 2>/dev/null
+    wait "$first" 2>/dev/null
+    exit 1
+fi
 second() {
     FOCUS_CONFIG_DIR=$work/config FOCUS_CAPTURE_CLASS=focus-capture timeout 10 "$bin" "$work/vault2/Other.md" >>"$work/switch-launch.log" 2>&1
 }
