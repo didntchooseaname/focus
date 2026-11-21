@@ -24,6 +24,13 @@ pub struct NoteTab {
     close_shortcut: Option<SharedString>,
     on_click: Option<Handler>,
     on_close: Option<Handler>,
+    pin: Option<Pin>,
+}
+
+struct Pin {
+    label: SharedString,
+    shortcut: Option<SharedString>,
+    on_unpin: Option<Handler>,
 }
 
 impl NoteTab {
@@ -42,7 +49,29 @@ impl NoteTab {
             close_shortcut: None,
             on_click: None,
             on_close: None,
+            pin: None,
         }
+    }
+    pub fn pinned(
+        mut self,
+        unpin_label: impl Into<SharedString>,
+        shortcut: Option<SharedString>,
+    ) -> Self {
+        self.pin = Some(Pin {
+            label: unpin_label.into(),
+            shortcut,
+            on_unpin: None,
+        });
+        self
+    }
+    pub fn on_unpin(
+        mut self,
+        handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        if let Some(pin) = &mut self.pin {
+            pin.on_unpin = Some(Box::new(handler));
+        }
+        self
     }
     pub fn active(mut self, active: bool) -> Self {
         self.active = active;
@@ -87,6 +116,7 @@ impl RenderOnce for NoteTab {
             t.ink_2
         };
         let close_visible = self.active || hovered;
+        let pinned = self.pin.is_some();
         dir.flow(div().id(self.id))
             .group(GROUP)
             .relative()
@@ -129,6 +159,9 @@ impl RenderOnce for NoteTab {
                     .flow_row()
                     .child(crate::ellipsis(self.title)),
             )
+            .when_some(self.pin, |this, pin| {
+                this.child(pin_control(pin, self.dirty, hovered, &t))
+            })
             .child(
                 div()
                     .id("close")
@@ -138,6 +171,7 @@ impl RenderOnce for NoteTab {
                     .justify_center()
                     .relative()
                     .size(size::ICON_BUTTON)
+                    .when(pinned, |this| this.hidden())
                     .rounded(size::RADIUS)
                     .text_color(t.ink_3)
                     .map(|this| {
@@ -183,4 +217,58 @@ impl RenderOnce for NoteTab {
             )
             .when_some(self.on_click, |this, handler| this.on_click(handler))
     }
+}
+
+fn pin_control(
+    pin: Pin,
+    dirty: bool,
+    hovered: bool,
+    t: &crate::tokens::Tokens,
+) -> impl IntoElement {
+    let (ink, ink_3, card_2) = (t.ink, t.ink_3, t.card_2);
+    let dot_at_rest = dirty && !hovered;
+    div()
+        .id("pin")
+        .relative()
+        .flow_row()
+        .flex_none()
+        .items_center()
+        .justify_center()
+        .size(size::ICON_BUTTON)
+        .rounded(size::RADIUS)
+        .text_color(if hovered { ink } else { ink_3 })
+        .hover(move |s| s.bg(card_2).text_color(ink))
+        .when(dot_at_rest, |this| {
+            this.child(
+                div()
+                    .size(size::DOT)
+                    .rounded_full()
+                    .bg(ink)
+                    .group_hover(GROUP, |s| s.invisible()),
+            )
+            .child(
+                div()
+                    .absolute()
+                    .inset_0()
+                    .flow_row()
+                    .items_center()
+                    .justify_center()
+                    .invisible()
+                    .group_hover(GROUP, |s| s.visible())
+                    .child(icon(Icon::PIN, size::ICON_DENSE)),
+            )
+        })
+        .when(!dot_at_rest, |this| {
+            this.child(icon(Icon::PIN, size::ICON_DENSE))
+        })
+        .tooltip({
+            let (label, shortcut) = (pin.label.clone(), pin.shortcut.clone());
+            move |_, cx| crate::tooltip::Tooltip::view(label.clone(), shortcut.clone(), cx)
+        })
+        .when_some(pin.on_unpin, |this, handler| {
+            this.on_click(move |event, window, cx| {
+                cx.stop_propagation();
+                handler(event, window, cx)
+            })
+        })
 }

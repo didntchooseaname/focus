@@ -100,6 +100,7 @@ impl Icon {
     pub const GRIP_VERTICAL: Icon = Icon("\u{E0EB}");
     pub const FILE_OUTPUT: Icon = Icon("\u{E0C8}");
     pub const PILCROW: Icon = Icon("\u{E3A3}");
+    pub const PIN: Icon = Icon("\u{E259}");
 }
 
 pub fn icon(icon: Icon, size: Pixels) -> Div {
