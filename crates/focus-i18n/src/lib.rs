@@ -2,6 +2,7 @@ pub mod audit;
 mod bidi;
 mod catalog;
 mod format;
+mod keys;
 mod state;
 
 pub use bidi::text_direction;
@@ -10,6 +11,7 @@ pub use format::{
     format_bytes, format_date, format_date_at, format_datetime, format_datetime_at, format_decimal,
     format_duration, format_number,
 };
+pub use keys::keys_text;
 pub use state::{
     Arg, available, detect_system, direction, generation, init, language, missing_count,
     reset_missing_count, set_language, t, t_args, template,

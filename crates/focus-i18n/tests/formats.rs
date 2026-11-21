@@ -103,3 +103,31 @@ fn text_direction_follows_the_first_strong_character() {
     assert_eq!(text_direction("123 !?"), Direction::Ltr);
     assert_eq!(text_direction(""), Direction::Ltr);
 }
+
+#[test]
+fn shortcuts_are_written_in_the_language() {
+    let _guard = in_language("fr");
+    assert_eq!(focus_i18n::keys_text("ctrl-shift-f"), "Ctrl Maj F");
+    assert_eq!(focus_i18n::keys_text("ctrl-,"), "Ctrl ,");
+    assert_eq!(focus_i18n::keys_text("alt-left"), "Alt Gauche");
+    assert_eq!(focus_i18n::keys_text("escape"), "Échap");
+    assert_eq!(focus_i18n::keys_text("delete"), "Suppr");
+    assert_eq!(focus_i18n::keys_text("shift-f10"), "Maj F10");
+    assert_eq!(focus_i18n::keys_text("ctrl--"), "Ctrl -");
+    assert_eq!(focus_i18n::keys_text("ctrl-k ctrl-s"), "Ctrl K Ctrl S");
+    assert_eq!(focus_i18n::keys_text("menu"), "Menu");
+    assert_eq!(focus_i18n::keys_text("pagedown"), "Pg suiv");
+    assert_eq!(focus_i18n::keys_text("backspace"), "Retour arrière");
+    assert_eq!(focus_i18n::keys_text("f11"), "F11");
+    assert_eq!(focus_i18n::keys_text("ctrl-="), "Ctrl =");
+    assert_eq!(focus_i18n::keys_text("ctrl-+"), "Ctrl +");
+    assert_eq!(focus_i18n::keys_text("ctrl-/"), "Ctrl /");
+    assert_eq!(focus_i18n::keys_text("alt-1"), "Alt 1");
+    assert_eq!(focus_i18n::keys_text("ctrl-add"), "Ctrl Pavé num +");
+    assert_eq!(focus_i18n::keys_text("ctrl-subtract"), "Ctrl Pavé num -");
+    assert_eq!(focus_i18n::keys_text("ctrl-pageup"), "Ctrl Pg préc");
+    assert_eq!(focus_i18n::keys_text("shift-f6"), "Maj F6");
+    focus_i18n::set_language("en").unwrap();
+    assert_eq!(focus_i18n::keys_text("ctrl-shift-n"), "Ctrl Shift N");
+    assert_eq!(focus_i18n::keys_text("delete"), "Del");
+}
