@@ -77,6 +77,12 @@ impl Shell {
         cx.notify();
     }
 
+    pub fn withdraw_notice(&mut self, text: impl Into<SharedString>, cx: &mut Context<Self>) {
+        let text = NoticeText::Plain(text.into());
+        self.notices.shown.retain(|notice| notice.text != text);
+        cx.notify();
+    }
+
     fn run_countdown(&mut self, id: u64, cx: &mut Context<Self>) {
         let Some(notice) = self.notices.shown.iter_mut().find(|notice| notice.id == id) else {
             return;

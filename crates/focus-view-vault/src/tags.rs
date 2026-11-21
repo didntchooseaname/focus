@@ -215,7 +215,7 @@ impl TagTree {
                     self.rename(tag, cx);
                 }
             }
-            "f10" if keys.modifiers.shift => {
+            key if (key == "f10" && keys.modifiers.shift) || (key == "menu" && plain) => {
                 if let Some(row) = self.selected
                     && let Some(at) = self.row_point(row)
                 {

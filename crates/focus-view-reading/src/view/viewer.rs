@@ -70,6 +70,10 @@ impl ReadingView {
         focus_view_media::pdf::page_anchor(anchor)
     }
 
+    pub fn viewer_shown(&self) -> bool {
+        self.viewer.is_some()
+    }
+
     pub(super) fn viewer_key(&mut self, key: &str, window: &Window) -> bool {
         let Some(viewer) = self.viewer.as_mut() else {
             return false;

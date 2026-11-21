@@ -195,6 +195,10 @@ pub struct Shell {
     pub history_error: Option<String>,
     pub updates: crate::update::Updates,
     applied_history: Option<focus_core::HistoryConfig>,
+    pub closed: Vec<crate::tab_keys::Closed>,
+    pub right_strip: gpui::FocusHandle,
+    pub bottom_strip: gpui::FocusHandle,
+    pub wheel_zoom: std::rc::Rc<std::cell::Cell<f32>>,
     pub _subscriptions: Vec<Subscription>,
 }
 
@@ -325,6 +329,10 @@ impl Shell {
             history_error: None,
             updates: Default::default(),
             applied_history: None,
+            closed: Vec::new(),
+            right_strip: cx.focus_handle(),
+            bottom_strip: cx.focus_handle(),
+            wheel_zoom: Default::default(),
             _subscriptions: subscriptions,
         };
         shell._subscriptions.push(interceptor);
@@ -356,6 +364,7 @@ impl Shell {
         cx.background_spawn(async { crate::fonts::warm() }).detach();
         shell.saved_session = shell.session_now(cx);
         shell.apply_pref("appearance.theme", window, cx);
+        shell.apply_pref("appearance.ui_scale", window, cx);
         shell.apply_pref("appearance.remote_images", window, cx);
         if first_launch {
             shell.screen = Screen::Welcome {
@@ -986,6 +995,9 @@ impl Shell {
         if index >= self.panes.len() {
             return;
         }
+        if let Some(closed) = self.closed_pane(index) {
+            crate::tab_keys::remember(&mut self.closed, closed);
+        }
         match self.panes.remove(index) {
             Pane::Base(id) => self.forget_base(id),
             Pane::File(id) => self.forget_file(id, cx),
@@ -1321,6 +1333,9 @@ impl Shell {
         if index >= self.tabs.len() {
             return;
         }
+        if let Some(closed) = self.closed_tab(index, cx) {
+            crate::tab_keys::remember(&mut self.closed, closed);
+        }
         let closing = self.tabs[index].clone();
         let twin = self.twin_of(&closing, cx);
         self.hand_lead(&closing, cx);
@@ -1634,6 +1649,10 @@ impl Shell {
             "files.hide_templates" | "general.templates" => self.apply_excluded_folders(cx),
             "files.follow_external_links" => self.rebuild_index(window, cx),
             "ai.agent_socket" => self.sync_agent_socket(window, cx),
+            "appearance.ui_scale" => {
+                let zoom = prefs.number(key) as f32 / 100.;
+                window.set_zoom(zoom, cx);
+            }
             "appearance.reading_size"
             | "appearance.measure"
             | "appearance.reading_leading"
@@ -1768,7 +1787,8 @@ impl Shell {
         root: gpui::Stateful<gpui::Div>,
         cx: &mut Context<Self>,
     ) -> gpui::Stateful<gpui::Div> {
-        self.bind_media_actions(root, cx)
+        let root = self.bind_media_actions(root, cx);
+        self.bind_window_keys(root, cx)
             .on_action(
                 cx.listener(|this, _: &CheckUpdates, _, cx| this.check_updates(true, cx).detach()),
             )
@@ -1795,21 +1815,11 @@ impl Shell {
             .on_action(cx.listener(|this, _: &OpenSettings, window, cx| {
                 this.open_settings(Section::General, window, cx)
             }))
-            .on_action(cx.listener(|this, _: &CloseTab, window, cx| {
-                if let Some(active) = this.active {
-                    this.close_tab(active, window, cx);
-                }
-            }))
-            .on_action(cx.listener(|this, _: &NextTab, window, cx| {
-                if let Some(active) = this.active {
-                    this.activate((active + 1) % this.tabs.len(), window, cx);
-                }
-            }))
-            .on_action(cx.listener(|this, _: &PrevTab, window, cx| {
-                if let Some(active) = this.active {
-                    this.activate((active + this.tabs.len() - 1) % this.tabs.len(), window, cx);
-                }
-            }))
+            .on_action(
+                cx.listener(|this, _: &CloseTab, window, cx| this.close_front_tab(window, cx)),
+            )
+            .on_action(cx.listener(|this, _: &NextTab, window, cx| this.step_tab(1, window, cx)))
+            .on_action(cx.listener(|this, _: &PrevTab, window, cx| this.step_tab(-1, window, cx)))
             .on_action(
                 cx.listener(|this, _: &SplitRight, window, cx| this.split_right(None, window, cx)),
             )
@@ -1820,9 +1830,10 @@ impl Shell {
             .on_action(cx.listener(|this, _: &Back, window, cx| this.go_history(-1, window, cx)))
             .on_action(cx.listener(|this, _: &Forward, window, cx| this.go_history(1, window, cx)))
             .on_action(cx.listener(|this, _: &ToggleReading, window, cx| {
-                let next = match this.active_editor().map(|e| e.read(cx).view) {
-                    Some(ViewMode::Source) => ViewMode::Reading,
-                    _ => ViewMode::Source,
+                let next = match this.active_editor().map(|e| e.read(cx)) {
+                    Some(editor) if editor.view == ViewMode::Reading => editor.editing_view,
+                    Some(_) => ViewMode::Reading,
+                    None => return,
                 };
                 this.set_view(next, window, cx);
             }))
@@ -1939,11 +1950,7 @@ impl Shell {
                 }),
             )
             .on_action(cx.listener(|this, _: &CopyMarkdown, _, cx| this.copy_note(false, cx)))
-            .on_action(cx.listener(|this, _: &ShowFiles, _, cx| {
-                this.layout.left_open = true;
-                this.layout.left_tab = LeftTab::Files;
-                cx.notify();
-            }))
+            .on_action(cx.listener(|this, _: &ShowFiles, window, cx| this.show_files(window, cx)))
             .on_action(
                 cx.listener(|this, _: &Confirm, window, cx| match this.overlay {
                     Overlay::SwitchVault(_) => this.confirm_vault_switch(window, cx),
@@ -1958,8 +1965,11 @@ impl Shell {
                 } else if matches!(this.screen, Screen::Kit(_)) {
                     this.screen = Screen::Workspace;
                     cx.notify();
-                } else if this.layout.bottom_open {
+                } else if this.layout.bottom_open
+                    && this.region_now(window, cx) == crate::window_keys::Region::Bottom
+                {
                     this.layout.bottom_open = false;
+                    this.focus_content(window, cx);
                     cx.notify();
                 }
             }))

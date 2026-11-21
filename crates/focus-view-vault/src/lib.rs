@@ -52,6 +52,7 @@ pub enum VaultViewEvent {
     },
     BookmarksChanged(Vec<PathBuf>),
     RecentChanged(Vec<PathBuf>),
+    WriteNote,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

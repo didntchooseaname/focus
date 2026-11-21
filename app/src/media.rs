@@ -99,7 +99,7 @@ fn subsequence(name: &str, needle: &[char]) -> Option<Vec<std::ops::Range<usize>
 }
 
 impl Files {
-    fn get(&self, id: u64) -> Option<&FilePage> {
+    pub fn get(&self, id: u64) -> Option<&FilePage> {
         self.pages.iter().find(|p| p.id == id)
     }
 }

@@ -90,6 +90,12 @@ pub struct SelectionBar {
     placed: Option<Lines>,
 }
 
+impl SelectionBar {
+    pub fn showing(&self) -> bool {
+        self.shown.is_some()
+    }
+}
+
 struct Target {
     editor: Entity<NoteEditor>,
     range: Range<usize>,

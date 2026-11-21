@@ -5,6 +5,7 @@ use gpui::{
     AnyElement, AppContext, Context, Entity, Focusable, InteractiveElement, IntoElement,
     KeystrokeEvent, ParentElement, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
 };
+use gpui_component::RopeExt as _;
 use gpui_component::input::{InputEvent, InputState};
 
 use crate::shell::Shell;
@@ -14,6 +15,7 @@ pub struct FindBar {
     pub replacement: Entity<InputState>,
     pub case_sensitive: bool,
     pub replacing: bool,
+    restore: Option<gpui::EntityId>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -21,10 +23,12 @@ impl Shell {
     pub fn open_find(&mut self, replacing: bool, window: &mut Window, cx: &mut Context<Self>) {
         let pdf = self.front_pdf();
         let replacing = replacing && pdf.is_none();
+        let mut restore = None;
         let selected = match (self.active_editor().cloned(), &pdf) {
             (_, Some(pdf)) => pdf.read(cx).selected_text().unwrap_or_default(),
             (Some(editor), None) => {
                 if editor.read(cx).view == crate::editor::ViewMode::Reading {
+                    restore = Some(editor.entity_id());
                     self.set_view(crate::editor::ViewMode::Source, window, cx);
                 }
                 editor.read(cx).typing_input().read(cx).selection_text()
@@ -48,11 +52,15 @@ impl Shell {
                 replacement,
                 case_sensitive: false,
                 replacing,
+                restore: None,
                 _subscriptions: subscriptions,
             });
         }
         let Some(bar) = &mut self.find else { return };
         bar.replacing |= replacing;
+        if restore.is_some() {
+            bar.restore = restore;
+        }
         let (query, replacement) = (bar.query.clone(), bar.replacement.clone());
         if !selected.is_empty() && !selected.contains('\n') {
             query.update(cx, |input, cx| input.set_value(selected, window, cx));
@@ -67,7 +75,7 @@ impl Shell {
     }
 
     pub fn close_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.find = None;
+        let restore = self.find.take().and_then(|bar| bar.restore);
         if let Some(pdf) = self.front_pdf() {
             pdf.update(cx, |pdf, cx| pdf.close_find(cx));
             if let Some(pane) = self.active_pane.and_then(|i| self.panes.get(i)).copied() {
@@ -77,14 +85,62 @@ impl Shell {
             return;
         }
         if let Some(editor) = self.active_editor().cloned() {
-            editor.update(cx, |editor, cx| {
-                editor
-                    .typing_input()
-                    .update(cx, |input, cx| input.find_close(cx))
+            let input = editor.read(cx).typing_input();
+            let found = input
+                .read(cx)
+                .find_ranges(cx)
+                .and_then(|(ranges, current)| ranges.get(current).cloned());
+            input.update(cx, |input, cx| {
+                if let Some(found) = &found {
+                    input.set_selection(found.start, found.end, cx);
+                }
+                input.find_close(cx)
             });
+            let back_to_reading = restore == Some(editor.entity_id())
+                && editor.read(cx).view == crate::editor::ViewMode::Source;
+            if back_to_reading {
+                let line =
+                    found.map(|found| input.read(cx).text().offset_to_position(found.start).line);
+                self.set_view(crate::editor::ViewMode::Reading, window, cx);
+                if let Some(line) = line {
+                    editor.update(cx, |editor, cx| {
+                        editor
+                            .reading
+                            .update(cx, |reading, _| reading.scroll_to_line(line))
+                    });
+                }
+            }
         }
         self.focus_content(window, cx);
         cx.notify();
+    }
+
+    fn note_focused(&self, window: &Window, cx: &gpui::App) -> bool {
+        let Some(focused) = window.focused(cx) else {
+            return true;
+        };
+        if focused == self.focus {
+            return true;
+        }
+        if let Some(bar) = &self.find
+            && (bar.query.read(cx).focus_handle(cx) == focused
+                || bar.replacement.read(cx).focus_handle(cx) == focused)
+        {
+            return true;
+        }
+        if let Some(pdf) = self.front_pdf() {
+            return pdf.read(cx).focus_handle(cx).contains_focused(window, cx);
+        }
+        self.active_editor().is_some_and(|editor| {
+            let editor = editor.read(cx);
+            editor.typing_input().read(cx).focus_handle(cx) == focused
+                || editor.input.read(cx).focus_handle(cx) == focused
+                || editor
+                    .reading
+                    .read(cx)
+                    .focus_handle(cx)
+                    .contains_focused(window, cx)
+        })
     }
 
     fn refind(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -114,19 +170,54 @@ impl Shell {
     ) -> bool {
         let keystroke = &event.keystroke;
         let control = keystroke.modifiers.control;
-        if control && !keystroke.modifiers.alt && (keystroke.key == "f" || keystroke.key == "h") {
-            let in_note = (self.active_editor().is_some() || self.front_pdf().is_some())
-                && (self.find.is_some() || self.overlay_is_none());
-            if in_note {
-                self.open_find(keystroke.key == "h", window, cx);
+        let find = crate::actions::pressed("ui-cmd-find", keystroke);
+        let replace = crate::actions::pressed("ui-cmd-find-replace", keystroke);
+        if find || replace {
+            if self.find_target() && self.note_focused(window, cx) {
+                self.open_find(replace, window, cx);
                 return true;
             }
             return false;
         }
         let Some(bar) = &self.find else { return false };
+        let plain_f3 = keystroke.key == "f3"
+            && !control
+            && !keystroke.modifiers.alt
+            && !keystroke.modifiers.platform;
+        if plain_f3 && self.note_focused(window, cx) {
+            let forward = !keystroke.modifiers.shift;
+            if let Some(pdf) = self.front_pdf() {
+                pdf.update(cx, |pdf, cx| pdf.find_next(forward, cx));
+            } else if let Some(editor) = self.active_editor().cloned() {
+                let input = editor.read(cx).typing_input();
+                let in_text = !bar.query.read(cx).focus_handle(cx).is_focused(window)
+                    && !bar.replacement.read(cx).focus_handle(cx).is_focused(window);
+                input.update(cx, |input, cx| {
+                    input.find_next(forward, window, cx);
+                    let found = input
+                        .find_ranges(cx)
+                        .and_then(|(ranges, current)| ranges.get(current).cloned());
+                    if in_text && let Some(found) = found {
+                        input.set_selection(found.start, found.end, cx);
+                    }
+                });
+            }
+            cx.notify();
+            return true;
+        }
         let in_query = bar.query.read(cx).focus_handle(cx).is_focused(window);
         let in_replacement = bar.replacement.read(cx).focus_handle(cx).is_focused(window);
         if !in_query && !in_replacement {
+            let plain_escape = keystroke.key == "escape" && !keystroke.modifiers.modified();
+            if plain_escape
+                && matches!(self.overlay, crate::shell::Overlay::None)
+                && self.slash.is_none()
+                && !self.selbar.showing()
+                && self.note_focused(window, cx)
+            {
+                self.close_find(window, cx);
+                return true;
+            }
             return false;
         }
         if let Some(pdf) = self.front_pdf() {
@@ -178,8 +269,9 @@ impl Shell {
         true
     }
 
-    fn overlay_is_none(&self) -> bool {
-        matches!(self.overlay, crate::shell::Overlay::None)
+    pub fn find_target(&self) -> bool {
+        (self.active_editor().is_some() || self.front_pdf().is_some())
+            && (self.find.is_some() || matches!(self.overlay, crate::shell::Overlay::None))
     }
 
     pub fn render_find(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {

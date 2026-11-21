@@ -245,6 +245,7 @@ impl Demo {
             }
             VaultViewEvent::BookmarksChanged(list) => format!("bookmarks {}", list.len()),
             VaultViewEvent::RecentChanged(list) => format!("recent {}", list.len()),
+            VaultViewEvent::WriteNote => "write note".to_string(),
         };
         println!("event: {line}");
         self.log.push(line);

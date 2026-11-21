@@ -48,7 +48,7 @@ fn field_selection(
 }
 
 impl NoteEditor {
-    fn compose_selection(
+    pub(crate) fn compose_selection(
         &self,
         window: &mut Window,
         cx: &mut gpui::App,
@@ -638,7 +638,7 @@ impl Shell {
         self.show_editor_menu(event.position, None, true, window, cx);
     }
 
-    fn show_editor_menu(
+    pub(crate) fn show_editor_menu(
         &mut self,
         at: gpui::Point<gpui::Pixels>,
         field: Option<Entity<InputState>>,

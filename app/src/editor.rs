@@ -114,6 +114,7 @@ pub struct NoteEditor {
     pub load: Load,
     pub dirty: bool,
     pub view: ViewMode,
+    pub editing_view: ViewMode,
     pub conflict: bool,
     theirs: Option<Arc<conflict::Theirs>>,
     conflict_task: Option<Task<()>>,
@@ -241,6 +242,11 @@ impl NoteEditor {
             load: Load::Loading,
             dirty: false,
             view,
+            editing_view: if view == ViewMode::Source {
+                ViewMode::Source
+            } else {
+                ViewMode::Live
+            },
             conflict: false,
             theirs: None,
             conflict_task: None,

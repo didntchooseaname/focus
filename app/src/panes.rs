@@ -73,11 +73,37 @@ fn active_bar(t: &Tokens) -> Div {
         .bg(t.ink)
 }
 
+fn strip_keys(
+    bottom: bool,
+    cx: &mut Context<Shell>,
+) -> impl Fn(&gpui::KeyDownEvent, &mut Window, &mut App) + 'static {
+    cx.listener(
+        move |this: &mut Shell, event: &gpui::KeyDownEvent, window, cx| {
+            let keys = &event.keystroke;
+            if keys.modifiers.modified() {
+                return;
+            }
+            let rtl = focus_kit::Dir::current().rtl;
+            match keys.key.as_str() {
+                "right" => this.step_strip(bottom, !rtl, cx),
+                "left" => this.step_strip(bottom, rtl, cx),
+                "down" | "enter" => this.enter_strip(bottom, window, cx),
+                _ => return,
+            }
+            cx.stop_propagation();
+        },
+    )
+}
+
+fn focus_ring(t: &Tokens) -> Div {
+    div().absolute().inset_0().border_1().border_color(t.ink)
+}
+
 fn text_tab(
     t: &Tokens,
     id: impl Into<ElementId>,
     label: String,
-    active: bool,
+    (active, focused): (bool, bool),
     on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
 ) -> impl IntoElement {
     div()
@@ -94,6 +120,7 @@ fn text_tab(
         .hover(|s| s.text_color(t.ink))
         .child(label)
         .when(active, |this| this.child(active_bar(t)))
+        .when(active && focused, |this| this.child(focus_ring(t)))
         .on_click(on_click)
 }
 
@@ -149,7 +176,7 @@ impl Shell {
             .child(self.render_center(window, cx));
         if self.layout.bottom_open {
             let bottom_h = self.layout.bottom_h;
-            center = center.child(self.render_bottom(cx)).child(
+            center = center.child(self.render_bottom(window, cx)).child(
                 handle(&t, "handle-bottom", false, dragging == Some(Edge::Bottom))
                     .bottom(bottom_h - size::HANDLE / 2.)
                     .on_mouse_down(
@@ -172,7 +199,7 @@ impl Shell {
             })
             .child(center)
             .when(right_open, |this| {
-                this.child(self.render_right(right_w, cx))
+                this.child(self.render_right(right_w, window, cx))
             })
             .when(left_open, |this| {
                 this.child(
@@ -326,7 +353,12 @@ impl Shell {
         }
     }
 
-    fn render_right(&mut self, width: gpui::Pixels, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_right(
+        &mut self,
+        width: gpui::Pixels,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let t = *cx.tokens();
         let ops = self.prefs.read(cx).bool("ops.enabled");
         let tab = match self.layout.right_tab {
@@ -377,6 +409,7 @@ impl Shell {
                 .into_any_element(),
             RightTab::Ops => empty_state(&t, focus_i18n::t("ui-ops-empty")).into_any_element(),
         };
+        let strip_focused = self.right_strip.is_focused(window);
         div()
             .flex()
             .flex_col()
@@ -388,6 +421,8 @@ impl Shell {
             .child(
                 header(&t)
                     .id("right-tabs")
+                    .track_focus(&self.right_strip)
+                    .on_key_down(strip_keys(false, cx))
                     .overflow_x_scroll()
                     .px(size::S1)
                     .children(tabs.into_iter().map(|(which, label)| {
@@ -395,7 +430,7 @@ impl Shell {
                             &t,
                             SharedString::from(format!("right-{label}")),
                             label,
-                            which == tab,
+                            (which == tab, strip_focused),
                             cx.listener(move |this, _, _, cx| {
                                 this.layout.right_tab = which;
                                 cx.notify();
@@ -709,8 +744,9 @@ impl Shell {
             .into_any_element()
     }
 
-    fn render_bottom(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_bottom(&mut self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = *cx.tokens();
+        let strip_focused = self.bottom_strip.is_focused(window);
         let tab = self.layout.bottom_tab;
         let tabs = [
             (BottomTab::Journal, focus_i18n::t("ui-bottom-journal")),
@@ -731,13 +767,16 @@ impl Shell {
             .border_color(t.line)
             .child(
                 header(&t)
+                    .id("bottom-tabs")
+                    .track_focus(&self.bottom_strip)
+                    .on_key_down(strip_keys(true, cx))
                     .px(size::S1)
                     .children(tabs.into_iter().map(|(which, label)| {
                         text_tab(
                             &t,
                             SharedString::from(format!("bottom-{label}")),
                             label,
-                            which == tab,
+                            (which == tab, strip_focused),
                             cx.listener(move |this, _, _, cx| {
                                 this.layout.bottom_tab = which;
                                 cx.notify();

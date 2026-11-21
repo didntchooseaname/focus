@@ -112,6 +112,9 @@ impl NoteEditor {
                 .update(cx, |reading, cx| reading.remove_caret(cx));
         }
         self.view = view;
+        if view != ViewMode::Reading {
+            self.editing_view = view;
+        }
         self.reading.update(cx, |reading, cx| {
             reading.set_live(view == ViewMode::Live, cx)
         });

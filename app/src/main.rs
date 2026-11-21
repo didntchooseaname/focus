@@ -41,12 +41,14 @@ mod session;
 mod settings;
 mod shell;
 mod slash;
+mod tab_keys;
 mod templates;
 mod transfer;
 mod update;
 mod vault_views;
 mod versions;
 mod welcome;
+mod window_keys;
 
 use std::path::PathBuf;
 

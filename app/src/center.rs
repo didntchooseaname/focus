@@ -569,6 +569,7 @@ impl Shell {
             (Load::Loading, _) => sheet_message(&t, focus_i18n::t("ui-note-loading"), false),
             (Load::Failed(error), _) => sheet_message(&t, error.clone(), true),
             (Load::Ready, ViewMode::Reading | ViewMode::Live) => div()
+                .relative()
                 .flex_1()
                 .min_h_0()
                 .w_full()
@@ -581,8 +582,10 @@ impl Shell {
                     |this| crate::format::in_place_actions(this, editor),
                 )
                 .child(note.reading.clone())
+                .child(crate::window_keys::zoom_wheel(self.wheel_zoom.clone()))
                 .into_any_element(),
             (Load::Ready, ViewMode::Source) => div()
+                .relative()
                 .flex_1()
                 .min_h_0()
                 .h_full()
@@ -591,6 +594,7 @@ impl Shell {
                 .pt(size::S8)
                 .capture_any_mouse_down(self.editor_menu_trigger(editor, cx))
                 .child(self.editor_element(note, bounds, cx))
+                .child(crate::window_keys::zoom_wheel(self.wheel_zoom.clone()))
                 .into_any_element(),
         }
     }

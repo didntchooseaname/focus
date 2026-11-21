@@ -87,6 +87,7 @@ pub(crate) fn bind(cx: &mut App) {
         KeyBinding::new(KEYS[15].0, Dismiss, c),
         KeyBinding::new(KEYS[16].0, CopyFiles, c),
         KeyBinding::new(KEYS[17].0, PasteFiles, c),
+        KeyBinding::new("menu", ContextMenu, c),
     ]);
 }
 
@@ -136,6 +137,7 @@ struct Renaming {
     path: Arc<Path>,
     input: Entity<InputState>,
     focused: bool,
+    then_write: bool,
     _subscription: Subscription,
 }
 
@@ -378,6 +380,21 @@ impl FileTree {
             self.renaming = None;
         }
         self.rebuild(cx);
+        cx.notify();
+    }
+
+    pub fn create_note_to_name(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.create(false, None, window, cx);
+        if let Some(renaming) = self.renaming.as_mut() {
+            renaming.then_write = true;
+        }
+    }
+
+    pub fn focus_on_active(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.active.is_some() {
+            self.selected = self.active.clone();
+        }
+        window.focus(&self.focus);
         cx.notify();
     }
 
@@ -694,6 +711,7 @@ impl FileTree {
             path,
             input,
             focused: false,
+            then_write: false,
             _subscription: subscription,
         });
         self.menu = None;
@@ -704,6 +722,14 @@ impl FileTree {
         let Some(renaming) = self.renaming.take() else {
             return;
         };
+        let write = renaming.then_write;
+        self.rename_to(renaming, window, cx);
+        if write {
+            cx.emit(VaultViewEvent::WriteNote);
+        }
+    }
+
+    fn rename_to(&mut self, renaming: Renaming, window: &mut Window, cx: &mut Context<Self>) {
         let name = renaming.input.read(cx).value().trim().to_string();
         window.focus(&self.focus);
         let Some(node) = self.node(&renaming.path) else {
@@ -1819,8 +1845,11 @@ impl Render for FileTree {
                 this.open_menu(this.selected.clone(), at, cx);
             }))
             .on_action(cx.listener(|this, _: &Dismiss, window, cx| {
-                if this.renaming.take().is_some() {
+                if let Some(renaming) = this.renaming.take() {
                     window.focus(&this.focus);
+                    if renaming.then_write {
+                        cx.emit(VaultViewEvent::WriteNote);
+                    }
                 }
                 this.menu = None;
                 this.confirm = None;

@@ -174,6 +174,7 @@ impl Shell {
             }
             VaultViewEvent::BookmarksChanged(list) => self.store_vault_list(BOOKMARKS, list, cx),
             VaultViewEvent::RecentChanged(list) => self.store_vault_list(RECENT, list, cx),
+            VaultViewEvent::WriteNote => self.write_new_note(window, cx),
             VaultViewEvent::OpenWithSystem(path) => {
                 if let Some(absolute) = self.library.as_ref().map(|library| library.absolute(path))
                 {
