@@ -225,6 +225,21 @@ fn stem_len(kind: NodeKind, name: &str) -> usize {
     }
 }
 
+fn typed_name(kind: NodeKind, shown: &str, typed: &str) -> String {
+    let stem = stem_len(kind, shown);
+    let extension = &shown[stem..];
+    match typed.strip_suffix(extension) {
+        Some(once)
+            if !extension.is_empty()
+                && once.ends_with(extension)
+                && !shown[..stem].ends_with(extension) =>
+        {
+            once.to_string()
+        }
+        _ => typed.to_string(),
+    }
+}
+
 fn display_name(kind: NodeKind, name: &str) -> String {
     if kind == NodeKind::Note {
         name.strip_suffix(".md").unwrap_or(name).to_string()
@@ -748,12 +763,14 @@ impl FileTree {
     }
 
     fn rename_to(&mut self, renaming: Renaming, window: &mut Window, cx: &mut Context<Self>) {
-        let name = renaming.input.read(cx).value().trim().to_string();
+        let typed = renaming.input.read(cx).value().trim().to_string();
         window.focus(&self.focus);
         let Some(node) = self.node(&renaming.path) else {
             return;
         };
-        if name == display_name(node.kind, &node.name) {
+        let shown = display_name(node.kind, &node.name);
+        let name = typed_name(node.kind, &shown, &typed);
+        if name == shown {
             cx.notify();
             return;
         }
@@ -2052,7 +2069,7 @@ impl KeyboardMenu for FileTree {
 
 #[cfg(test)]
 mod tests {
-    use super::{contains_folded, outside, stem_len};
+    use super::{contains_folded, outside, stem_len, typed_name};
     use focus_core::NodeKind;
     use gpui::{point, px, size};
 
@@ -2064,6 +2081,21 @@ mod tests {
         assert_eq!(stem_len(NodeKind::Attachment, "archive.tar.gz"), 11);
         assert_eq!(stem_len(NodeKind::Other, ".gitignore"), 10);
         assert_eq!(stem_len(NodeKind::Other, "README"), 6);
+    }
+
+    #[test]
+    fn a_name_typed_with_its_extension_keeps_one_extension() {
+        let typed = |shown, typed| typed_name(NodeKind::Attachment, shown, typed);
+        assert_eq!(typed("report.pdf", "rapport.pdf.pdf"), "rapport.pdf");
+        assert_eq!(typed("report.pdf", "rapport.pdf"), "rapport.pdf");
+        assert_eq!(typed("report.pdf", "rapport.txt.pdf"), "rapport.txt.pdf");
+        assert_eq!(typed("archive.tar.gz", "backup.gz.gz"), "backup.gz");
+        assert_eq!(typed("README", "LISEZMOI"), "LISEZMOI");
+        assert_eq!(typed("scan.pdf.pdf", "plan.pdf.pdf"), "plan.pdf.pdf");
+        assert_eq!(
+            typed_name(NodeKind::Note, "Evidence", "Evidence.md.md"),
+            "Evidence.md.md"
+        );
     }
 
     #[test]
