@@ -218,12 +218,13 @@ impl Media {
         );
         let source = source.to_string();
         let task = cx.background_spawn(async move {
-            let svg = focus_md::mermaid::render_svg(&source, &theme).map_err(|e| e.to_string())?;
-            let raster =
-                focus_md::mermaid::rasterize(&svg, scale, &[]).map_err(|e| e.to_string())?;
-            let rgba = RgbaImage::from_raw(raster.width, raster.height, raster.rgba)
-                .ok_or_else(|| "incomplete image buffer".to_string())?;
-            Ok::<_, String>((rgba, svg.width, svg.height, svg.diagram, svg.links))
+            let svg = focus_md::mermaid::render_svg(&source, &theme)?;
+            let raster = focus_md::mermaid::rasterize(&svg, scale, &[])?;
+            let rgba =
+                RgbaImage::from_raw(raster.width, raster.height, raster.rgba).ok_or_else(|| {
+                    focus_md::mermaid::Error::Render("incomplete image buffer".into())
+                })?;
+            Ok::<_, focus_md::mermaid::Error>((rgba, svg.width, svg.height, svg.diagram, svg.links))
         });
         cx.spawn(async move |this, cx| {
             let result = task.await;
@@ -245,13 +246,23 @@ impl Media {
                             cx,
                         );
                     }
-                    Err(message) => this.store(key, Slot::Failed(message), 0, cx),
+                    Err(error) => this.store(key, Slot::Failed(diagram_error(&error)), 0, cx),
                 }
             });
         })
         .detach();
         Slot::Loading
     }
+}
+
+fn diagram_error(error: &focus_md::mermaid::Error) -> String {
+    use focus_md::mermaid::Error;
+    let (key, detail) = match error {
+        Error::Syntax(detail) => ("reading-diagram-syntax", detail),
+        Error::Unsupported(kind) => ("reading-diagram-unsupported", kind),
+        Error::Render(detail) => ("reading-diagram-failed", detail),
+    };
+    focus_i18n::t_args(key, &[("detail", focus_i18n::Arg::Str(detail))])
 }
 
 fn hex(color: gpui::Hsla) -> String {

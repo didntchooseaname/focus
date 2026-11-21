@@ -3,11 +3,12 @@ use std::rc::Rc;
 use focus_kit::Flow as _;
 use focus_kit::segments::{Segment, Segments};
 use focus_kit::{
-    ActiveTokens, Button, ButtonKind, Checkbox, Chip, Dir, Icon, Tokens, Type, icon, size,
+    ActiveTokens, Button, ButtonKind, Checkbox, Chip, Dir, Icon, IconButton, Tokens, Type, icon,
+    size,
 };
 use gpui::{
     AnyElement, Context, FontWeight, InteractiveElement, IntoElement, MouseButton, MouseDownEvent,
-    ParentElement, SharedString, StatefulInteractiveElement, Styled, Window, div, img,
+    ParentElement, Pixels, SharedString, StatefulInteractiveElement, Styled, Window, div, img,
     prelude::FluentBuilder, px,
 };
 
@@ -19,7 +20,7 @@ use crate::model::{
 };
 use crate::text::Base;
 
-fn dir_of(nodes: &[Node]) -> Dir {
+pub(super) fn dir_of(nodes: &[Node]) -> Dir {
     fn first(node: &Node) -> Option<&str> {
         match node {
             Node::Paragraph(rich) | Node::Heading { rich, .. } => Some(&rich.text),
@@ -94,11 +95,7 @@ impl ReadingView {
                 .into_any_element();
         }
         let gap = px((self.typesetting.base * 0.8).round());
-        let gutter = if matches!(entry.node, Node::Mermaid { .. }) {
-            px(0.)
-        } else {
-            px(self.gutter())
-        };
+        let gutter = px(self.gutter());
         if parts > 1
             && let Node::Code {
                 label,
@@ -142,16 +139,25 @@ impl ReadingView {
             node => self.render_node(node, key_item, item, &base, &t, window, cx),
         };
         let above = super::inplace::above::render(self, item, &t, window, cx);
+        let ringed = matches!(
+            self.focus_target,
+            Some(super::walk::Target::Diagram(i) | super::walk::Target::Image(i)) if i == item
+        );
         div()
             .w_full()
             .px(gutter)
             .pb(gap)
             .children(above)
-            .child(body)
+            .child(
+                div()
+                    .relative()
+                    .child(body)
+                    .when(ringed, |this| this.child(super::walk::focus_ring(&t))),
+            )
             .into_any_element()
     }
 
-    fn heading_base(&self, level: u8, t: &Tokens) -> Base {
+    pub(super) fn heading_base(&self, level: u8, t: &Tokens) -> Base {
         if self.compact {
             return Base {
                 weight: FontWeight::SEMIBOLD,
@@ -168,14 +174,39 @@ impl ReadingView {
             4 => (text, 14.5, 22., t.ink),
             _ => (text, 14.5, 22., t.ink_2),
         };
+        let k = self.reading_scale();
         Base {
             family,
-            size: px(size_px),
-            line_height: px(line),
+            size: px(size_px * k),
+            line_height: px((line * k).round()),
             color,
             weight: FontWeight::SEMIBOLD,
             ..self.base(t)
         }
+    }
+
+    pub(super) fn reading_scale(&self) -> f32 {
+        if self.compact {
+            1.
+        } else {
+            self.typesetting.base / 15.
+        }
+    }
+
+    pub(super) fn heading_space(&self, level: u8) -> (f32, f32) {
+        let (top, bottom) = match level {
+            1 => (40., 12.),
+            2 => (32., 8.),
+            3 => (24., 6.),
+            _ => (20., 4.),
+        };
+        let k = self.reading_scale();
+        ((top * k).round(), (bottom * k).round())
+    }
+
+    pub(super) fn code_metrics(&self) -> (Pixels, Pixels) {
+        let k = self.reading_scale();
+        (px(13. * k), px((21. * k).round()))
     }
 
     pub(super) fn render_heading(
@@ -196,7 +227,7 @@ impl ReadingView {
                 .into_any_element();
         }
         let line = f32::from(base.line_height);
-        let (top, bottom) = heading_space(level);
+        let (top, bottom) = self.heading_space(level);
         let folded = self.folded.contains(&item);
         let hidden_lines = built
             .headings
@@ -215,6 +246,7 @@ impl ReadingView {
         let group: SharedString = format!("heading-{item}").into();
         let dir = Dir::current().of_text(&rich.text);
         let outside = self.gutter() >= FOLD_ROOM;
+        let focused = self.focus_target == Some(super::walk::Target::Fold(item));
         let toggle = div()
             .absolute()
             .top(px(top))
@@ -223,28 +255,30 @@ impl ReadingView {
             .flow_row()
             .items_center()
             .justify_center()
-            .cursor_pointer()
             .child(
                 div()
-                    .id(("fold", item))
-                    .size(px(18.))
-                    .flow_row()
-                    .items_center()
-                    .justify_center()
-                    .rounded(size::RADIUS)
-                    .text_color(t.ink_3)
-                    .when(!folded, |this| {
+                    .relative()
+                    .when(!folded && !focused, |this| {
                         this.invisible().group_hover(group.clone(), |s| s.visible())
                     })
-                    .hover(move |s| s.bg(t.card_2))
-                    .child(icon(
-                        if folded {
-                            dir.forward()
-                        } else {
-                            Icon::CHEVRON_DOWN
-                        },
-                        size::ICON_DENSE,
-                    )),
+                    .child(
+                        IconButton::new(
+                            ("fold", item),
+                            if folded {
+                                dir.forward()
+                            } else {
+                                Icon::CHEVRON_DOWN
+                            },
+                            focus_i18n::t(if folded {
+                                "reading-unfold-section"
+                            } else {
+                                "reading-fold-section"
+                            }),
+                        )
+                        .tab_stop(false)
+                        .dense(true),
+                    )
+                    .when(focused, |this| this.child(super::walk::focus_ring(t))),
             );
         let toggle = if outside {
             dir.start(toggle, px(-FOLD_ROOM))
@@ -338,7 +372,7 @@ impl ReadingView {
                     .flex_col()
                     .gap(size::S2)
                     .children(sections.iter().enumerate().map(|(at, section)| {
-                        let (top, bottom) = heading_space(3);
+                        let (top, bottom) = self.heading_space(3);
                         div()
                             .flex()
                             .flex_col()
@@ -419,10 +453,22 @@ impl ReadingView {
                                 .items_center()
                                 .child(
                                     self.zone(
-                                        div().flex_none().cursor_pointer().child(
-                                            Checkbox::new(("task", line as usize), done)
-                                                .forced(focus_kit::Forced::Live),
-                                        ),
+                                        div()
+                                            .relative()
+                                            .flex_none()
+                                            .cursor_pointer()
+                                            .child(
+                                                Checkbox::new(("task", line as usize), done)
+                                                    .forced(focus_kit::Forced::Live),
+                                            )
+                                            .when(
+                                                self.focus_target
+                                                    == Some(super::walk::Target::Task {
+                                                        item,
+                                                        line,
+                                                    }),
+                                                |this| this.child(super::walk::focus_ring(t)),
+                                            ),
                                         super::Zone::Task(line),
                                     ),
                                 )
@@ -510,8 +556,8 @@ impl ReadingView {
                     rich,
                     &Base {
                         family: base.mono.clone(),
-                        size: px(13.),
-                        line_height: px(21.),
+                        size: self.code_metrics().0,
+                        line_height: self.code_metrics().1,
                         ..base.clone()
                     },
                     t,
@@ -566,10 +612,12 @@ impl ReadingView {
                     .flex()
                     .flex_col()
                     .bg(t.bg_2)
-                    .border_1()
+                    .border_t_1()
+                    .border_b_1()
+                    .map(|this| dir.border_end(this, t.line))
                     .border_color(t.line)
                     .child(
-                        dir.start(div().absolute(), px(-1.))
+                        dir.start(div().absolute(), px(0.))
                             .top(px(-1.))
                             .bottom(px(-1.))
                             .w(px(2.))
@@ -577,6 +625,12 @@ impl ReadingView {
                     )
                     .child(
                         dir.flow(div().id(("callout", (item << 16) | *key as usize)))
+                            .relative()
+                            .when(
+                                self.focus_target
+                                    == Some(super::walk::Target::Callout { item, key: *key }),
+                                |this| this.child(super::walk::focus_ring(t)),
+                            )
                             .items_center()
                             .gap(size::S2)
                             .min_h(px(32.))
@@ -664,6 +718,12 @@ impl ReadingView {
                     .child(
                         div()
                             .id(("details", (item << 16) | *key as usize))
+                            .relative()
+                            .when(
+                                self.focus_target
+                                    == Some(super::walk::Target::Details { item, key: *key }),
+                                |this| this.child(super::walk::focus_ring(t)),
+                            )
                             .flow_row()
                             .items_center()
                             .gap(size::S2)
@@ -754,7 +814,16 @@ impl ReadingView {
             Node::Table {
                 align, head, rows, ..
             } => {
-                let (head_base, cell_base) = self.table_bases(base, t);
+                let (mut head_base, mut cell_base) = self.table_bases(base, t);
+                let han = |rich: &Rich| rich.text.chars().any(super::is_han);
+                for (cells_han, b) in [
+                    (head.iter().any(han), &mut head_base),
+                    (rows.iter().flatten().any(han), &mut cell_base),
+                ] {
+                    if cells_han {
+                        b.line_height = b.line_height.max(px((f32::from(b.size) * 1.75).round()));
+                    }
+                }
                 let first = super::table::first_ord(head, rows);
                 let key = (item, first);
                 let menu = super::inplace::table::menu(self, key, t, cx);
@@ -767,51 +836,56 @@ impl ReadingView {
                     .unwrap_or_else(|| self.room());
                 let widths = columns.widths(room);
                 let total: f32 = widths.iter().sum();
+                let dir = head
+                    .iter()
+                    .chain(rows.iter().flatten())
+                    .find(|r| r.text.chars().any(char::is_alphabetic))
+                    .map_or(Dir::current(), |r| Dir::current().of_text(&r.text));
                 let cell = |rich: &Rich, column: usize, header: bool| {
-                    let d = div()
+                    let align = match align.get(column) {
+                        Some(focus_md::Align::Right) if dir.rtl => Some(gpui::TextAlign::Left),
+                        Some(focus_md::Align::Right) => Some(gpui::TextAlign::Right),
+                        Some(focus_md::Align::Center) => Some(gpui::TextAlign::Center),
+                        Some(focus_md::Align::Left) if dir.rtl => Some(gpui::TextAlign::Right),
+                        Some(focus_md::Align::Left) => Some(gpui::TextAlign::Left),
+                        _ => None,
+                    };
+                    div()
                         .flex_none()
                         .w(px(widths
                             .get(column)
                             .copied()
                             .unwrap_or(super::table::CELL_PAD)))
                         .px(size::S3)
-                        .py(size::S2);
-                    let d = match align.get(column) {
-                        Some(focus_md::Align::Right) => d.text_right(),
-                        Some(focus_md::Align::Center) => d.text_center(),
-                        _ => d,
-                    };
-                    d.child(self.text(
-                        key_item,
-                        rich,
-                        if header { &head_base } else { &cell_base },
-                        t,
-                    ))
+                        .py(size::S2)
+                        .child(self.text_aligned(
+                            key_item,
+                            rich,
+                            if header { &head_base } else { &cell_base },
+                            t,
+                            align,
+                        ))
                 };
                 let rooms = self.table_room.clone();
-                let dir = head
-                    .iter()
-                    .chain(rows.iter().flatten())
-                    .find(|r| r.text.chars().any(char::is_alphabetic))
-                    .map_or(Dir::current(), |r| Dir::current().of_text(&r.text));
                 let row = || dir.flow(div()).w_full();
-                let scroll = dir.rtl.then(|| {
+                let scroll = {
                     let mut tables = self.table_scroll.borrow_mut();
                     let (handle, overflowing) = tables
                         .entry(key)
                         .or_insert_with(|| (gpui::ScrollHandle::new(), false));
                     let now = total > room;
-                    if now && !*overflowing {
+                    if dir.rtl && now && !*overflowing {
                         handle.set_offset(gpui::point(px(-1e6), px(0.)));
                     }
                     *overflowing = now;
                     handle.clone()
-                });
-                div()
+                };
+                let table = div()
                     .id(("table", (item << 16) | first as usize))
                     .flex()
                     .overflow_x_scroll()
-                    .when_some(scroll, |this, handle| this.track_scroll(&handle))
+                    .map(sideways_only)
+                    .track_scroll(&scroll)
                     .w_full()
                     .children(menu)
                     .child(
@@ -852,7 +926,15 @@ impl ReadingView {
                                         cells.iter().enumerate().map(|(i, r)| cell(r, i, false)),
                                     )
                             })),
-                    )
+                    );
+                div()
+                    .relative()
+                    .w_full()
+                    .child(table)
+                    .child(focus_kit::horizontal_scrollbar(
+                        ("table-scrollbar", (item << 16) | first as usize),
+                        scroll,
+                    ))
                     .into_any_element()
             }
             Node::Embed {
@@ -892,8 +974,8 @@ impl ReadingView {
                         rich,
                         &Base {
                             family: base.mono.clone(),
-                            size: px(13.),
-                            line_height: px(21.),
+                            size: self.code_metrics().0,
+                            line_height: self.code_metrics().1,
                             color: t.ink_2,
                             ..base.clone()
                         },
@@ -1115,8 +1197,8 @@ impl ReadingView {
         let base = Base {
             family: self.typesetting.code_font.clone(),
             mono: self.typesetting.code_font.clone(),
-            size: px(13.),
-            line_height: px(21.),
+            size: self.code_metrics().0,
+            line_height: self.code_metrics().1,
             color: t.ink_body,
             weight: FontWeight::NORMAL,
             italic: false,
@@ -1161,6 +1243,12 @@ impl ReadingView {
             )
         };
         let bare = self.compact && code.text.lines().count() < 4;
+        let copy_focused = first
+            && self.focus_target
+                == Some(super::walk::Target::Copy {
+                    item,
+                    ord: code.ord,
+                });
         let copies: Vec<AnyElement> = match &decorated {
             Some(d) => vec![
                 copy("reading-copy-resolved", 1, d.shown(true).text.clone()).into_any_element(),
@@ -1201,6 +1289,7 @@ impl ReadingView {
             .rounded(size::RADIUS)
             .cursor_pointer()
             .hover(move |s| s.bg(t.card_2))
+            .active(move |s| s.bg(t.card_3))
             .when(label.is_empty(), |this| {
                 this.invisible().group_hover(group.clone(), |s| s.visible())
             })
@@ -1243,6 +1332,7 @@ impl ReadingView {
                     div()
                         .id(("code-body", id))
                         .overflow_x_scroll()
+                        .map(sideways_only)
                         .px(size::S3)
                         .py(size::S2)
                         .child(
@@ -1297,6 +1387,7 @@ impl ReadingView {
                                 .rounded(size::RADIUS)
                                 .cursor_pointer()
                                 .hover(move |s| s.bg(t.card_2))
+                                .active(move |s| s.bg(t.card_3))
                                 .on_mouse_down(
                                     MouseButton::Left,
                                     cx.listener(move |this, event: &MouseDownEvent, window, cx| {
@@ -1322,12 +1413,14 @@ impl ReadingView {
                         .child(div().flex_1())
                         .child(
                             div()
+                                .relative()
                                 .flow_row()
                                 .gap(size::S1)
-                                .when(copied.is_none(), |this| {
+                                .when(copied.is_none() && !copy_focused, |this| {
                                     this.invisible().group_hover(group.clone(), |s| s.visible())
                                 })
-                                .children(copies),
+                                .children(copies)
+                                .when(copy_focused, |this| this.child(super::walk::focus_ring(t))),
                         )
                         .children(
                             decorated
@@ -1359,19 +1452,33 @@ impl ReadingView {
                         .children(view_toggle),
                 )
             })
-            .child(
+            .child({
+                let scroll = self.code_scroll.borrow_mut().entry(id).or_default().clone();
                 div()
-                    .id(("code-body", id))
-                    .overflow_x_scroll()
-                    .px(size::S4)
-                    .when(first, |this| this.pt(size::S3))
-                    .when(last, |this| this.pb(size::S3))
+                    .relative()
                     .child(
                         div()
-                            .whitespace_nowrap()
-                            .child(self.text(key_item, shown, &base, t)),
-                    ),
-            )
+                            .id(("code-body", id))
+                            .flex()
+                            .overflow_x_scroll()
+                            .map(sideways_only)
+                            .track_scroll(&scroll)
+                            .px(size::S4)
+                            .when(first, |this| this.pt(size::S3))
+                            .when(last, |this| this.pb(size::S3))
+                            .child(
+                                div()
+                                    .flex_none()
+                                    .min_w_full()
+                                    .whitespace_nowrap()
+                                    .child(self.text(key_item, shown, &base, t)),
+                            ),
+                    )
+                    .child(focus_kit::horizontal_scrollbar(
+                        ("code-scrollbar", id),
+                        scroll,
+                    ))
+            })
             .into_any_element()
     }
 
@@ -1529,16 +1636,7 @@ impl ReadingView {
                     .text_color(t.ink_3)
                     .child(focus_i18n::t("reading-image-loading"))
                     .into_any_element(),
-                Slot::Failed(message) => div()
-                    .flow_row()
-                    .items_center()
-                    .gap(size::S2)
-                    .py(size::S2)
-                    .ui_sm()
-                    .text_color(t.danger)
-                    .child(icon(Icon::IMAGE, size::ICON_DENSE))
-                    .child(div().flex_1().min_w_0().child(focus_kit::ellipsis(message)))
-                    .into_any_element(),
+                Slot::Failed(message) => error_line(Icon::IMAGE, message, t),
             }
         };
         match &image.caption {
@@ -1576,6 +1674,7 @@ impl ReadingView {
             Slot::Ready { label, .. } => label.clone(),
             _ => String::new(),
         };
+        let drawn = matches!(slot, Slot::Ready { .. });
         let body: AnyElement = match slot {
             Slot::Ready {
                 image,
@@ -1584,7 +1683,7 @@ impl ReadingView {
                 links,
                 ..
             } => {
-                let room = self.figure_room() - 2. - 48.;
+                let room = self.room() - 2. - 48.;
                 let shown = width.min(room).max(1.);
                 let figure = self.diagram_figure(image, &links, shown, width, height, item, t);
                 div()
@@ -1608,18 +1707,19 @@ impl ReadingView {
                 .flex_col()
                 .gap(size::S2)
                 .p(size::S4)
-                .child(div().ui_sm().text_color(t.danger).child(message))
+                .child(error_line(Icon::WORKFLOW, message, t))
                 .child(
                     div()
                         .id(("mermaid-src", item))
                         .overflow_x_scroll()
+                        .map(sideways_only)
                         .p(size::S3)
                         .bg(t.bg_2)
                         .border_1()
                         .border_color(t.line)
                         .font_family(self.typesetting.code_font.clone())
-                        .text_size(px(13.))
-                        .line_height(px(21.))
+                        .text_size(self.code_metrics().0)
+                        .line_height(self.code_metrics().1)
                         .text_color(t.ink_body)
                         .whitespace_nowrap()
                         .child(source.to_string()),
@@ -1649,15 +1749,17 @@ impl ReadingView {
                     )
                     .child(div().mono_sm().text_color(t.ink_3).child(label))
                     .child(div().flex_1())
-                    .child(control(
-                        Button::new(("zoom", item), focus_i18n::t("reading-zoom"))
-                            .tab_stop(false)
-                            .kind(ButtonKind::Ghost)
-                            .icon(Icon::MAXIMIZE)
-                            .on_click(cx.listener(move |_, _, _, cx| {
-                                cx.emit(ReadingEvent::Zoom(zoom_source.clone()))
-                            })),
-                    ))
+                    .when(drawn, |this| {
+                        this.child(control(
+                            Button::new(("zoom", item), focus_i18n::t("reading-zoom"))
+                                .tab_stop(false)
+                                .kind(ButtonKind::Ghost)
+                                .icon(Icon::MAXIMIZE)
+                                .on_click(cx.listener(move |_, _, _, cx| {
+                                    cx.emit(ReadingEvent::Zoom(zoom_source.clone()))
+                                })),
+                        ))
+                    })
                     .child({
                         let which = (item << 18) | 0xFFFF << 2 | 3;
                         let done = self.copied == Some(which);
@@ -1778,15 +1880,32 @@ impl ReadingView {
     }
 }
 
-pub(super) const FOLD_ROOM: f32 = 24.;
+pub(super) const FOLD_ROOM: f32 = 28.;
 
-pub(super) fn heading_space(level: u8) -> (f32, f32) {
-    match level {
-        1 => (40., 12.),
-        2 => (32., 8.),
-        3 => (24., 6.),
-        _ => (20., 4.),
-    }
+pub(super) fn sideways_only<E: Styled>(mut element: E) -> E {
+    element.style().restrict_scroll_to_axis = Some(true);
+    element
+}
+
+pub(super) fn error_line(glyph: Icon, message: impl Into<SharedString>, t: &Tokens) -> AnyElement {
+    let dir = Dir::current();
+    dir.flow(div())
+        .items_start()
+        .gap(size::S2)
+        .py(size::S2)
+        .ui_sm()
+        .text_color(t.ink_2)
+        .child(
+            div()
+                .flex_none()
+                .h(px(18.))
+                .flex()
+                .items_center()
+                .text_color(t.danger)
+                .child(icon(glyph, size::ICON_DENSE)),
+        )
+        .child(div().flex_1().min_w_0().child(message.into()))
+        .into_any_element()
 }
 
 fn control(element: impl IntoElement) -> gpui::Div {

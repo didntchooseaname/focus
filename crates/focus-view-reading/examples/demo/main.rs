@@ -396,6 +396,7 @@ impl Demo {
                 }
                 ReadingEvent::ToggleTask(line) => println!("event: toggle task on line {line}"),
                 ReadingEvent::Zoom(_) => println!("event: zoom diagram"),
+                ReadingEvent::StartWriting => println!("event: start writing"),
             },
         )
         .detach();
@@ -730,7 +731,7 @@ impl Demo {
                 self.figure = *on;
                 let width =
                     on.then(|| typesetting().measure + f32::from(focus_kit::size::SHEET_PAD) * 2.);
-                self.full.update(cx, |v, cx| v.set_figure_width(width, cx));
+                self.full.update(cx, |v, cx| v.set_sheet_width(width, cx));
             }
             Step::Decorate(on) => {
                 let decoration: Option<Arc<dyn CodeDecoration>> =

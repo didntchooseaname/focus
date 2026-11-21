@@ -137,15 +137,19 @@ impl ReadingView {
             .clone();
         let titles: Vec<String> = tabs.iter().map(|tab| tab.title.clone()).collect();
         let group: SharedString = format!("tabs-{id}").into();
+        let strip_focused = focus.is_focused(window);
         let strip = dir
             .flow(div())
             .id(("tabs-strip", id))
             .track_focus(&focus)
+            .relative()
+            .when(strip_focused, |this| this.child(super::walk::focus_ring(t)))
             .flex_none()
             .h(px(32.))
             .border_b_1()
             .border_color(t.line)
             .overflow_x_scroll()
+            .map(super::blocks::sideways_only)
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .on_key_down(cx.listener({
                 let titles = titles.clone();
@@ -190,6 +194,7 @@ impl ReadingView {
                     .cursor_pointer()
                     .text_color(if on { t.ink } else { t.ink_3 })
                     .when(!on, |this| this.hover(move |s| s.text_color(t.ink_2)))
+                    .active(move |s| s.bg(t.card_3))
                     .child(title)
                     .when(on, |this| {
                         this.child(Dir::across(div().absolute()).bottom_0().h(px(1.)).bg(t.ink))

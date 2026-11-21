@@ -1144,12 +1144,12 @@ impl Shell {
                 edit_in_place: prefs.bool("editor.edit_in_place"),
             }
         };
-        let figure_width = self.figure_width(cx);
+        let sheet_width = self.sheet_width(cx);
         let handles = self.prefs.read(cx).bool("editor.block_handles");
         let editor = cx.new(|cx| {
             let mut editor = NoteEditor::new(meta, library.clone(), options, window, cx);
             editor.loose = loose;
-            editor.set_figure_width(figure_width, cx);
+            editor.set_sheet_width(sheet_width, cx);
             editor.set_block_handles(handles, cx);
             editor
         });
@@ -1408,7 +1408,7 @@ impl Shell {
         cx.notify();
     }
 
-    pub fn figure_width(&self, cx: &gpui::App) -> f32 {
+    pub fn sheet_width(&self, cx: &gpui::App) -> f32 {
         self.prefs.read(cx).number("appearance.measure") as f32 + 2. * f32::from(size::SHEET_PAD)
     }
 
@@ -1688,13 +1688,13 @@ impl Shell {
             | "appearance.reading_font"
             | "appearance.code_font" => {
                 let typesetting = self.typesetting(cx);
-                let figure_width = self.figure_width(cx);
+                let sheet_width = self.sheet_width(cx);
                 for tab in self.all_tabs() {
                     let reading = tab.read(cx).reading.clone();
                     reading.update(cx, |reading, cx| {
                         reading.set_typesetting(typesetting.clone(), cx)
                     });
-                    tab.update(cx, |editor, cx| editor.set_figure_width(figure_width, cx));
+                    tab.update(cx, |editor, cx| editor.set_sheet_width(sheet_width, cx));
                 }
             }
             "appearance.editor_font" => {

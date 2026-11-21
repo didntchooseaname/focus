@@ -167,4 +167,15 @@ pub fn bind(cx: &mut gpui::App) {
         gpui::KeyBinding::new("ctrl-end", view::NoteEnd, Some(CONTEXT)),
     ]);
     cx.bind_keys(view::in_place_bindings());
+    let walk = Some("FocusReading && walk");
+    let live = Some("FocusReading && live");
+    cx.bind_keys([
+        gpui::KeyBinding::new("tab", view::FocusNext, walk),
+        gpui::KeyBinding::new("shift-tab", view::FocusPrevious, walk),
+        gpui::KeyBinding::new("enter", view::ActivateFocused, walk),
+        gpui::KeyBinding::new("space", view::ActivateFocused, walk),
+        gpui::KeyBinding::new("escape", view::LeaveFocus, walk),
+        gpui::KeyBinding::new("alt-enter", view::FollowLinkAtCaret, live),
+        gpui::KeyBinding::new("ctrl-enter", view::ToggleAtCaret, live),
+    ]);
 }

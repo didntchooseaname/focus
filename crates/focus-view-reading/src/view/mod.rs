@@ -11,7 +11,8 @@ use gpui::{
     AnyElement, AppContext as _, Context, Entity, EventEmitter, FocusHandle, FontWeight,
     InteractiveElement, IntoElement, KeyDownEvent, ListAlignment, ListOffset, ListState,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement, Pixels, Point,
-    Render, Styled, Window, actions, div, list, prelude::FluentBuilder, px,
+    Render, StatefulInteractiveElement, Styled, Window, actions, div, list, prelude::FluentBuilder,
+    px,
 };
 
 use super::media::{Media, media};
@@ -30,6 +31,7 @@ pub(crate) mod query;
 mod table;
 mod tabs;
 mod viewer;
+mod walk;
 
 pub(crate) use inplace::bindings as in_place_bindings;
 pub use live::{LiveBlock, LiveKind, LiveOpen};
@@ -49,7 +51,6 @@ struct Row {
 const COPIED_FOR: Duration = Duration::from_millis(1500);
 const REVEAL_INNER_FRAMES: u8 = 8;
 const AUTOSCROLL_RAMP: f32 = 80.;
-const SCROLLBAR_ROOM: f32 = 12.;
 const AUTOSCROLL_SLOW: f32 = 125.;
 const AUTOSCROLL_FAST: f32 = 1625.;
 const AUTOSCROLL_MAX_STEP: f32 = 0.1;
@@ -62,7 +63,13 @@ actions!(
         PageUp,
         PageDown,
         NoteStart,
-        NoteEnd
+        NoteEnd,
+        FocusNext,
+        FocusPrevious,
+        ActivateFocused,
+        FollowLinkAtCaret,
+        ToggleAtCaret,
+        LeaveFocus
     ]
 );
 
@@ -79,6 +86,7 @@ pub enum ReadingEvent {
     },
     ToggleTask(u32),
     Zoom(String),
+    StartWriting,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -289,6 +297,7 @@ pub struct ReadingView {
     decorated: RefCell<HashMap<BlockKey, Option<Rc<DecoratedCode>>>>,
     tables: RefCell<HashMap<BlockKey, Rc<table::Columns>>>,
     table_scroll: RefCell<HashMap<BlockKey, (gpui::ScrollHandle, bool)>>,
+    code_scroll: RefCell<HashMap<usize, gpui::ScrollHandle>>,
     table_room: Rc<RefCell<HashMap<BlockKey, f32>>>,
     table_menu: inplace::table::Menus,
     picker: Option<picker::Picker>,
@@ -296,7 +305,7 @@ pub struct ReadingView {
     drawn_code: RefCell<Vec<DrawnCode>>,
     viewer: Option<viewer::Viewer>,
     width: f32,
-    figure_width: Option<f32>,
+    sheet_width: Option<f32>,
     diagram_hits: Rc<RefCell<Vec<DiagramHit>>>,
     hovered_diagram: Option<(usize, usize)>,
     drawn_images: RefCell<Vec<(Arc<gpui::RenderImage>, f32, f32)>>,
@@ -311,6 +320,7 @@ pub struct ReadingView {
     note_field: Option<Entity<gpui_component::input::InputState>>,
     editing: Option<inplace::Editing>,
     in_place_frame: Option<inplace::Frame>,
+    focus_target: Option<walk::Target>,
     in_place_press: Option<usize>,
     in_place_text: Option<gpui_component::Rope>,
     prop_menu: Option<properties::PropMenu>,
@@ -400,6 +410,7 @@ impl ReadingView {
             table_room: Rc::new(RefCell::new(HashMap::new())),
             table_menu: Default::default(),
             table_scroll: RefCell::new(HashMap::new()),
+            code_scroll: RefCell::default(),
             picker: None,
             code_variables: None,
             viewer: None,
@@ -416,13 +427,14 @@ impl ReadingView {
             note_field: None,
             editing: None,
             in_place_frame: None,
+            focus_target: None,
             in_place_press: None,
             in_place_text: None,
             prop_menu: None,
             prop_refused: None,
             prop_typing: None,
             width: 0.,
-            figure_width: None,
+            sheet_width: None,
             diagram_hits: Rc::new(RefCell::new(Vec::new())),
             hovered_diagram: None,
             handles: true,
@@ -1073,9 +1085,9 @@ impl ReadingView {
         }
     }
 
-    pub fn set_figure_width(&mut self, width: Option<f32>, cx: &mut Context<Self>) {
-        if self.figure_width != width {
-            self.figure_width = width;
+    pub fn set_sheet_width(&mut self, width: Option<f32>, cx: &mut Context<Self>) {
+        if self.sheet_width != width {
+            self.sheet_width = width;
             self.tables.borrow_mut().clear();
             self.list.reset(self.rows.len() + 1);
             cx.notify();
@@ -1083,9 +1095,15 @@ impl ReadingView {
     }
 
     fn gutter(&self) -> f32 {
-        match self.figure_width {
-            Some(width) if !self.compact => ((width - self.typesetting.measure) / 2.).max(0.),
-            _ => 0.,
+        let Some(sheet) = self.sheet_width.filter(|_| !self.compact) else {
+            return 0.;
+        };
+        let pad = ((sheet - self.typesetting.measure) / 2.).max(0.);
+        let framed = sheet + 2.;
+        if self.width <= 0. || self.width >= framed {
+            ((self.width - framed) / 2.).max(0.).round() + 1. + pad
+        } else {
+            f32::from(size::SHEET_PAD_NARROW)
         }
     }
 
@@ -1093,15 +1111,20 @@ impl ReadingView {
         if self.compact || self.width <= 0. {
             self.typesetting.measure
         } else {
-            self.width - SCROLLBAR_ROOM - self.gutter() * 2.
+            (self.width - self.gutter() * 2.).max(1.)
         }
     }
 
-    fn figure_room(&self) -> f32 {
-        if self.compact || self.width <= 0. {
-            self.typesetting.measure
-        } else {
-            self.width - SCROLLBAR_ROOM
+    fn follow_width(&mut self, width: f32) {
+        if width == self.width {
+            return;
+        }
+        let gutter = self.gutter();
+        self.width = width;
+        if !self.compact && self.gutter() != gutter {
+            self.tables.borrow_mut().clear();
+            let count = self.list.item_count();
+            self.list.splice(0..count, count);
         }
     }
 
@@ -1247,6 +1270,7 @@ impl ReadingView {
     }
 
     fn on_down(&mut self, event: &MouseDownEvent, window: &mut Window, cx: &mut Context<Self>) {
+        self.focus_target = None;
         if self.in_open_editor(event.position) {
             self.down_here = false;
             return;
@@ -1586,40 +1610,14 @@ impl ReadingView {
             .map(|hit| (TextKey::default(), 0, hit.goal))
             .or_else(|| self.link_at(event.position));
         match link {
-            Some((key, _, LinkGoal::Footnote(_))) => {
-                self.follow_footnote(key.0.checked_sub(1).map(|i| i as usize), cx)
-            }
-            Some((
-                _,
-                _,
-                LinkGoal::Note {
-                    id,
-                    anchor: Some(anchor),
-                },
-            )) if !event.modifiers.control
-                && let Some(line) = self
-                    .built
-                    .as_ref()
-                    .filter(|b| b.note == Some(id))
-                    .and_then(|b| {
-                        b.headings
-                            .iter()
-                            .find(|h| crate::model::heading_matches(&h.text, &anchor))
-                    })
-                    .map(|h| h.line) =>
-            {
-                self.scroll_to_line(line)
-            }
-            Some((_, _, goal)) => {
+            Some((key, _, goal)) => {
                 if matches!(goal, LinkGoal::Attachment(_))
                     && let Some(page) = self.link_page(event.position)
                 {
                     cx.emit(LinkPage(page));
                 }
-                cx.emit(ReadingEvent::OpenLink {
-                    goal,
-                    new_tab: event.modifiers.control,
-                })
+                let item = key.0.checked_sub(1).map(|i| i as usize);
+                self.follow(item, goal, event.modifiers.control, cx)
             }
             None => return false,
         }
@@ -1641,6 +1639,17 @@ impl ReadingView {
     }
 
     fn text(&self, key_item: u32, rich: &Rich, base: &Base, t: &Tokens) -> AnyElement {
+        self.text_aligned(key_item, rich, base, t, None)
+    }
+
+    fn text_aligned(
+        &self,
+        key_item: u32,
+        rich: &Rich,
+        base: &Base,
+        t: &Tokens,
+        align: Option<gpui::TextAlign>,
+    ) -> AnyElement {
         let key = (key_item, rich.ord);
         let with_cursor;
         let rich = match self.cursor {
@@ -1661,6 +1670,13 @@ impl ReadingView {
         };
         let hovered = self.hovered.filter(|(k, _)| *k == key).map(|(_, i)| i);
         let runs = runs(rich, base, t, hovered);
+        let focused_link = match self.focus_target {
+            Some(walk::Target::Link { key: k, link, .. }) if k == key => {
+                rich.links.get(link as usize).map(|l| l.range.clone())
+            }
+            _ => None,
+        };
+        let paints = crate::text::paints(rich, base, t, hovered).outline(focused_link, t.ink);
         let selection = match &decor {
             Some(decor) => decor.selection.clone(),
             None => self.selection_range(key, rich.text.len()),
@@ -1671,42 +1687,45 @@ impl ReadingView {
         } else {
             base.line_height
         };
-        focus_kit::Dir::current()
-            .align_text(div(), &rich.text)
-            .w_full()
-            .min_w_0()
-            .font_family(base.family.clone())
-            .text_size(base.size)
-            .line_height(line_height)
-            .text_color(base.color)
-            .child(
-                RichText::new(
-                    key,
-                    Arc::new(rich.clone()),
-                    runs,
-                    selection,
-                    t.sel,
-                    self.registry.clone(),
-                )
-                .editing(
-                    match &decor {
-                        Some(d) => d.map.clone(),
-                        None => self.click_map(rich),
-                    },
-                    decor.as_ref().and_then(|d| d.caret),
-                    decor.as_ref().and_then(|d| d.marked.clone()),
-                    decor.map(|d| d.found).unwrap_or_default(),
-                ),
+        match align {
+            Some(align) => div().text_align(align),
+            None => focus_kit::Dir::current().align_text(div(), &rich.text),
+        }
+        .w_full()
+        .min_w_0()
+        .font_family(base.family.clone())
+        .text_size(base.size)
+        .line_height(line_height)
+        .text_color(base.color)
+        .child(
+            RichText::new(
+                key,
+                Arc::new(rich.clone()),
+                runs,
+                selection,
+                t.sel,
+                self.registry.clone(),
             )
-            .into_any_element()
+            .editing(
+                match &decor {
+                    Some(d) => d.map.clone(),
+                    None => self.click_map(rich),
+                },
+                decor.as_ref().and_then(|d| d.caret),
+                decor.as_ref().and_then(|d| d.marked.clone()),
+                decor.map(|d| d.found).unwrap_or_default(),
+            )
+            .paints(paints),
+        )
+        .into_any_element()
     }
 
     fn render_header(&self, built: &Built, t: &Tokens, cx: &mut Context<Self>) -> AnyElement {
         let header = &built.header;
         let title = Base {
             family: focus_kit::typography::DISPLAY.into(),
-            size: px(34.),
-            line_height: px(40.),
+            size: px(34. * self.reading_scale()),
+            line_height: px((40. * self.reading_scale()).round()),
             color: t.ink,
             weight: FontWeight::SEMIBOLD,
             ..self.base(t)
@@ -1717,7 +1736,7 @@ impl ReadingView {
             .w_full()
             .pt(if self.compact { size::S6 } else { size::S8 })
             .pb(size::S6)
-            .when(!header.crumbs.is_empty(), |this| {
+            .when(!self.live && !header.crumbs.is_empty(), |this| {
                 this.child(
                     div()
                         .pb(size::S2)
@@ -1740,6 +1759,23 @@ impl ReadingView {
                             let separator = (rank > 0)
                                 .then(|| div().px(size::S1).child("/").into_any_element());
                             separator.into_iter().chain([crumb])
+                        })),
+                )
+            })
+            .when(self.live && !header.crumbs.is_empty(), |this| {
+                this.child(
+                    div()
+                        .pb(size::S2)
+                        .flow_row()
+                        .flex_wrap()
+                        .ui_sm()
+                        .invisible()
+                        .children(header.crumbs.iter().enumerate().flat_map(|(rank, folder)| {
+                            let separator = (rank > 0)
+                                .then(|| div().px(size::S1).child("/").into_any_element());
+                            separator
+                                .into_iter()
+                                .chain([div().child(folder.clone()).into_any_element()])
                         })),
                 )
             })
@@ -1789,7 +1825,40 @@ impl ReadingView {
                     )
                 },
             )
-            .children(inplace::props::add_row(self, built, t, cx))
+            .when(
+                self.open_in_header(built) != Some(live::LiveKind::Properties),
+                |this| {
+                    this.children(inplace::props::add_chip(self, t, cx).map(|chip| {
+                        div()
+                            .relative()
+                            .h_0()
+                            .child(div().absolute().top(px(1.)).start_at(px(0.)).child(chip))
+                    }))
+                },
+            )
+            .when(
+                !self.live && !self.compact && built.items.is_empty(),
+                |this| {
+                    let (hover, ink) = (t.card_2, t.ink);
+                    this.child(
+                        div().pt(size::S6).flow_row().child(
+                            div()
+                                .id("reading-empty")
+                                .px(size::S1)
+                                .rounded(size::RADIUS)
+                                .ui()
+                                .text_color(t.ink_3)
+                                .cursor_pointer()
+                                .hover(move |s| s.bg(hover).text_color(ink))
+                                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                                .on_click(
+                                    cx.listener(|_, _, _, cx| cx.emit(ReadingEvent::StartWriting)),
+                                )
+                                .child(focus_i18n::t("reading-empty-note")),
+                        ),
+                    )
+                },
+            )
             .into_any_element()
     }
 }
@@ -1806,7 +1875,8 @@ impl Render for ReadingView {
         self.drawn_code.borrow_mut().clear();
         self.sync_picker(window, cx);
         self.pdf_documents.borrow_mut().drawn.clear();
-        self.width = f32::from(self.list.viewport_bounds().size.width);
+        self.follow_width(f32::from(self.list.viewport_bounds().size.width));
+        let drawn_width = self.width;
         if !self.compact {
             self.keep_open_block_visible(window);
             self.reveal_inner_line(cx);
@@ -1827,7 +1897,16 @@ impl Render for ReadingView {
         let entity = cx.entity().downgrade();
         div()
             .id("reading")
-            .key_context(CONTEXT)
+            .key_context({
+                let mut context = gpui::KeyContext::default();
+                context.add(CONTEXT);
+                if self.live {
+                    context.add("live");
+                } else if !self.caret_shown() {
+                    context.add("walk");
+                }
+                context
+            })
             .track_focus(&self.focus)
             .relative()
             .size_full()
@@ -1858,6 +1937,24 @@ impl Render for ReadingView {
                         offset: 0,
                     });
                     cx.notify();
+                }
+            }))
+            .on_action(
+                cx.listener(|this, _: &FocusNext, window, cx| this.focus_step(true, window, cx)),
+            )
+            .on_action(
+                cx.listener(|this, _: &FocusPrevious, window, cx| {
+                    this.focus_step(false, window, cx)
+                }),
+            )
+            .on_action(
+                cx.listener(|this, _: &ActivateFocused, window, cx| this.activate(window, cx)),
+            )
+            .on_action(cx.listener(|this, _: &FollowLinkAtCaret, _, cx| this.follow_at_caret(cx)))
+            .on_action(cx.listener(|this, _: &ToggleAtCaret, _, cx| this.toggle_at_caret(cx)))
+            .on_action(cx.listener(|this, _: &LeaveFocus, window, cx| {
+                if !this.leave_focus(window, cx) {
+                    cx.propagate();
                 }
             }))
             .on_action(cx.listener(|this, _: &PageUp, _, cx| this.page_key(-1., cx)))
@@ -1898,11 +1995,7 @@ impl Render for ReadingView {
                     self.list.clone(),
                     cx.processor(|this, row: usize, window, cx| {
                         let body = this.render_row(row, window, cx);
-                        let body = this.live_hover(row, body, cx);
-                        focus_kit::Dir::current()
-                            .pad_end(div().w_full(), px(SCROLLBAR_ROOM))
-                            .child(body)
-                            .into_any_element()
+                        this.live_hover(row, body, cx)
                     }),
                 )
                 .size_full()
@@ -1910,8 +2003,21 @@ impl Render for ReadingView {
                 .into_any_element()
             })
             .when(!self.compact, |this| {
-                this.bg(t.bg)
-                    .child(focus_kit::scrollbar("reading-scrollbar", self.list.clone()))
+                this.child(focus_kit::scrollbar("reading-scrollbar", self.list.clone()))
+                    .child(
+                        gpui::canvas(
+                            move |bounds, window, _| {
+                                if f32::from(bounds.size.width) != drawn_width {
+                                    window.refresh();
+                                }
+                            },
+                            |_, _, _, _| {},
+                        )
+                        .absolute()
+                        .top_0()
+                        .left_0()
+                        .size_full(),
+                    )
             })
             .children(self.parked_editor())
             .children(self.landing_line(&t))
@@ -1971,10 +2077,12 @@ impl ReadingView {
         if event.keystroke.key != "escape" {
             return;
         }
-        if self.viewer.take().is_some()
-            || self.picker.take().is_some()
-            || self.footnote_tip.take().is_some()
-        {
+        let picker = self.picker.take().is_some();
+        if picker {
+            window.focus(&self.focus);
+        }
+        let left = !picker && self.leave_focus(window, cx);
+        if self.viewer.take().is_some() || picker || left || self.footnote_tip.take().is_some() {
             cx.stop_propagation();
             cx.notify();
         }
@@ -2111,7 +2219,7 @@ fn word_at(text: &str, offset: usize) -> Range<usize> {
     }
 }
 
-fn is_han(c: char) -> bool {
+pub(super) fn is_han(c: char) -> bool {
     matches!(u32::from(c), 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF | 0x20000..=0x2FA1F)
 }
 

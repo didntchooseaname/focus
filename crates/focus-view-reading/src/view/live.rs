@@ -172,12 +172,7 @@ impl ReadingView {
             .min();
         let height = self.drawn_height(&lines);
         self.editor_height.set(height);
-        let viewport = self.list.viewport_bounds();
-        let end_shown = self
-            .list
-            .bounds_for_item(self.rows.len())
-            .is_some_and(|b| b.bottom() <= viewport.bottom() + px(1.));
-        self.open_floor = if end_shown { height } else { 0. };
+        self.open_floor = height;
         self.open = Some(OpenBlock { lines, editor });
         self.pending_open_lines = None;
         self.relayout_below(from, cx);
@@ -702,6 +697,7 @@ impl ReadingView {
         let editor = div()
             .relative()
             .w_full()
+            .min_h(px(self.open_floor))
             .bg(t.bg_2)
             .child(open.editor.clone())
             .child(rule)
@@ -718,11 +714,7 @@ impl ReadingView {
                 .left_0()
                 .size_full(),
             );
-        div()
-            .w_full()
-            .min_h(px(self.open_floor))
-            .child(editor)
-            .into_any_element()
+        div().w_full().child(editor).into_any_element()
     }
 
     pub(super) fn inner_slot(
@@ -797,7 +789,7 @@ impl ReadingView {
     pub(super) fn block_insets(&self, node: &Node, row: &Row) -> (f32, f32) {
         let gap = (self.typesetting.base * 0.8).round();
         match node {
-            Node::Heading { level, .. } => super::blocks::heading_space(*level),
+            Node::Heading { level, .. } => self.heading_space(*level),
             Node::Code { .. } if row.part + 1 < row.parts => (0., 0.),
             _ => (0., gap),
         }

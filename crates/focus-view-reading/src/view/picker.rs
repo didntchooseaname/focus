@@ -397,6 +397,14 @@ impl ReadingView {
         }
     }
 
+    fn dismiss_picker(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<Picker> {
+        let picker = self.close_picker(cx);
+        if picker.is_some() {
+            window.focus(&self.focus);
+        }
+        picker
+    }
+
     fn close_picker(&mut self, cx: &mut Context<Self>) -> Option<Picker> {
         let names: Vec<String> = self
             .picker
@@ -498,7 +506,7 @@ impl ReadingView {
                 });
             }
             None => {
-                self.close_picker(cx);
+                self.dismiss_picker(window, cx);
                 cx.emit(VariableMenu::NewEngagement);
             }
         }
@@ -506,7 +514,7 @@ impl ReadingView {
     }
 
     fn choose(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(picker) = self.close_picker(cx) {
+        if let Some(picker) = self.dismiss_picker(window, cx) {
             match picker.kind {
                 PickerKind::Language => cx.emit(LanguageChosen {
                     line: picker.line,
@@ -590,7 +598,7 @@ impl ReadingView {
                 }
             }
             (MenuFocus::Filter | MenuFocus::Elsewhere, "escape") => {
-                self.close_picker(cx);
+                self.dismiss_picker(window, cx);
             }
             (MenuFocus::Filter, "tab") if !back && picker.is_variables() => {
                 let query = picker.input.read(cx).value().to_string();
@@ -894,8 +902,8 @@ impl ReadingView {
                                     .kind(ButtonKind::Ghost)
                                     .icon(Icon::PLUS)
                                     .on_click(cx.listener(
-                                        |this, _, _, cx| {
-                                            this.close_picker(cx);
+                                        |this, _, window, cx| {
+                                            this.dismiss_picker(window, cx);
                                             cx.emit(VariableMenu::NewEngagement);
                                             cx.notify();
                                         },

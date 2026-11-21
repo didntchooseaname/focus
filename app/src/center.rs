@@ -178,15 +178,13 @@ impl Shell {
                     Some(Pane::Base(id)) => self.base_page(id).map(|page| page.view.clone()),
                     _ => None,
                 };
-                let body: AnyElement = match (&base, &editor) {
-                    (Some(view), _) => div()
-                        .flex_1()
-                        .min_h_0()
-                        .w_full()
-                        .max_w(measure)
-                        .h_full()
-                        .child(view.clone())
-                        .into_any_element(),
+                let overlay: Option<AnyElement> = match (&base, &editor) {
+                    (Some(view), _) => Some(view.clone().into_any_element()),
+                    (None, Some(editor)) => self.render_reading(editor, cx),
+                    (None, None) => None,
+                };
+                let body: AnyElement = match (&overlay, &editor) {
+                    (Some(_), _) => div().into_any_element(),
                     (None, None) => sheet_message(&t, focus_i18n::t("ui-tab-none"), false),
                     (None, Some(editor)) => self.render_note(editor, measure, &bounds, cx),
                 };
@@ -220,11 +218,19 @@ impl Shell {
                         .bg(t.bg)
                 };
                 div()
-                    .flow_row()
+                    .relative()
                     .size_full()
-                    .when(framed, |this| this.child(side(&t)))
-                    .child(sheet)
-                    .when(framed, |this| this.child(side(&t)))
+                    .child(
+                        div()
+                            .flow_row()
+                            .size_full()
+                            .when(framed, |this| this.child(side(&t)))
+                            .child(sheet)
+                            .when(framed, |this| this.child(side(&t))),
+                    )
+                    .children(overlay.map(|overlay| {
+                        div().absolute().top_0().left_0().size_full().child(overlay)
+                    }))
                     .into_any_element()
             };
         let conflict = match &editor {
@@ -598,6 +604,31 @@ impl Shell {
             )
     }
 
+    fn render_reading(
+        &self,
+        editor: &Entity<NoteEditor>,
+        cx: &Context<Self>,
+    ) -> Option<AnyElement> {
+        let note = editor.read(cx);
+        if !matches!(note.load, Load::Ready) || note.view == ViewMode::Source {
+            return None;
+        }
+        Some(
+            div()
+                .relative()
+                .size_full()
+                .capture_any_mouse_down(self.editor_menu_trigger(editor, cx))
+                .on_mouse_down(MouseButton::Right, self.in_place_menu_trigger(editor, cx))
+                .when(
+                    note.view == ViewMode::Live && note.edit_in_place(),
+                    |this| crate::format::in_place_actions(this, editor),
+                )
+                .child(note.reading.clone())
+                .child(crate::window_keys::zoom_wheel(self.wheel_zoom.clone()))
+                .into_any_element(),
+        )
+    }
+
     fn render_note(
         &self,
         editor: &Entity<NoteEditor>,
@@ -610,22 +641,7 @@ impl Shell {
         match (&note.load, note.view) {
             (Load::Loading, _) => sheet_message(&t, focus_i18n::t("ui-note-loading"), false),
             (Load::Failed(error), _) => sheet_message(&t, error.clone(), true),
-            (Load::Ready, ViewMode::Reading | ViewMode::Live) => div()
-                .relative()
-                .flex_1()
-                .min_h_0()
-                .w_full()
-                .max_w(measure)
-                .h_full()
-                .capture_any_mouse_down(self.editor_menu_trigger(editor, cx))
-                .on_mouse_down(MouseButton::Right, self.in_place_menu_trigger(editor, cx))
-                .when(
-                    note.view == ViewMode::Live && note.edit_in_place(),
-                    |this| crate::format::in_place_actions(this, editor),
-                )
-                .child(note.reading.clone())
-                .child(crate::window_keys::zoom_wheel(self.wheel_zoom.clone()))
-                .into_any_element(),
+            (Load::Ready, ViewMode::Reading | ViewMode::Live) => div().into_any_element(),
             (Load::Ready, ViewMode::Source) => div()
                 .relative()
                 .flex_1()

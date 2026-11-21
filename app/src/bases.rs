@@ -32,10 +32,10 @@ impl Shell {
             self.show_pane(Pane::Base(id), window, cx);
             return;
         }
-        let (typesetting, figure_width) = (self.typesetting(cx), self.figure_width(cx));
+        let (typesetting, sheet_width) = (self.typesetting(cx), self.sheet_width(cx));
         let view = cx.new(|cx| {
             let mut view = ReadingView::new(typesetting, cx);
-            view.set_figure_width(Some(figure_width), cx);
+            view.set_sheet_width(Some(sheet_width), cx);
             view.set_base_page(path.to_path_buf(), resolver, cx);
             view
         });
@@ -59,7 +59,7 @@ impl Shell {
                     };
                     this.show_link_preview(note, *position, cx);
                 }
-                ReadingEvent::ToggleTask(_) => {}
+                ReadingEvent::ToggleTask(_) | ReadingEvent::StartWriting => {}
             },
         );
         self.next_base += 1;

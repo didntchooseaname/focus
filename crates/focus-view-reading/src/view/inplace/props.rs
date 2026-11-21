@@ -1,14 +1,16 @@
 use std::ops::Range;
 
-use focus_kit::{Button, ButtonKind, Icon, Tokens, size};
-use gpui::{AnyElement, Context, IntoElement, ParentElement, Styled, div};
+use focus_kit::{Flow as _, Icon, Tokens, Type as _, icon, size};
+use gpui::{
+    AnyElement, Context, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    StatefulInteractiveElement, Styled, div, px,
+};
 use gpui_component::{Rope, RopeExt as _};
 
 use super::super::ReadingView;
 use super::super::live::{LiveKind, LiveOpen};
 use super::super::properties::FieldError;
 use super::{At, Edit, Key};
-use crate::model::Built;
 
 pub(crate) fn key(at: &At, key: &Key) -> Option<Edit> {
     let key = match key {
@@ -528,33 +530,43 @@ fn rule(source: &str, caret: usize, selection: Range<usize>, key: &Key) -> Optio
     }
 }
 
-pub(in crate::view) fn add_row(
+pub(in crate::view) fn add_chip(
     view: &ReadingView,
-    _built: &Built,
-    _t: &Tokens,
+    t: &Tokens,
     cx: &mut Context<ReadingView>,
 ) -> Option<AnyElement> {
     if !view.live || view.in_place.is_none() {
         return None;
     }
+    let (hover, pressed) = (t.card_2, t.card_3);
+    let ink = t.ink;
     Some(
         div()
-            .pt(size::S2)
-            .child(
-                Button::new("reading-props-add", focus_i18n::t("reading-props-add"))
-                    .tab_stop(false)
-                    .kind(ButtonKind::Ghost)
-                    .icon(Icon::PLUS)
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        let Some(field) = this.in_place.clone() else {
-                            return;
-                        };
-                        let text = field.read(cx).text().clone();
-                        let (edit, open) = new_property(&text);
-                        this.apply(edit, window, cx);
-                        cx.emit(open);
-                    })),
-            )
+            .id("reading-props-add")
+            .flow_row()
+            .flex_none()
+            .items_center()
+            .gap(size::S1)
+            .h(px(22.))
+            .px(size::S2)
+            .rounded(size::RADIUS)
+            .ui_sm()
+            .text_color(t.ink_3)
+            .cursor_pointer()
+            .hover(move |s| s.bg(hover).text_color(ink))
+            .active(move |s| s.bg(pressed))
+            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .on_click(cx.listener(|this, _, window, cx| {
+                let Some(field) = this.in_place.clone() else {
+                    return;
+                };
+                let text = field.read(cx).text().clone();
+                let (edit, open) = new_property(&text);
+                this.apply(edit, window, cx);
+                cx.emit(open);
+            }))
+            .child(icon(Icon::PLUS, size::ICON_DENSE))
+            .child(focus_i18n::t("reading-props-add"))
             .into_any_element(),
     )
 }

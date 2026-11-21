@@ -160,7 +160,9 @@ pub(crate) fn to_event(event: &ReadingEvent) -> Option<OpsEvent> {
             target: None,
             position: *position,
         }),
-        ReadingEvent::Hover { .. } | ReadingEvent::ToggleTask(_) => None,
+        ReadingEvent::Hover { .. } | ReadingEvent::ToggleTask(_) | ReadingEvent::StartWriting => {
+            None
+        }
     }
 }
 

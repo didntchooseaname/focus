@@ -762,9 +762,12 @@ fn host_text(rich: &mut Rich, text: &str, marks: Marks, host: &dyn crate::HostLi
     push(rich, &text[at..], marks);
 }
 
+pub const EXTERNAL_MARK: char = '\u{2003}';
+
 fn inlines(ctx: &mut Ctx, rich: &mut Rich, items: &[Inline], marks: Marks) {
     for inline in items {
         let shown = rich.text.len();
+        let mut external = false;
         match &inline.kind {
             InlineKind::Text(text) => match ctx
                 .host_links
@@ -841,6 +844,7 @@ fn inlines(ctx: &mut Ctx, rich: &mut Rich, items: &[Inline], marks: Marks) {
                     );
                 }
                 let end = rich.text.len();
+                external = matches!(goal, LinkGoal::External(_));
                 rich.links.push(LinkSpan {
                     range: start..end,
                     goal,
@@ -899,9 +903,8 @@ fn inlines(ctx: &mut Ctx, rich: &mut Rich, items: &[Inline], marks: Marks) {
                         let start = rich.text.len();
                         push(
                             rich,
-                            &format!("[{}]", i + 1),
+                            &(i + 1).to_string(),
                             Marks {
-                                muted: true,
                                 link: Some(index),
                                 ..marks
                             },
@@ -926,7 +929,32 @@ fn inlines(ctx: &mut Ctx, rich: &mut Rich, items: &[Inline], marks: Marks) {
             InlineKind::Html(html) => html_inline(rich, html, marks),
         }
         map_inline(ctx, rich, inline, shown..rich.text.len());
+        if external {
+            let mark = rich.text.len();
+            push(rich, &EXTERNAL_MARK.to_string(), marks);
+            map_mark(ctx, rich, inline, mark..rich.text.len());
+        }
     }
+}
+
+fn map_mark(ctx: &Ctx, rich: &mut Rich, inline: &Inline, shown: Range<usize>) {
+    use crate::srcmap::{Markup, Piece};
+    let Some(origin) = ctx.origin else { return };
+    let source =
+        inline.source.start.saturating_sub(origin)..inline.source.end.saturating_sub(origin);
+    let map = Arc::make_mut(rich.map.get_or_insert_with(Default::default));
+    map.pieces.push(Piece {
+        shown: shown.clone(),
+        source: source.end..source.end,
+        exact: false,
+    });
+    map.markup.push(Markup {
+        element: source,
+        inserts: Vec::new(),
+        hides: Some(shown),
+        line: false,
+        value: false,
+    });
 }
 
 fn map_inline(ctx: &Ctx, rich: &mut Rich, inline: &Inline, shown: Range<usize>) {
@@ -2096,6 +2124,12 @@ pub fn base_error_text(error: &focus_bases::BasesError) -> String {
             subject,
         } => {
             use focus_bases::Feature as F;
+            if let (F::Formula, Some(name)) = (feature, subject.strip_prefix("formula.")) {
+                return focus_i18n::t_args(
+                    "reading-base-unknown-formula",
+                    &[("name", name.into())],
+                );
+            }
             let key = match feature {
                 F::Function => "reading-base-unsupported-function",
                 F::Method => "reading-base-unsupported-method",

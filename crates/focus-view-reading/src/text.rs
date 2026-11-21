@@ -201,9 +201,6 @@ fn styled(
     }
     if marks.code {
         family = &base.mono;
-        if marks.token.is_none() && base.family != base.mono {
-            background = Some(t.card_2);
-        }
     }
     if let Some(token) = marks.token {
         let (c, w, i) = token_style(token, t, base.tinted);
@@ -228,33 +225,24 @@ fn styled(
             background = Some(t.ink_2);
             color = t.btn_ink;
         }
-        Some(crate::Decor::Unresolved) => {
-            underline = Some(UnderlineStyle {
-                thickness: px(1.),
-                color: Some(t.warn),
-                wavy: true,
-            });
-        }
+        Some(crate::Decor::Unresolved) => {}
         None => {}
     }
     if let Some(index) = marks.link {
-        let unresolved = matches!(
-            rich.links.get(index as usize).map(|l| &l.goal),
-            Some(LinkGoal::Unresolved(_))
-        );
+        let goal = rich.links.get(index as usize).map(|l| &l.goal);
         let hovered = hovered_link == Some(index);
-        color = if unresolved { t.ink_3 } else { t.ink };
-        underline = Some(UnderlineStyle {
-            thickness: px(1.),
-            color: Some(if hovered {
-                t.ink
-            } else if unresolved {
-                t.ink_4
-            } else {
-                t.line_2
-            }),
-            wavy: unresolved,
-        });
+        match goal {
+            Some(LinkGoal::Unresolved(_)) => color = t.ink_3,
+            Some(LinkGoal::Footnote(_)) => color = gpui::transparent_black(),
+            _ => {
+                color = t.ink;
+                underline = Some(UnderlineStyle {
+                    thickness: px(1.),
+                    color: Some(if hovered { t.ink } else { t.line_2 }),
+                    wavy: false,
+                });
+            }
+        }
     }
     TextRun {
         len,
@@ -280,6 +268,73 @@ pub struct RichText {
     caret: Option<(usize, Hsla)>,
     marked: Option<Range<usize>>,
     found: Vec<(Range<usize>, Hsla)>,
+    paints: Paints,
+}
+
+#[derive(Clone, Default)]
+pub struct Paints {
+    size: Pixels,
+    text: Option<Font>,
+    boxes: Vec<(Range<usize>, Font, Hsla)>,
+    dotted: Vec<(Range<usize>, Hsla)>,
+    icons: Vec<(usize, Hsla)>,
+    raised: Vec<(Range<usize>, Font, Hsla)>,
+    outline: Option<(Range<usize>, Hsla)>,
+}
+
+impl Paints {
+    pub fn outline(mut self, range: Option<Range<usize>>, color: Hsla) -> Self {
+        self.outline = range.map(|r| (r, color));
+        self
+    }
+}
+
+pub fn paints(rich: &Rich, base: &Base, t: &Tokens, hovered_link: Option<u16>) -> Paints {
+    let font = |family: &SharedString, weight: FontWeight| Font {
+        family: family.clone(),
+        weight,
+        ..gpui::font(family.clone())
+    };
+    let mut out = Paints {
+        size: base.size,
+        text: Some(font(&base.family, base.weight)),
+        ..Paints::default()
+    };
+    for (range, marks) in &rich.marks {
+        if marks.code && marks.token.is_none() && base.family != base.mono {
+            out.boxes
+                .push((range.clone(), font(&base.mono, base.weight), t.card_2));
+        }
+        if marks.decor == Some(crate::Decor::Unresolved) {
+            out.dotted.push((range.clone(), t.warn));
+        }
+        let Some(index) = marks.link else { continue };
+        let hovered = hovered_link == Some(index);
+        match rich.links.get(index as usize).map(|l| &l.goal) {
+            Some(LinkGoal::Unresolved(_)) => out
+                .dotted
+                .push((range.clone(), if hovered { t.ink } else { t.ink_4 })),
+            Some(LinkGoal::Footnote(_)) => out.raised.push((
+                range.clone(),
+                font(&base.family, base.weight),
+                if hovered { t.ink } else { t.ink_2 },
+            )),
+            _ => {}
+        }
+    }
+    for (index, link) in rich.links.iter().enumerate() {
+        if matches!(link.goal, LinkGoal::External(_))
+            && rich
+                .text
+                .get(link.range.end..)
+                .is_some_and(|rest| rest.starts_with(crate::model::EXTERNAL_MARK))
+        {
+            let hovered = hovered_link == Some(index as u16);
+            out.icons
+                .push((link.range.end, if hovered { t.ink } else { t.ink_3 }));
+        }
+    }
+    out
 }
 
 impl RichText {
@@ -303,7 +358,13 @@ impl RichText {
             caret: None,
             marked: None,
             found: Vec::new(),
+            paints: Paints::default(),
         }
+    }
+
+    pub fn paints(mut self, paints: Paints) -> Self {
+        self.paints = paints;
+        self
     }
 
     pub fn editing(
@@ -321,7 +382,7 @@ impl RichText {
     }
 }
 
-const CARET_WIDTH: f32 = 1.5;
+const CARET_WIDTH: f32 = 1.;
 
 impl Element for RichText {
     type RequestLayoutState = ();
@@ -412,8 +473,10 @@ impl Element for RichText {
                 window.paint_quad(quad(point(bounds.left(), end.y), end.x));
             }
         }
+        self.paint_boxes(bounds, window);
         self.styled
             .paint(id, inspector, bounds, state, prepaint, window, cx);
+        self.paint_marks(bounds, window, cx);
         let layout = self.styled.layout();
         let line = layout.line_height();
         if let Some(range) = self.marked.clone().filter(|r| r.start < r.end)
@@ -434,13 +497,159 @@ impl Element for RichText {
         if let Some((offset, color)) = self.caret
             && let Some(at) = layout.position_for_index(offset.min(self.rich.text.len()))
         {
+            let scale = window.scale_factor();
+            let x = (f32::from(at.x) * scale).round() / scale;
+            let width = (CARET_WIDTH * scale).round().max(1.) / scale;
             window.paint_quad(gpui::fill(
-                Bounds::new(
-                    point(at.x - px(CARET_WIDTH / 2.), at.y),
-                    gpui::size(px(CARET_WIDTH), line),
-                ),
+                Bounds::new(point(px(x), at.y), gpui::size(px(width), line)),
                 color,
             ));
+        }
+    }
+}
+
+impl RichText {
+    fn line_spans(
+        &self,
+        range: &Range<usize>,
+        bounds: Bounds<Pixels>,
+    ) -> Vec<(Point<Pixels>, Pixels)> {
+        let layout = self.styled.layout();
+        let line = layout.line_height();
+        let (Some(start), Some(end)) = (
+            layout.position_for_index(range.start),
+            layout.position_for_index(range.end),
+        ) else {
+            return Vec::new();
+        };
+        if (end.y - start.y).abs() < px(1.) {
+            return vec![(point(start.x.min(end.x), start.y), start.x.max(end.x))];
+        }
+        let mut spans = vec![(start, bounds.right())];
+        let mut y = start.y + line;
+        while y + px(0.5) < end.y {
+            spans.push((point(bounds.left(), y), bounds.right()));
+            y += line;
+        }
+        spans.push((point(bounds.left(), end.y), end.x));
+        spans
+    }
+
+    fn glyph_band(&self, font: &Font, window: &Window) -> (Pixels, Pixels) {
+        let system = window.text_system();
+        let id = system.resolve_font(font);
+        let size = self.paints.size;
+        let (ascent, descent) = (system.ascent(id, size), system.descent(id, size).abs());
+        let line = self.styled.layout().line_height();
+        ((line - ascent - descent) / 2., ascent + descent)
+    }
+
+    fn paint_boxes(&self, bounds: Bounds<Pixels>, window: &mut Window) {
+        for (range, font, color) in &self.paints.boxes {
+            let (top, height) = self.glyph_band(font, window);
+            for (from, to) in self.line_spans(range, bounds) {
+                window.paint_quad(
+                    gpui::fill(
+                        Bounds::from_corners(
+                            point(from.x - px(4.), from.y + top - px(1.)),
+                            point(to + px(4.), from.y + top + height + px(1.)),
+                        ),
+                        *color,
+                    )
+                    .corner_radii(px(2.)),
+                );
+            }
+        }
+    }
+
+    fn paint_marks(&self, bounds: Bounds<Pixels>, window: &mut Window, cx: &mut App) {
+        let layout = self.styled.layout();
+        let line = layout.line_height();
+        let baseline = self.paints.text.as_ref().map(|font| {
+            let (top, _) = self.glyph_band(font, window);
+            let system = window.text_system();
+            top + system.ascent(system.resolve_font(font), self.paints.size)
+        });
+        if let Some(baseline) = baseline {
+            for (range, color) in &self.paints.dotted {
+                for (from, to) in self.line_spans(range, bounds) {
+                    let y = from.y + baseline + px(3.);
+                    let mut x = from.x;
+                    while x < to {
+                        window.paint_quad(gpui::fill(
+                            Bounds::new(point(x, y), gpui::size(px(1.), px(1.))),
+                            *color,
+                        ));
+                        x += px(2.);
+                    }
+                }
+            }
+        }
+        if let Some((range, color)) = &self.paints.outline {
+            for (from, to) in self.line_spans(range, bounds) {
+                window.paint_quad(gpui::outline(
+                    Bounds::from_corners(
+                        point(from.x - px(2.), from.y),
+                        point(to + px(2.), from.y + line),
+                    ),
+                    *color,
+                    gpui::BorderStyle::Solid,
+                ));
+            }
+        }
+        let icon_size = px(12.);
+        for (at, color) in &self.paints.icons {
+            let Some(origin) = layout.position_for_index(*at) else {
+                continue;
+            };
+            let glyph = window.text_system().shape_line(
+                focus_kit::Icon::EXTERNAL.0.into(),
+                icon_size,
+                &[TextRun {
+                    len: focus_kit::Icon::EXTERNAL.0.len(),
+                    font: gpui::font(focus_kit::icons::FAMILY),
+                    color: *color,
+                    background_color: None,
+                    underline: None,
+                    strikethrough: None,
+                }],
+                None,
+            );
+            let room = self.paints.size - icon_size;
+            let _ = glyph.paint(
+                point(origin.x + room / 2., origin.y + (line - icon_size) / 2.),
+                icon_size,
+                window,
+                cx,
+            );
+        }
+        for (range, font, color) in &self.paints.raised {
+            let Some(origin) = layout.position_for_index(range.start) else {
+                continue;
+            };
+            let Some(text) = self.rich.text.get(range.clone()) else {
+                continue;
+            };
+            let size = self.paints.size * 0.75;
+            let shaped = window.text_system().shape_line(
+                SharedString::from(text.to_string()),
+                size,
+                &[TextRun {
+                    len: text.len(),
+                    font: font.clone(),
+                    color: *color,
+                    background_color: None,
+                    underline: None,
+                    strikethrough: None,
+                }],
+                None,
+            );
+            let _ = shaped.paint(
+                point(origin.x, origin.y - self.paints.size * 0.3),
+                line,
+                window,
+                cx,
+            );
         }
     }
 }

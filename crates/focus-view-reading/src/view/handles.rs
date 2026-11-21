@@ -142,14 +142,19 @@ impl ReadingView {
         None
     }
 
-    fn first_line(&self, node: &Node) -> f32 {
+    fn handle_start(&self) -> f32 {
+        let gutter = self.gutter();
+        let pad = f32::from(size::SHEET_PAD);
+        if gutter >= pad {
+            gutter - pad + 1.
+        } else {
+            (gutter - HIT).max(0.)
+        }
+    }
+
+    fn first_line(&self, node: &Node, t: &Tokens) -> f32 {
         match node {
-            Node::Heading { level, .. } => match level {
-                1 => 32.,
-                2 => 28.,
-                3 => 24.,
-                _ => 22.,
-            },
+            Node::Heading { level, .. } => f32::from(self.heading_base(*level, t).line_height),
             Node::Paragraph(_) | Node::List { .. } | Node::Quote(_) | Node::Ref(_) => {
                 (self.typesetting.base * self.typesetting.leading).round()
             }
@@ -180,15 +185,10 @@ impl ReadingView {
         let background = dragged.map(|at| {
             let (_, bottom) = self.block_insets(&item.node, row);
             let gutter = self.gutter();
-            let shift = if focus_kit::Dir::current().rtl {
-                px(super::SCROLLBAR_ROOM)
-            } else {
-                px(0.)
-            };
             match at.inset {
                 Some(inset) => div()
                     .absolute()
-                    .left(inset.left() - shift)
+                    .left(inset.left())
                     .top(inset.top())
                     .w(inset.size.width)
                     .h(inset.size.height)
@@ -217,12 +217,13 @@ impl ReadingView {
                 ),
                 None => (
                     self.block_insets(&item.node, row).0,
-                    self.first_line(&item.node),
+                    self.first_line(&item.node, t),
                 ),
             };
             let held = dragged.is_some();
             let pointed = held || self.handle_pointed;
-            let place = focus_kit::Dir::current().start(div().absolute(), px(0.));
+            let place = super::blocks::dir_of(std::slice::from_ref(&item.node))
+                .start(div().absolute(), px(self.handle_start()));
             place
                 .id(("block-handle", row.item))
                 .group("block-handle")
@@ -436,12 +437,10 @@ impl ReadingView {
         let (_, y) = self.places(drag).into_iter().find(|(s, _)| *s == slot)?;
         let viewport = self.list.viewport_bounds();
         let gutter = px(self.gutter());
-        let room = px(super::SCROLLBAR_ROOM);
         let (left, right) = match (focus_kit::Dir::current().rtl, drag.at.inset) {
-            (false, Some(inset)) => (inset.left(), room + gutter),
-            (false, None) => (gutter, room + gutter),
-            (true, Some(inset)) => (room + gutter, viewport.size.width - inset.right()),
-            (true, None) => (room + gutter, gutter),
+            (false, Some(inset)) => (inset.left(), gutter),
+            (true, Some(inset)) => (gutter, viewport.size.width - inset.right()),
+            (_, None) => (gutter, gutter),
         };
         Some(
             div()

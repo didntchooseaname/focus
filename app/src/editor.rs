@@ -127,7 +127,7 @@ pub struct NoteEditor {
     pub(crate) block_handles: bool,
     pub block_font: crate::editing::EditorFont,
     pub(crate) bounds: crate::editing::EditorBounds,
-    figure_width: Option<f32>,
+    sheet_width: Option<f32>,
     loaded: String,
     disk_modified: Option<SystemTime>,
     pub autosave: Duration,
@@ -259,7 +259,7 @@ impl NoteEditor {
             block_handles: true,
             block_font: font,
             bounds,
-            figure_width: None,
+            sheet_width: None,
             crlf: false,
             loaded: String::new(),
             disk_modified: None,
@@ -433,6 +433,7 @@ impl NoteEditor {
                 }),
                 ReadingEvent::Zoom(source) => cx.emit(EditorEvent::Zoom(source.clone())),
                 ReadingEvent::ToggleTask(line) => this.toggle_task(*line, window, cx),
+                ReadingEvent::StartWriting => this.set_view(ViewMode::Live, window, cx),
                 ReadingEvent::Hover { goal, position } => cx.emit(EditorEvent::Hover {
                     goal: goal.clone(),
                     position: *position,
@@ -485,7 +486,7 @@ impl NoteEditor {
         self.input
             .update(cx, |input, cx| input.set_value("", window, cx));
         let typesetting = self.reading.read(cx).typesetting.clone();
-        let figure_width = self.figure_width;
+        let sheet_width = self.sheet_width;
         let live = self.view == ViewMode::Live;
         let decoration = self.decoration.clone();
         let variables = self.code_variables.clone();
@@ -498,7 +499,7 @@ impl NoteEditor {
             reading.set_live(live, cx);
             reading.set_in_place(in_place, cx);
             reading.set_note_field(self.input.clone());
-            reading.set_figure_width(figure_width, cx);
+            reading.set_sheet_width(sheet_width, cx);
             reading.set_block_handles(handles, cx);
             reading
         });
@@ -781,10 +782,10 @@ impl NoteEditor {
         });
     }
 
-    pub fn set_figure_width(&mut self, width: f32, cx: &mut Context<Self>) {
-        self.figure_width = Some(width);
+    pub fn set_sheet_width(&mut self, width: f32, cx: &mut Context<Self>) {
+        self.sheet_width = Some(width);
         self.reading
-            .update(cx, |reading, cx| reading.set_figure_width(Some(width), cx));
+            .update(cx, |reading, cx| reading.set_sheet_width(Some(width), cx));
     }
 
     pub fn set_line_numbers(&mut self, on: bool, window: &mut Window, cx: &mut Context<Self>) {

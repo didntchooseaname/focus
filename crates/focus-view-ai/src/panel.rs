@@ -1011,7 +1011,7 @@ impl AiPanel {
                     cx.notify();
                 }
             }
-            ReadingEvent::ToggleTask(_) => {}
+            ReadingEvent::ToggleTask(_) | ReadingEvent::StartWriting => {}
         }
     }
 

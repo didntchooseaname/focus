@@ -220,17 +220,12 @@ impl ReadingView {
 }
 
 fn missing_line(target: &str, why: String, t: &Tokens) -> AnyElement {
-    let dir = Dir::current();
-    dir.bar_start(
-        dir.pad_start(div().flex().flex_col().gap(size::S2).py(size::S2), size::S4),
-        t.line_2,
+    super::blocks::error_line(
+        Icon::FILE_TEXT,
+        focus_i18n::t_args(
+            "media-pdf-embed-failed",
+            &[("src", target.into()), ("reason", why.as_str().into())],
+        ),
+        t,
     )
-    .child(
-        div()
-            .ui_strong()
-            .text_color(t.ink)
-            .child(target.to_string()),
-    )
-    .child(div().ui_sm().text_color(t.ink_3).child(why))
-    .into_any_element()
 }
