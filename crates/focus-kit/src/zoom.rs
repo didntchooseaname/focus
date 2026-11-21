@@ -9,7 +9,6 @@ pub struct ZoomControls {
     zoom_in: IconButton,
     fit: IconButton,
     fit_width: Option<IconButton>,
-    bare: bool,
 }
 
 impl ZoomControls {
@@ -25,13 +24,7 @@ impl ZoomControls {
             zoom_in,
             fit,
             fit_width: None,
-            bare: false,
         }
-    }
-
-    pub fn bare(mut self) -> Self {
-        self.bare = true;
-        self
     }
 
     pub fn fit_width(mut self, button: IconButton) -> Self {
@@ -43,12 +36,8 @@ impl ZoomControls {
 impl RenderOnce for ZoomControls {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = *cx.tokens();
-        let frame = if self.bare {
-            div()
-        } else {
-            floating(&t).p(size::S1)
-        };
-        frame
+        floating(&t)
+            .p(size::S1)
             .flex()
             .items_center()
             .gap(size::S1)
