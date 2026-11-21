@@ -652,6 +652,7 @@ impl Render for ExportDialog {
                 cx.listener(|this, _, _, cx| this.close(cx)),
                 body,
                 footer,
+                cx,
             ))
     }
 }

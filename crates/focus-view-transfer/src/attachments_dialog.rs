@@ -621,6 +621,7 @@ impl Render for AttachmentsDialog {
                 cx.listener(|this, _, _, cx| this.close(cx)),
                 body,
                 footer,
+                cx,
             ))
     }
 }

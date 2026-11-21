@@ -419,6 +419,7 @@ impl Render for ImportDialog {
                 cx.listener(move |this, _, _, cx| close(this, cx)),
                 body,
                 footer,
+                cx,
             ))
     }
 }

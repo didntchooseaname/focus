@@ -4,8 +4,8 @@ use std::sync::Arc;
 use focus_core::{AttachmentPolicy, Vault};
 use focus_kit::{Button, Field, Flow as _, Icon, IconButton, Tokens, Type, floating, size};
 use gpui::{
-    App, ClickEvent, Div, Entity, FocusHandle, InteractiveElement, IntoElement, KeyDownEvent,
-    ParentElement, PathPromptOptions, Pixels, ScrollHandle, SharedString,
+    AnyElement, App, ClickEvent, Div, Entity, FocusHandle, InteractiveElement, IntoElement,
+    KeyDownEvent, ParentElement, PathPromptOptions, Pixels, ScrollHandle, SharedString,
     StatefulInteractiveElement as _, Styled, Window, div, point, px, relative,
 };
 use gpui_component::input::InputState;
@@ -58,7 +58,8 @@ pub(crate) fn modal(
     close: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
     body: impl IntoElement,
     footer: impl IntoElement,
-) -> Div {
+    cx: &App,
+) -> AnyElement {
     let card = floating(t)
         .flex()
         .flex_col()
@@ -85,7 +86,7 @@ pub(crate) fn modal(
                 )
                 .child(
                     IconButton::new("dialog-close", Icon::CLOSE, focus_i18n::t("transfer-close"))
-                        .shortcut("Esc")
+                        .shortcut(focus_i18n::keys_text("escape"))
                         .on_click(close),
                 ),
         )
@@ -114,15 +115,19 @@ pub(crate) fn modal(
                 .border_color(t.line)
                 .child(div().flex_1().child(footer)),
         );
-    div()
-        .absolute()
-        .inset_0()
-        .flex()
-        .items_start()
-        .justify_center()
-        .pt(relative(0.1))
-        .bg(t.veil)
-        .child(card)
+    focus_kit::fade_in(
+        "fade-transfer",
+        div()
+            .absolute()
+            .inset_0()
+            .flex()
+            .items_start()
+            .justify_center()
+            .pt(relative(0.1))
+            .bg(t.veil)
+            .child(card),
+        cx,
+    )
 }
 
 pub(crate) fn section(t: &Tokens, label: String, content: impl IntoElement) -> Div {
