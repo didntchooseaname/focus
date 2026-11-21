@@ -8,6 +8,7 @@ pub mod disclosure;
 pub mod ellipsis;
 pub mod fade;
 pub mod field;
+pub mod field_menu;
 pub mod file_list;
 pub mod fonts;
 pub mod hatch;
@@ -43,7 +44,11 @@ pub use icons::{Icon, icon};
 pub use interaction::Forced;
 pub use kbd::Kbd;
 pub use keyboard::{contain_tab, cycle_focus};
-pub use menu::{MenuRow, floating, menu, menu_separator};
+pub use menu::{
+    KeyboardMenu, MENU_CONTEXT, MenuConfirm, MenuCursor, MenuDismiss, MenuEntry, MenuFirst,
+    MenuItem, MenuLast, MenuMove, MenuNext, MenuPrevious, MenuRow, MenuScroll, drawn_menu,
+    floating, focus_menu, keyboard_menu, menu, menu_rows, menu_separator,
+};
 pub use note_tab::NoteTab;
 pub use scrollbar::{ScrollSource, Scrollbar, scrollbar};
 pub use segments::{Segment, Segments};
@@ -57,6 +62,8 @@ pub use zoom::ZoomControls;
 pub fn init(mode: Mode, cx: &mut gpui::App) -> anyhow::Result<()> {
     fonts::install(cx)?;
     keyboard::bind(cx);
+    menu::bind(cx);
+    field_menu::install(cx);
     theme::register_markdown();
     theme::apply(mode, None, cx)
 }
