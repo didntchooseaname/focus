@@ -203,6 +203,7 @@ ui-right-info = معلومات
 ui-right-ai = الذكاء الاصطناعي
 ui-right-ops = Ops
 ui-outline-empty = لا تحتوي هذه الملاحظة على عناوين أقسام.
+ui-outline-pdf-empty = لا يحتوي ملف PDF هذا على فهرس
 ui-info-no-note = افتح ملاحظة لعرض تفاصيلها.
 ui-links-unavailable = تظهر الروابط الراجعة والروابط الصادرة بعد بناء فهرس الخزنة.
 ui-links-backlinks = الروابط الواردة

@@ -203,6 +203,7 @@ ui-right-info = 信息
 ui-right-ai = AI
 ui-right-ops = Ops
 ui-outline-empty = 这篇笔记没有章节标题。
+ui-outline-pdf-empty = 此 PDF 没有目录
 ui-info-no-note = 打开一篇笔记以查看详情。
 ui-links-unavailable = 库索引建立完成后将显示反向链接和出链。
 ui-links-backlinks = 反向链接

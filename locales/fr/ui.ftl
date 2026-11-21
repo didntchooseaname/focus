@@ -203,6 +203,7 @@ ui-right-info = Infos
 ui-right-ai = IA
 ui-right-ops = Ops
 ui-outline-empty = Cette note n'a pas de titre de section.
+ui-outline-pdf-empty = Ce PDF n’a pas de table des matières
 ui-info-no-note = Ouvrez une note pour voir ses informations.
 ui-links-unavailable = Rétroliens et liens sortants s'affichent quand l'index du coffre est construit.
 ui-links-backlinks = Rétroliens

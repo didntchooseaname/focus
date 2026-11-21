@@ -359,7 +359,8 @@ impl Shell {
         let view = self.front_pdf()?;
         let Some(items) = view.read(cx).outline().filter(|items| !items.is_empty()) else {
             return Some(
-                crate::panes::empty_state(&t, focus_i18n::t("ui-outline-empty")).into_any_element(),
+                crate::panes::empty_state(&t, focus_i18n::t("ui-outline-pdf-empty"))
+                    .into_any_element(),
             );
         };
         let current = view.read(cx).current_page();

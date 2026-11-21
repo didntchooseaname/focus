@@ -203,6 +203,7 @@ ui-right-info = Info
 ui-right-ai = AI
 ui-right-ops = Ops
 ui-outline-empty = This note has no section headings.
+ui-outline-pdf-empty = This PDF has no outline
 ui-info-no-note = Open a note to see its details.
 ui-links-unavailable = Backlinks and outgoing links appear once the vault index is built.
 ui-links-backlinks = Backlinks
