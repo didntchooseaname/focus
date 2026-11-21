@@ -465,42 +465,6 @@ pub fn bind(cx: &mut App) {
     cx.bind_keys(bindings);
 }
 
-pub fn strokes(keys: &str) -> Vec<String> {
-    keys.split(' ')
-        .map(|stroke| {
-            let parts: Vec<&str> = if stroke.ends_with("--") || stroke == "-" {
-                vec![stroke.trim_end_matches('-'), "-"]
-            } else {
-                stroke.split('-').collect()
-            };
-            parts
-                .iter()
-                .filter(|p| !p.is_empty())
-                .map(|part| match *part {
-                    "ctrl" => focus_i18n::t("ui-key-ctrl"),
-                    "alt" => focus_i18n::t("ui-key-alt"),
-                    "shift" => focus_i18n::t("ui-key-shift"),
-                    "cmd" | "super" => focus_i18n::t("ui-key-super"),
-                    "escape" => focus_i18n::t("ui-key-escape"),
-                    "enter" => focus_i18n::t("ui-key-enter"),
-                    "tab" => focus_i18n::t("ui-key-tab"),
-                    "left" => focus_i18n::t("ui-key-left"),
-                    "right" => focus_i18n::t("ui-key-right"),
-                    "up" => focus_i18n::t("ui-key-up"),
-                    "down" => focus_i18n::t("ui-key-down"),
-                    "space" => focus_i18n::t("ui-key-space"),
-                    other => other.to_uppercase(),
-                })
-                .collect::<Vec<_>>()
-                .join(" ")
-        })
-        .collect()
-}
-
-pub fn display(keys: &str) -> String {
-    strokes(keys).join(" ")
-}
-
 static OVERRIDES: std::sync::RwLock<Option<std::collections::BTreeMap<String, Vec<String>>>> =
     std::sync::RwLock::new(None);
 
@@ -538,7 +502,7 @@ pub fn shortcut(label: &str) -> String {
         && !COMMANDS.iter().any(|c| c.label == label);
     keys_of(label, editor)
         .first()
-        .map(|keys| display(keys))
+        .map(|keys| focus_i18n::keys_text(keys))
         .unwrap_or_default()
 }
 
@@ -593,8 +557,6 @@ pub fn pressed(label: &str, keystroke: &gpui::Keystroke) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::display;
-
     #[test]
     fn changed_shortcuts_run_their_command_and_free_the_old_key() {
         super::set_overrides(r#"{"ui-cmd-toggle-bottom": ["ctrl-shift-j"]}"#);
@@ -641,14 +603,5 @@ mod tests {
             remap_in(&[editor, window], &overrides, &new),
             Some(Remap::Run(action)) if action.name() == "focus::ToggleLeft"
         ));
-    }
-
-    #[test]
-    fn readable_shortcuts() {
-        focus_i18n::set_language("fr").expect("French is embedded");
-        assert_eq!(display("ctrl-shift-f"), "Ctrl Maj F");
-        assert_eq!(display("ctrl-,"), "Ctrl ,");
-        assert_eq!(display("alt-left"), "Alt Gauche");
-        assert_eq!(display("escape"), "Échap");
     }
 }

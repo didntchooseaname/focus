@@ -9,7 +9,7 @@ use gpui::{
 
 use super::SettingsView;
 use super::schema::{Value, ascii_fold};
-use crate::actions::{COMMANDS, Command, EDITOR_COMMANDS, FIXED_KEYS, FixedKey, display};
+use crate::actions::{COMMANDS, Command, EDITOR_COMMANDS, FIXED_KEYS, FixedKey};
 
 const KEY: &str = "shortcuts.overrides";
 const LOCKED: &str = "ui-cmd-dismiss";
@@ -119,7 +119,7 @@ fn fixed_matches(fixed: &FixedKey, query: &str) -> bool {
         || fixed
             .keys
             .iter()
-            .any(|k| ascii_fold(&display(k)).contains(query))
+            .any(|k| ascii_fold(&focus_i18n::keys_text(k)).contains(query))
 }
 
 impl SettingsView {
@@ -233,7 +233,7 @@ impl SettingsView {
             .filter(|group| {
                 let keys: Vec<String> = effective_keys(group, &overrides)
                     .iter()
-                    .map(|k| display(k))
+                    .map(|k| focus_i18n::keys_text(k))
                     .collect();
                 query.is_empty()
                     || ascii_fold(&focus_i18n::t(group.label)).contains(query)
@@ -278,7 +278,7 @@ impl SettingsView {
                         div()
                             .flow_row()
                             .gap(size::S1)
-                            .children(keys.iter().map(|k| Kbd::new(display(k))))
+                            .children(keys.iter().map(|k| Kbd::new(focus_i18n::keys_text(k))))
                             .into_any_element()
                     })
                     .child(if recording {
@@ -331,7 +331,7 @@ impl SettingsView {
                     .when_some(conflict, |this, conflict| {
                         let other = focus_i18n::t(conflict.other.label());
                         let fixed = matches!(conflict.other, Taken::Fixed(_));
-                        let keys = display(&conflict.keys);
+                        let keys = focus_i18n::keys_text(&conflict.keys);
                         this.child(
                             div()
                                 .flow_row()
@@ -439,10 +439,12 @@ impl SettingsView {
                                 .child(focus_i18n::t(fixed.label)),
                         )
                         .child(
-                            div()
-                                .flow_row()
-                                .gap(size::S1)
-                                .children(fixed.keys.iter().map(|k| Kbd::new(display(k)))),
+                            div().flow_row().gap(size::S1).children(
+                                fixed
+                                    .keys
+                                    .iter()
+                                    .map(|k| Kbd::new(focus_i18n::keys_text(k))),
+                            ),
                         )
                         .child(div().flex_none().w(px(28.)))
                         .child(div().flex_none().w(px(28.)))

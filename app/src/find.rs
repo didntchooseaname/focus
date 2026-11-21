@@ -331,7 +331,7 @@ impl Shell {
                             Icon::ARROW_UP,
                             focus_i18n::t("ui-find-previous"),
                         )
-                        .shortcut(crate::actions::display("shift-enter"))
+                        .shortcut(focus_i18n::keys_text("shift-enter"))
                         .on_click(cx.listener(move |_, _, window, cx| {
                             previous.update(cx, |input, cx| input.find_next(false, window, cx))
                         })),
@@ -342,7 +342,7 @@ impl Shell {
                             Icon::CHEVRON_DOWN,
                             focus_i18n::t("ui-find-next"),
                         )
-                        .shortcut(crate::actions::display("enter"))
+                        .shortcut(focus_i18n::keys_text("enter"))
                         .on_click(cx.listener(move |_, _, window, cx| {
                             next.update(cx, |input, cx| input.find_next(true, window, cx))
                         })),
@@ -369,7 +369,7 @@ impl Shell {
                     })
                     .child(
                         IconButton::new("find-close", Icon::CLOSE, focus_i18n::t("ui-find-close"))
-                            .shortcut(crate::actions::display("escape"))
+                            .shortcut(focus_i18n::keys_text("escape"))
                             .on_click(
                                 cx.listener(|this, _, window, cx| this.close_find(window, cx)),
                             ),
@@ -454,7 +454,7 @@ impl Shell {
                         Icon::ARROW_UP,
                         focus_i18n::t("ui-find-previous"),
                     )
-                    .shortcut(crate::actions::display("shift-enter"))
+                    .shortcut(focus_i18n::keys_text("shift-enter"))
                     .on_click(cx.listener(move |_, _, _, cx| {
                         previous.update(cx, |pdf, cx| pdf.find_next(false, cx))
                     })),
@@ -465,7 +465,7 @@ impl Shell {
                         Icon::CHEVRON_DOWN,
                         focus_i18n::t("ui-find-next"),
                     )
-                    .shortcut(crate::actions::display("enter"))
+                    .shortcut(focus_i18n::keys_text("enter"))
                     .on_click(cx.listener(move |_, _, _, cx| {
                         next.update(cx, |pdf, cx| pdf.find_next(true, cx))
                     })),
@@ -473,7 +473,7 @@ impl Shell {
                 .child(div().flex_1())
                 .child(
                     IconButton::new("find-close", Icon::CLOSE, focus_i18n::t("ui-find-close"))
-                        .shortcut(crate::actions::display("escape"))
+                        .shortcut(focus_i18n::keys_text("escape"))
                         .on_click(cx.listener(|this, _, window, cx| this.close_find(window, cx))),
                 )
                 .into_any_element(),

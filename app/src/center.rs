@@ -472,6 +472,7 @@ impl Shell {
                     title.clone(),
                     focus_i18n::t("ui-tab-close"),
                 )
+                .close_shortcut(crate::actions::shortcut("ui-cmd-close-tab"))
                 .active(focused && front == Some(i))
                 .dirty(editor.dirty)
                 .forced(forced)
@@ -521,6 +522,7 @@ impl Shell {
                     label.clone(),
                     focus_i18n::t("ui-tab-close"),
                 )
+                .close_shortcut(crate::actions::shortcut("ui-cmd-close-tab"))
                 .active(focused && front_pane)
                 .forced(if !focused && front_pane {
                     Forced::Hover

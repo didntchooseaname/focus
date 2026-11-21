@@ -10,14 +10,13 @@ use gpui::{
 };
 use gpui_component::input::InputState;
 
-use crate::actions::display;
-
 pub struct Gallery {
     empty: Entity<InputState>,
     filled: Entity<InputState>,
     focused: Entity<InputState>,
     invalid: Entity<InputState>,
     disabled: Entity<InputState>,
+    language: u64,
 }
 
 impl Gallery {
@@ -37,6 +36,7 @@ impl Gallery {
             focused: field("Kerberoasting", "", window, cx),
             invalid: field("42", "", window, cx),
             disabled: field("deepseek-v4-flash", "", window, cx),
+            language: focus_i18n::generation(),
         }
     }
 }
@@ -81,7 +81,13 @@ fn column(t: &Tokens) -> gpui::Div {
 }
 
 impl Render for Gallery {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if self.language != focus_i18n::generation() {
+            self.language = focus_i18n::generation();
+            self.empty.update(cx, |state, cx| {
+                state.set_placeholder(focus_i18n::t("ui-left-search-placeholder"), window, cx)
+            });
+        }
         let t = *cx.tokens();
         let label_w = px(84.);
 
@@ -288,8 +294,18 @@ impl Render for Gallery {
                     .flow_row()
                     .items_baseline()
                     .gap(size::S4)
-                    .child(div().stat().text_color(t.ink).child("2 545"))
-                    .child(div().ui_sm().text_color(t.ink_3).child("notes")),
+                    .child(
+                        div()
+                            .stat()
+                            .text_color(t.ink)
+                            .child(focus_i18n::format_number(2545)),
+                    )
+                    .child(
+                        div()
+                            .ui_sm()
+                            .text_color(t.ink_3)
+                            .child(focus_i18n::t("ui-kit-sample-notes")),
+                    ),
             );
 
         let fields = section(&t, focus_i18n::t("ui-kit-fields"))
@@ -342,7 +358,7 @@ impl Render for Gallery {
                         div().w(px(300.)).child(
                             Field::new(&self.focused)
                                 .forced(Forced::Focus)
-                                .suffix(Kbd::new(display("ctrl-k"))),
+                                .suffix(Kbd::new(focus_i18n::keys_text("ctrl-k"))),
                         ),
                     ),
             )
@@ -361,8 +377,28 @@ impl Render for Gallery {
                     .child(
                         div().w(px(300.)).child(
                             Field::new(&self.invalid)
-                                .suffix(div().ui_sm().text_color(t.ink_3).child("px"))
-                                .error(Some(focus_i18n::t("settings-number-refused").into())),
+                                .suffix(
+                                    div()
+                                        .ui_sm()
+                                        .text_color(t.ink_3)
+                                        .child(focus_i18n::t("settings-unit-px")),
+                                )
+                                .error(Some(
+                                    focus_i18n::t_args(
+                                        "settings-number-refused",
+                                        &[
+                                            ("min", focus_i18n::Arg::Int(13)),
+                                            ("max", focus_i18n::Arg::Int(20)),
+                                            (
+                                                "unit",
+                                                format!(" {}", focus_i18n::t("settings-unit-px"))
+                                                    .as_str()
+                                                    .into(),
+                                            ),
+                                        ],
+                                    )
+                                    .into(),
+                                )),
                         ),
                     ),
             )
@@ -429,10 +465,10 @@ impl Render for Gallery {
                 div()
                     .flow_row()
                     .gap(size::S2)
-                    .child(Kbd::new(display("ctrl-k")))
-                    .child(Kbd::new(display("ctrl-shift-f")))
-                    .child(Kbd::new(display("escape")))
-                    .child(Kbd::new("F2")),
+                    .child(Kbd::new(focus_i18n::keys_text("ctrl-k")))
+                    .child(Kbd::new(focus_i18n::keys_text("ctrl-shift-f")))
+                    .child(Kbd::new(focus_i18n::keys_text("escape")))
+                    .child(Kbd::new(focus_i18n::keys_text("f2"))),
             );
 
         let status = section(&t, focus_i18n::t("ui-kit-status"))
@@ -479,7 +515,7 @@ impl Render for Gallery {
             .child(div().flow_row().child(tooltip_body(
                 &t,
                 focus_i18n::t("ui-titlebar-toggle-left").into(),
-                Some(display("ctrl-b").into()),
+                Some(focus_i18n::keys_text("ctrl-b").into()),
             )));
 
         let tabs = section(&t, focus_i18n::t("ui-kit-tabs"))
@@ -490,15 +526,16 @@ impl Render for Gallery {
                     .border_color(t.line)
                     .child(
                         NoteTab::new("tab-active", "Kerberoasting", focus_i18n::t("ui-tab-close"))
+                            .close_shortcut(crate::actions::shortcut("ui-cmd-close-tab"))
                             .active(true),
                     )
-                    .child(NoteTab::new(
-                        "tab-rest",
-                        "AS-REP Roasting",
-                        focus_i18n::t("ui-tab-close"),
-                    ))
+                    .child(
+                        NoteTab::new("tab-rest", "AS-REP Roasting", focus_i18n::t("ui-tab-close"))
+                            .close_shortcut(crate::actions::shortcut("ui-cmd-close-tab")),
+                    )
                     .child(
                         NoteTab::new("tab-hover", "00_Home", focus_i18n::t("ui-tab-close"))
+                            .close_shortcut(crate::actions::shortcut("ui-cmd-close-tab"))
                             .forced(Forced::Hover),
                     ),
             )
@@ -513,6 +550,7 @@ impl Render for Gallery {
                             "Constats de l'engagement interne",
                             focus_i18n::t("ui-tab-close"),
                         )
+                        .close_shortcut(crate::actions::shortcut("ui-cmd-close-tab"))
                         .dirty(true),
                     )
                     .child(
@@ -521,10 +559,12 @@ impl Render for Gallery {
                             "NTLM coercing",
                             focus_i18n::t("ui-tab-close"),
                         )
+                        .close_shortcut(crate::actions::shortcut("ui-cmd-close-tab"))
                         .forced(Forced::Pressed),
                     )
                     .child(
                         NoteTab::new("tab-focus", "IPV6 relaying", focus_i18n::t("ui-tab-close"))
+                            .close_shortcut(crate::actions::shortcut("ui-cmd-close-tab"))
                             .forced(Forced::Focus),
                     ),
             );
@@ -575,12 +615,12 @@ impl Render for Gallery {
                     .child(
                         MenuRow::new("menu-open", focus_i18n::t("ui-menu-open-new-tab"))
                             .icon(Icon::FILE_TEXT)
-                            .shortcut(display("ctrl-enter")),
+                            .shortcut(focus_i18n::keys_text("ctrl-enter")),
                     )
                     .child(
                         MenuRow::new("menu-rename", focus_i18n::t("ui-action-rename"))
                             .icon(Icon::PENCIL)
-                            .shortcut("F2")
+                            .shortcut(focus_i18n::keys_text("f2"))
                             .highlighted(true),
                     )
                     .child(
@@ -602,7 +642,7 @@ impl Render for Gallery {
                         MenuRow::new("menu-delete", focus_i18n::t("ui-action-delete"))
                             .icon(Icon::TRASH)
                             .danger(true)
-                            .shortcut("Suppr"),
+                            .shortcut(focus_i18n::keys_text("delete")),
                     ),
             ),
         );
@@ -614,9 +654,21 @@ impl Render for Gallery {
                     .child(Toast::new(Tone::Neutral, focus_i18n::t("ui-toast-renamed"))),
             )
             .child(
-                div()
-                    .flow_row()
-                    .child(Toast::new(Tone::Ok, focus_i18n::t("ui-toast-indexed"))),
+                div().flow_row().child(Toast::new(
+                    Tone::Ok,
+                    focus_i18n::t_args(
+                        "ui-toast-indexed",
+                        &[
+                            ("count", focus_i18n::format_number(2545).as_str().into()),
+                            (
+                                "duration",
+                                focus_i18n::format_duration(std::time::Duration::from_millis(1840))
+                                    .as_str()
+                                    .into(),
+                            ),
+                        ],
+                    ),
+                )),
             )
             .child(
                 div()
