@@ -883,6 +883,7 @@ pub struct Window {
     modifiers: Modifiers,
     capslock: Capslock,
     scale_factor: f32,
+    zoom: f32,
     pub(crate) bounds_observers: SubscriberSet<(), AnyObserver>,
     appearance: WindowAppearance,
     pub(crate) appearance_observers: SubscriberSet<(), AnyObserver>,
@@ -928,6 +929,40 @@ pub(crate) struct ElementStateBox {
     pub(crate) inner: Box<dyn Any>,
     #[cfg(debug_assertions)]
     pub(crate) type_name: &'static str,
+}
+
+fn whole_pixels(edges: Edges<ScaledPixels>) -> Edges<ScaledPixels> {
+    let snap = |width: ScaledPixels| {
+        if width.0 <= 0. {
+            width
+        } else {
+            ScaledPixels(width.0.round().max(1.))
+        }
+    };
+    Edges {
+        top: snap(edges.top),
+        right: snap(edges.right),
+        bottom: snap(edges.bottom),
+        left: snap(edges.left),
+    }
+}
+
+fn zoomed_out(size: Size<Pixels>, zoom: f32) -> Size<Pixels> {
+    zoomed_size(size, 1. / zoom)
+}
+
+fn zoomed_size(size: Size<Pixels>, zoom: f32) -> Size<Pixels> {
+    Size {
+        width: size.width * zoom,
+        height: size.height * zoom,
+    }
+}
+
+pub(crate) fn zoomed_bounds(bounds: Bounds<Pixels>, zoom: f32) -> Bounds<Pixels> {
+    Bounds {
+        origin: bounds.origin * zoom,
+        size: zoomed_size(bounds.size, zoom),
+    }
 }
 
 fn default_bounds(display_id: Option<DisplayId>, cx: &mut App) -> Bounds<Pixels> {
@@ -1159,7 +1194,10 @@ impl Window {
             let mut cx = cx.to_async();
             Box::new(move |event| {
                 handle
-                    .update(&mut cx, |_, window, cx| window.dispatch_event(event, cx))
+                    .update(&mut cx, |_, window, cx| {
+                        let event = event.unzoomed(window.zoom);
+                        window.dispatch_event(event, cx)
+                    })
                     .log_err()
                     .unwrap_or(DispatchEventResult::default())
             })
@@ -1273,6 +1311,7 @@ impl Window {
             modifiers,
             capslock,
             scale_factor,
+            zoom: 1.0,
             bounds_observers: SubscriberSet::new(),
             appearance,
             appearance_observers: SubscriberSet::new(),
@@ -1710,8 +1749,8 @@ impl Window {
     }
 
     fn bounds_changed(&mut self, cx: &mut App) {
-        self.scale_factor = self.platform_window.scale_factor();
-        self.viewport_size = self.platform_window.content_size();
+        self.scale_factor = self.platform_window.scale_factor() * self.zoom;
+        self.viewport_size = zoomed_out(self.platform_window.content_size(), self.zoom);
         self.display_id = self.platform_window.display().map(|display| display.id());
 
         self.refresh();
@@ -1728,7 +1767,25 @@ impl Window {
 
     /// Set the content size of the window.
     pub fn resize(&mut self, size: Size<Pixels>) {
-        self.platform_window.resize(size);
+        self.platform_window.resize(zoomed_size(size, self.zoom));
+    }
+
+    /// Focus: draws the window larger (above 1) or smaller (below 1): every pixel of the
+    /// layout covers `zoom` pixels of the platform window, text being rasterized at the
+    /// zoomed scale. Positions coming from the platform are divided by it, positions given
+    /// to the platform multiplied by it.
+    pub fn set_zoom(&mut self, zoom: f32, cx: &mut App) {
+        if !zoom.is_finite() || zoom <= 0. || zoom == self.zoom {
+            return;
+        }
+        self.mouse_position = self.mouse_position * (self.zoom / zoom);
+        self.zoom = zoom;
+        self.bounds_changed(cx);
+    }
+
+    /// Focus: the zoom of the window set by [`Self::set_zoom`], 1 by default.
+    pub fn zoom(&self) -> f32 {
+        self.zoom
     }
 
     /// Returns whether or not the window is currently fullscreen
@@ -1781,7 +1838,7 @@ impl Window {
 
     /// Opens the native title bar context menu, useful when implementing client side decorations (Wayland and X11)
     pub fn show_window_menu(&self, position: Point<Pixels>) {
-        self.platform_window.show_window_menu(position)
+        self.platform_window.show_window_menu(position * self.zoom)
     }
 
     /// Tells the compositor to take control of window movement (Wayland and X11)
@@ -1804,7 +1861,7 @@ impl Window {
     /// When using client side decorations, set this to the width of the invisible decorations (Wayland and X11)
     pub fn set_client_inset(&mut self, inset: Pixels) {
         self.client_inset = Some(inset);
-        self.platform_window.set_client_inset(inset);
+        self.platform_window.set_client_inset(inset * self.zoom);
     }
 
     /// Returns the client_inset value by [`Self::set_client_inset`].
@@ -2900,7 +2957,7 @@ impl Window {
             background: quad.background.opacity(opacity),
             border_color: quad.border_color.opacity(opacity),
             corner_radii: quad.corner_radii.scale(scale_factor),
-            border_widths: quad.border_widths.scale(scale_factor),
+            border_widths: whole_pixels(quad.border_widths.scale(scale_factor)),
             border_style: quad.border_style,
         });
     }
@@ -4215,7 +4272,8 @@ impl Window {
         self.on_next_frame(|window, cx| {
             if let Some(mut input_handler) = window.platform_window.take_input_handler() {
                 if let Some(bounds) = input_handler.selected_bounds(window, cx) {
-                    window.platform_window.update_ime_position(bounds);
+                    window.platform_window
+                        .update_ime_position(zoomed_bounds(bounds, window.zoom));
                 }
                 window.platform_window.set_input_handler(input_handler);
             }

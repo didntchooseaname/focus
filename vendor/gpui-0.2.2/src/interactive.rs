@@ -566,6 +566,56 @@ pub enum PlatformInput {
 }
 
 impl PlatformInput {
+    pub(crate) fn unzoomed(self, zoom: f32) -> PlatformInput {
+        if zoom == 1. {
+            return self;
+        }
+        let at = |position: Point<Pixels>| position * (1. / zoom);
+        match self {
+            PlatformInput::MouseDown(event) => PlatformInput::MouseDown(MouseDownEvent {
+                position: at(event.position),
+                ..event
+            }),
+            PlatformInput::MouseUp(event) => PlatformInput::MouseUp(MouseUpEvent {
+                position: at(event.position),
+                ..event
+            }),
+            PlatformInput::MouseMove(event) => PlatformInput::MouseMove(MouseMoveEvent {
+                position: at(event.position),
+                ..event
+            }),
+            PlatformInput::MouseExited(event) => PlatformInput::MouseExited(MouseExitEvent {
+                position: at(event.position),
+                ..event
+            }),
+            PlatformInput::ScrollWheel(event) => PlatformInput::ScrollWheel(ScrollWheelEvent {
+                position: at(event.position),
+                delta: match event.delta {
+                    ScrollDelta::Pixels(delta) => ScrollDelta::Pixels(delta * (1. / zoom)),
+                    lines => lines,
+                },
+                ..event
+            }),
+            PlatformInput::FileDrop(FileDropEvent::Entered { position, paths }) => {
+                PlatformInput::FileDrop(FileDropEvent::Entered {
+                    position: at(position),
+                    paths,
+                })
+            }
+            PlatformInput::FileDrop(FileDropEvent::Pending { position }) => {
+                PlatformInput::FileDrop(FileDropEvent::Pending {
+                    position: at(position),
+                })
+            }
+            PlatformInput::FileDrop(FileDropEvent::Submit { position }) => {
+                PlatformInput::FileDrop(FileDropEvent::Submit {
+                    position: at(position),
+                })
+            }
+            other => other,
+        }
+    }
+
     pub(crate) fn mouse_event(&self) -> Option<&dyn Any> {
         match self {
             PlatformInput::KeyDown { .. } => None,
