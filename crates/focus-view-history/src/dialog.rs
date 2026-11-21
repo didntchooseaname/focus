@@ -6,8 +6,8 @@ use focus_core::{NoteId, Vault, VaultError};
 use focus_history::{CopyOrigin, Kind, Version};
 use focus_i18n::{Arg, t as tr, t_args};
 use focus_kit::{
-    ActiveTokens, Button, ButtonKind, Chip, ErrorCard, Flow as _, Icon, IconButton, Segment,
-    Segments, Tokens, Tone, Type, ellipsis, floating, size,
+    ActiveTokens, Button, ButtonKind, Chip, DiffMark, ErrorCard, Flow as _, Icon, IconButton,
+    Segment, Segments, Tokens, Tone, Type, diff_marker, diff_row, ellipsis, floating, size,
 };
 use focus_view_reading::{ReadingView, Typesetting};
 use gpui::{
@@ -429,7 +429,9 @@ impl VersionsDialog {
                         .start_at(px(0.)),
                 )
             })
-            .when(!selected, |this| this.hover(|s| s.bg(t.card_2)))
+            .when(!selected, |this| {
+                this.hover(|s| s.bg(t.card_2)).active(|s| s.bg(t.card_3))
+            })
             .on_click(cx.listener(move |this, _, _, cx| this.select(index, cx)))
             .child(
                 div()
@@ -486,13 +488,14 @@ impl VersionsDialog {
                 ))
                 .into_any_element(),
             Row::Line { mark, number, text } => {
-                let (marker, color, tint) = match mark {
-                    Mark::Added => ("+", t.ok, Some(t.ok.opacity(0.12))),
-                    Mark::Removed => ("-", t.danger, Some(t.danger.opacity(0.12))),
-                    Mark::Same => (" ", t.ink_3, None),
+                let mark = match mark {
+                    Mark::Added => DiffMark::Added,
+                    Mark::Removed => DiffMark::Removed,
+                    Mark::Same => DiffMark::Same,
                 };
-                row.mono_sm()
-                    .when_some(tint, |this, tint| this.bg(tint))
+                row.relative()
+                    .child(diff_row(t, mark).absolute().inset_0())
+                    .mono_sm()
                     .child(
                         div()
                             .flex_none()
@@ -502,7 +505,7 @@ impl VersionsDialog {
                             .text_color(t.ink_3)
                             .child(number.to_string()),
                     )
-                    .child(div().flex_none().w(px(12.)).text_color(color).child(marker))
+                    .child(diff_marker(t, mark).w(px(12.)))
                     .child(
                         div()
                             .flex()
@@ -869,24 +872,30 @@ impl Render for VersionsDialog {
                     )
                     .child(
                         IconButton::new("history-close", Icon::CLOSE, tr("history-close"))
-                            .shortcut("Esc")
+                            .shortcut(focus_i18n::keys_text("escape"))
                             .on_click(cx.listener(|_, _, _, cx| cx.emit(VersionsEvent::Close))),
                     ),
             )
             .child(self.body(t, cx))
             .when(ready, |this| this.child(self.footer(t, cx)));
-        div()
-            .id("history-dialog")
-            .track_focus(&self.focus)
-            .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| this.on_key(event, cx)))
-            .absolute()
-            .inset_0()
-            .flex()
-            .items_start()
-            .justify_center()
-            .pt(relative(0.06))
-            .bg(t.veil)
-            .child(card)
+        focus_kit::fade_in(
+            "fade-history",
+            div()
+                .id("history-dialog")
+                .track_focus(&self.focus)
+                .on_key_down(
+                    cx.listener(|this, event: &KeyDownEvent, _, cx| this.on_key(event, cx)),
+                )
+                .absolute()
+                .inset_0()
+                .flex()
+                .items_start()
+                .justify_center()
+                .pt(relative(0.06))
+                .bg(t.veil)
+                .child(card),
+            cx,
+        )
     }
 }
 
