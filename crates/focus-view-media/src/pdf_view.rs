@@ -6,10 +6,10 @@ use std::sync::Arc;
 
 use focus_kit::{ActiveTokens, Icon, IconButton, Mode, Tokens, Type, ZoomControls, size};
 use gpui::{
-    App, Bounds, Context, CursorStyle, Entity, EventEmitter, FocusHandle, Focusable,
+    App, Bounds, Context, CursorStyle, Entity, EventEmitter, FocusHandle, Focusable, Hsla,
     InteractiveElement, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, ParentElement, Pixels, Point, Render, RenderImage, ScrollWheelEvent, Styled,
-    Subscription, Window, canvas, div, point, prelude::FluentBuilder, px,
+    MouseUpEvent, ParentElement, Pixels, Point, Render, RenderImage, Rgba, ScrollWheelEvent,
+    Styled, Subscription, Window, canvas, div, point, prelude::FluentBuilder, px,
 };
 use image::{Frame, RgbaImage};
 
@@ -794,11 +794,22 @@ impl PdfView {
         if x1 <= x0 || y1 <= y0 {
             return None;
         }
+        let paper = Tokens::of(Mode::Light);
+        let (ground, ink) = (paper.btn.to_rgb(), paper.btn_ink.to_rgb());
+        let inverse = |source: u8, ground: f32, ink: f32| {
+            let lightness = f32::from(source) / 255.;
+            ((ink + (ground - ink) * lightness) * 255.).round() as u8
+        };
         let mut cut = RgbaImage::new(x1 - x0, y1 - y0);
         for (x, y, pixel) in cut.enumerate_pixels_mut() {
             let i = (((y0 + y) * width + x0 + x) * 4) as usize;
             let source = bytes.get(i..i + 4)?;
-            pixel.0 = [255 - source[0], 255 - source[1], 255 - source[2], 255];
+            pixel.0 = [
+                inverse(source[0], ground.b, ink.b),
+                inverse(source[1], ground.g, ink.g),
+                inverse(source[2], ground.r, ink.r),
+                255,
+            ];
         }
         let shown = [
             (x0 + key.2[0]) as f32 / scale,
@@ -811,6 +822,22 @@ impl PdfView {
         self.inverse = Some((current, shown, image.clone()));
         Some((shown, image))
     }
+}
+
+fn under_ink(color: Hsla) -> Hsla {
+    let target = color.to_rgb();
+    let alpha = 1. - target.r.min(target.g).min(target.b);
+    if alpha <= 0. {
+        return color.opacity(0.);
+    }
+    let channel = |c: f32| ((c - (1. - alpha)) / alpha).clamp(0., 1.);
+    Rgba {
+        r: channel(target.r),
+        g: channel(target.g),
+        b: channel(target.b),
+        a: alpha,
+    }
+    .into()
 }
 
 fn word_around(text: &PageText, index: usize) -> (usize, usize) {
@@ -993,6 +1020,7 @@ impl PdfView {
             return Vec::new();
         }
         let paper = Tokens::of(Mode::Light);
+        let found = under_ink(paper.card_3);
         let layout = self.layout();
         let left = layout.left(area.0) - self.scroll.0;
         let scale = layout.zoom * self.scale_factor;
@@ -1043,7 +1071,7 @@ impl PdfView {
                         continue;
                     }
                     for r in text.rects(m.1, m.2) {
-                        draws.push(Draw::Fill(to_area(r), paper.sel));
+                        draws.push(Draw::Fill(to_area(r), found));
                         let line = to_area(r);
                         draws.push(Draw::Fill(
                             bounds(
@@ -1097,7 +1125,21 @@ pub fn pdf_error_text(error: PdfError) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::Selection;
+    use super::{Selection, under_ink};
+    use focus_kit::{Mode, Tokens};
+
+    #[test]
+    fn a_match_on_white_paper_shows_card_3_and_keeps_black_ink_black() {
+        let card_3 = Tokens::of(Mode::Light).card_3.to_rgb();
+        let veil = under_ink(Tokens::of(Mode::Light).card_3).to_rgb();
+        let alpha = veil.a;
+        let over = |paper: f32, ink: f32| paper * (1. - alpha) + ink * alpha;
+        let byte = |c: f32| (c * 255.).round() as i32;
+        assert_eq!(byte(over(1., veil.r)), byte(card_3.r));
+        assert_eq!(byte(over(1., veil.g)), byte(card_3.g));
+        assert_eq!(byte(over(1., veil.b)), byte(card_3.b));
+        assert!(byte(over(0., veil.r)) <= 2 && byte(over(0., veil.b)) <= 2);
+    }
 
     #[test]
     fn a_selection_over_three_pages_takes_the_middle_page_whole() {
