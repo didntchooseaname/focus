@@ -281,7 +281,10 @@ impl SearchPanel {
                             (div().absolute().top_0().bottom_0().w(px(2.)).bg(t.danger))
                                 .start_at(px(0.)),
                         )
-                        .child(div().flex_1().min_w_0().child(format!("{title}: {reason}"))),
+                        .child(div().flex_1().min_w_0().child(t_args(
+                            "search-replace-failed-note",
+                            &[("title", Arg::Str(title)), ("reason", Arg::Str(&reason))],
+                        ))),
                 );
             }
             return Some(card);

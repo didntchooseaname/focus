@@ -1265,7 +1265,8 @@ impl SearchPanel {
             })
             .when(self.sort_open, |this| {
                 let selected = options.sort;
-                this.child(
+                this.child(focus_kit::fade_in(
+                    "fade-search-sort",
                     (floating(&t)
                         .absolute()
                         .top(px(28.))
@@ -1273,7 +1274,7 @@ impl SearchPanel {
                         .flex_col()
                         .py(size::S1))
                     .start_at(size::S3)
-                    .w(px(176.))
+                    .min_w(px(176.))
                     .occlude()
                     .on_mouse_down_out(cx.listener(|this, _, _, cx| {
                         this.sort_open = false;
@@ -1288,7 +1289,8 @@ impl SearchPanel {
                                 this.set_sort(order, window, cx)
                             }))
                     })),
-                )
+                    cx,
+                ))
             })
     }
 
@@ -1347,7 +1349,7 @@ impl SearchPanel {
             .w_full()
             .items_center()
             .gap(size::S2)
-            .h(size::ROW)
+            .h(size::list_row())
             .px(size::S3)
             .cursor_pointer()
             .when(selected, |d| d.bg(t.card_3))
@@ -1481,7 +1483,7 @@ impl SearchPanel {
                         .w_full()
                         .items_center()
                         .gap(size::S2)
-                        .h(size::ROW),
+                        .h(size::list_row()),
                 )
                 .ui_sm()
                 .text_color(t.ink_3)
@@ -1542,7 +1544,7 @@ impl SearchPanel {
                 .w_full()
                 .items_center()
                 .gap(size::S2)
-                .h(size::ROW)
+                .h(size::list_row())
                 .px(size::S3)
                 .child(div().flex_none().w(size::CHECKBOX))
                 .child(number(None))
@@ -1775,8 +1777,8 @@ impl SearchPanel {
             .gap(px(2.))
             .h(px(24.))
             .max_w(relative(1.))
-            .pl(size::S2)
-            .pr(px(2.))
+            .pad_start(size::S2)
+            .pad_end(px(2.))
             .rounded(size::RADIUS)
             .bg(t.card_2)
             .mono_sm()
@@ -1804,9 +1806,10 @@ impl SearchPanel {
                     .items_center()
                     .justify_center()
                     .size(px(20.))
+                    .rounded(size::RADIUS)
                     .text_color(t.ink_3)
                     .cursor_pointer()
-                    .hover(move |s| s.text_color(t.ink))
+                    .hover(move |s| s.bg(t.card_3).text_color(t.ink))
                     .tooltip(|_, cx| -> AnyView {
                         Tooltip::view(tr("search-ai-query-remove").into(), None, cx)
                     })
@@ -1891,15 +1894,15 @@ impl SearchPanel {
                     .flow_row()
                     .items_center()
                     .gap(size::S1)
-                    .child(Kbd::new(keys))
+                    .child(Kbd::new(focus_i18n::keys_text(keys)))
                     .child(tr(key))
             };
             let mut extra = hints
-                .child(hint("Enter", "search-hint-open"))
-                .child(hint("Ctrl+Enter", "search-hint-new-tab"))
-                .child(hint("Esc", "search-hint-clear"));
+                .child(hint("enter", "search-hint-open"))
+                .child(hint("ctrl-enter", "search-hint-new-tab"))
+                .child(hint("escape", "search-hint-clear"));
             if self.assist_backend().is_some() && self.ai_on && !self.replace.open {
-                extra = extra.child(hint("Enter", "search-hint-ask"));
+                extra = extra.child(hint("enter", "search-hint-ask"));
             }
             return self
                 .placeholder(
@@ -2026,7 +2029,11 @@ impl Render for SearchPanel {
                 .cursor_pointer()
                 .hover(move |s| s.text_color(t.ink))
                 .tooltip(|_, cx| -> AnyView {
-                    Tooltip::view(tr("search-clear").into(), Some("Esc".into()), cx)
+                    Tooltip::view(
+                        tr("search-clear").into(),
+                        Some(focus_i18n::keys_text("escape").into()),
+                        cx,
+                    )
                 })
                 .on_click(cx.listener(|this, _, window, cx| this.set_query("", window, cx)))
                 .child(icon(Icon::CLOSE, size::ICON_DENSE))
