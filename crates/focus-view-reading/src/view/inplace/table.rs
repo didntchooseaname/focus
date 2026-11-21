@@ -1037,6 +1037,7 @@ impl RenderOnce for TableMenu {
                                     Icon::MORE,
                                     focus_i18n::t("reading-table-menu"),
                                 )
+                                .tab_stop(false)
                                 .dense(true)
                                 .active(self.opened.is_some())
                                 .on_click(move |_, window, cx| {

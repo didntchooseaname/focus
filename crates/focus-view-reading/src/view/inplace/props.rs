@@ -542,6 +542,7 @@ pub(in crate::view) fn add_row(
             .pt(size::S2)
             .child(
                 Button::new("reading-props-add", focus_i18n::t("reading-props-add"))
+                    .tab_stop(false)
                     .kind(ButtonKind::Ghost)
                     .icon(Icon::PLUS)
                     .on_click(cx.listener(|this, _, window, cx| {

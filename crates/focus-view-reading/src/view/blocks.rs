@@ -917,6 +917,7 @@ impl ReadingView {
                                 focus_kit::Dir::current().arrow_back(),
                                 focus_i18n::t("reading-footnote-back"),
                             )
+                            .tab_stop(false)
                             .dense(true)
                             .on_click(cx.listener(
                                 move |this, _, _, cx| {
@@ -1153,6 +1154,7 @@ impl ReadingView {
                         focus_i18n::t(key)
                     },
                 )
+                .tab_stop(false)
                 .kind(ButtonKind::Ghost)
                 .icon(if done { Icon::CHECK } else { Icon::COPY })
                 .on_click(cx.listener(move |this, _, _, cx| this.copy(which, text.clone(), cx))),
@@ -1177,6 +1179,7 @@ impl ReadingView {
                 ],
                 raw as usize,
             )
+            .tab_stop(false)
             .on_select(move |choice, _, cx| {
                 let _ = view.update(cx, |this, cx| {
                     if choice == 1 {
@@ -1340,6 +1343,7 @@ impl ReadingView {
                                                 "reading-code-unmask"
                                             }),
                                         )
+                                        .tab_stop(false)
                                         .kind(ButtonKind::Ghost)
                                         .on_click(
                                             cx.listener(move |this, _, _, cx| {
@@ -1416,6 +1420,7 @@ impl ReadingView {
                         ("remote-load", key_of(&ImageSource::Url(url.to_string()))),
                         focus_i18n::t("reading-remote-load"),
                     )
+                    .tab_stop(false)
                     .kind(ButtonKind::Secondary)
                     .on_click(cx.listener(|this, _, _, cx| this.load_remote_images(cx))),
                 ))
@@ -1474,6 +1479,7 @@ impl ReadingView {
                                     Icon::MAXIMIZE,
                                     focus_i18n::t("reading-image-view"),
                                 )
+                                .tab_stop(false)
                                 .dense(true)
                                 .on_click(cx.listener(
                                     move |this, _, window, cx| {
@@ -1645,6 +1651,7 @@ impl ReadingView {
                     .child(div().flex_1())
                     .child(control(
                         Button::new(("zoom", item), focus_i18n::t("reading-zoom"))
+                            .tab_stop(false)
                             .kind(ButtonKind::Ghost)
                             .icon(Icon::MAXIMIZE)
                             .on_click(cx.listener(move |_, _, _, cx| {
@@ -1663,6 +1670,7 @@ impl ReadingView {
                                     focus_i18n::t("reading-copy-source")
                                 },
                             )
+                            .tab_stop(false)
                             .kind(ButtonKind::Ghost)
                             .icon(if done { Icon::CHECK } else { Icon::COPY })
                             .on_click(cx.listener(

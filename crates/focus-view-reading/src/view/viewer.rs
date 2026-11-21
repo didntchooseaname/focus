@@ -122,7 +122,7 @@ impl ReadingView {
             (viewer.canvas.zoom(area(window), viewer.content(), MARGIN) * 100.).round() as i64;
         let full = window.viewport_size();
         let button = |id: &'static str, glyph: Icon, key: &str| {
-            IconButton::new(id, glyph, focus_i18n::t(key))
+            IconButton::new(id, glyph, focus_i18n::t(key)).tab_stop(false)
         };
         Some(
             gpui::deferred(

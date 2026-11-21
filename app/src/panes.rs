@@ -287,6 +287,7 @@ impl Shell {
                     let mut button =
                         IconButton::new(SharedString::from(format!("left-{label}")), glyph, label)
                             .active(which == tab)
+                            .tab_stop(false)
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.layout.left_tab = which;
                                 cx.notify();
@@ -799,6 +800,7 @@ impl Shell {
                         )
                         .shortcut(crate::actions::shortcut("ui-cmd-toggle-bottom"))
                         .dense(true)
+                        .tab_stop(false)
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.layout.bottom_open = false;
                             cx.notify();

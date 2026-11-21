@@ -153,6 +153,7 @@ impl ReadingView {
                                 Icon::EXTERNAL,
                                 focus_i18n::t("media-pdf-embed-open"),
                             )
+                            .tab_stop(false)
                             .dense(true)
                             .on_click(cx.listener(move |_, _, _, cx| open(cx))),
                         ),

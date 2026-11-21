@@ -88,6 +88,7 @@ impl Shell {
                 )
                 .shortcut(crate::actions::shortcut("ui-cmd-toggle-left"))
                 .active(self.layout.left_open)
+                .tab_stop(false)
                 .on_click(|_, window, cx| window.dispatch_action(Box::new(ToggleLeft), cx)),
             )
             .child(
@@ -98,6 +99,7 @@ impl Shell {
                 )
                 .shortcut(crate::actions::shortcut("ui-cmd-back"))
                 .disabled(!self.can_go_back())
+                .tab_stop(false)
                 .on_click(|_, window, cx| window.dispatch_action(Box::new(Back), cx)),
             )
             .child(
@@ -108,6 +110,7 @@ impl Shell {
                 )
                 .shortcut(crate::actions::shortcut("ui-cmd-forward"))
                 .disabled(!self.can_go_forward())
+                .tab_stop(false)
                 .on_click(|_, window, cx| window.dispatch_action(Box::new(Forward), cx)),
             )
             .child(
@@ -226,6 +229,7 @@ impl Shell {
                     },
                 )
                 .disabled(view.is_none())
+                .tab_stop(false)
                 .on_select(|index, window, cx| {
                     let action: Box<dyn gpui::Action> = match index {
                         1 => Box::new(ViewLive),
@@ -260,6 +264,7 @@ impl Shell {
                         Icon::NETWORK,
                         focus_i18n::t("ui-cmd-graph-vault"),
                     )
+                    .tab_stop(false)
                     .on_click(|_, window, cx| window.dispatch_action(Box::new(OpenVaultGraph), cx)),
                 )
             })
@@ -271,11 +276,13 @@ impl Shell {
                 )
                 .shortcut(crate::actions::shortcut("ui-cmd-toggle-bottom"))
                 .active(self.layout.bottom_open)
+                .tab_stop(false)
                 .on_click(|_, window, cx| window.dispatch_action(Box::new(ToggleBottom), cx)),
             )
             .child(
                 IconButton::new("settings", Icon::SETTINGS, focus_i18n::t("settings-title"))
                     .shortcut(crate::actions::shortcut("ui-cmd-settings"))
+                    .tab_stop(false)
                     .on_click(|_, window, cx| window.dispatch_action(Box::new(OpenSettings), cx)),
             )
             .child(
@@ -286,6 +293,7 @@ impl Shell {
                 )
                 .shortcut(crate::actions::shortcut("ui-cmd-toggle-right"))
                 .active(self.layout.right_open)
+                .tab_stop(false)
                 .on_click(|_, window, cx| window.dispatch_action(Box::new(ToggleRight), cx)),
             )
             .into_any_element()

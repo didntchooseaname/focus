@@ -215,6 +215,7 @@ impl ReadingView {
                                 Icon::CODE,
                                 focus_i18n::t("reading-tabs-edit-source"),
                             )
+                            .tab_stop(false)
                             .dense(true)
                             .on_click(cx.listener(
                                 move |_, _, _, cx| {
