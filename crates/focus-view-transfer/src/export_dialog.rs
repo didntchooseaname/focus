@@ -13,7 +13,7 @@ use gpui::{
 use gpui_component::input::InputState;
 
 use crate::dialog::{
-    TransferEvent, TransferServices, escape_closes, focus_on_open, footer_row, modal, notice,
+    TransferEvent, TransferServices, enter_confirms, escape_closes, footer_row, modal, notice,
     path_row, picker, scroll_keys, section, single_line,
 };
 use crate::export::{self, Cancel, ExportError, Format, Options, Progress, Report, Request, Scope};
@@ -53,8 +53,8 @@ pub struct ExportDialog {
 impl EventEmitter<TransferEvent> for ExportDialog {}
 
 impl Focusable for ExportDialog {
-    fn focus_handle(&self, _: &gpui::App) -> FocusHandle {
-        self.focus.clone()
+    fn focus_handle(&self, cx: &gpui::App) -> FocusHandle {
+        self.destination.read(cx).focus_handle(cx)
     }
 }
 
@@ -96,7 +96,7 @@ impl ExportDialog {
                 .default_value(services.default_directory.display().to_string())
                 .validate(single_line)
         });
-        let dialog = ExportDialog {
+        ExportDialog {
             services,
             scopes,
             scope: 0,
@@ -109,9 +109,21 @@ impl ExportDialog {
             focus: cx.focus_handle(),
             body_scroll: ScrollHandle::new(),
             _subscription: cx.observe_global::<focus_kit::tokens::FocusTheme>(|_, cx| cx.notify()),
-        };
-        focus_on_open(&dialog.focus, window);
-        dialog
+        }
+    }
+
+    fn confirm(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        match self.stage {
+            Stage::Form if !(self.format == Format::Pdf && !self.pdf_available) => {
+                self.start(window, cx)
+            }
+            Stage::Done(_) => self.close(cx),
+            Stage::Failed(_) => {
+                self.stage = Stage::Form;
+                cx.notify();
+            }
+            _ => {}
+        }
     }
 
     pub fn with_options(mut self, options: Options) -> Self {
@@ -638,9 +650,11 @@ impl Render for ExportDialog {
             .track_focus(&self.focus)
             .absolute()
             .inset_0()
-            .on_key_down(cx.listener(|this, event, _, cx| {
+            .on_key_down(cx.listener(|this, event, window, cx| {
                 if escape_closes(event) {
                     this.close(cx);
+                } else if enter_confirms(event) {
+                    this.confirm(window, cx);
                 } else if scroll_keys(event, &this.body_scroll) {
                     cx.notify();
                 }

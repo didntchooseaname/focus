@@ -17,7 +17,7 @@ use gpui::{
 
 use crate::attachments::{self, ChangeKind, Orphan, TidyPreview, TrashReport};
 use crate::dialog::{
-    TransferEvent, TransferServices, escape_closes, focus_on_open, footer_row, modal, notice,
+    TransferEvent, TransferServices, enter_confirms, escape_closes, footer_row, modal, notice,
     scroll_keys,
 };
 
@@ -54,6 +54,7 @@ pub struct AttachmentsDialog {
     working: bool,
     scroll: UniformListScrollHandle,
     focus: FocusHandle,
+    default_button: FocusHandle,
     body_scroll: ScrollHandle,
 }
 
@@ -61,7 +62,7 @@ impl EventEmitter<TransferEvent> for AttachmentsDialog {}
 
 impl Focusable for AttachmentsDialog {
     fn focus_handle(&self, _: &gpui::App) -> FocusHandle {
-        self.focus.clone()
+        self.default_button.clone()
     }
 }
 
@@ -87,9 +88,9 @@ impl AttachmentsDialog {
             working: true,
             scroll: UniformListScrollHandle::new(),
             focus: cx.focus_handle(),
+            default_button: cx.focus_handle(),
             body_scroll: ScrollHandle::new(),
         };
-        focus_on_open(&dialog.focus, window);
         dialog.load(window, cx);
         dialog
     }
@@ -495,6 +496,12 @@ impl Render for AttachmentsDialog {
             AttachmentsMode::Tidy(_) => "attachments-tidy-title",
             AttachmentsMode::Orphans => "attachments-orphans-title",
         });
+        let applicable = match &self.content {
+            Content::Tidy(preview) => !preview.changes.is_empty() && !self.working,
+            Content::Orphans { selected, .. } => !selected.is_empty() && !self.working,
+            _ => false,
+        };
+        let default_button = self.default_button.clone();
         let close_button = |label: &str, primary: bool, cx: &mut Context<Self>| {
             Button::new("attachments-close", label.to_string())
                 .kind(if primary {
@@ -502,6 +509,7 @@ impl Render for AttachmentsDialog {
                 } else {
                     ButtonKind::Secondary
                 })
+                .when(!applicable, |button| button.track_focus(&default_button))
                 .on_click(cx.listener(|this, _, _, cx| this.close(cx)))
         };
         let (body, footer) = match &self.content {
@@ -520,6 +528,7 @@ impl Render for AttachmentsDialog {
                         Button::new("attachments-apply", tr("attachments-apply"))
                             .kind(ButtonKind::Primary)
                             .disabled(!enabled)
+                            .track_focus(&self.default_button)
                             .on_click(cx.listener(|this, _, window, cx| this.apply(window, cx))),
                     );
                 (self.tidy_body(preview, t, cx), footer)
@@ -536,6 +545,7 @@ impl Render for AttachmentsDialog {
                         Button::new("attachments-trash", tr("attachments-trash"))
                             .kind(ButtonKind::Danger)
                             .disabled(!enabled)
+                            .track_focus(&self.default_button)
                             .on_click(cx.listener(|this, _, window, cx| this.apply(window, cx))),
                     );
                 (self.orphans_body(list, selected, *shown, t, cx), footer)
@@ -602,9 +612,15 @@ impl Render for AttachmentsDialog {
             .track_focus(&self.focus)
             .absolute()
             .inset_0()
-            .on_key_down(cx.listener(|this, event, _, cx| {
+            .on_key_down(cx.listener(|this, event, window, cx| {
                 if escape_closes(event) && !this.working {
                     this.close(cx);
+                } else if enter_confirms(event) {
+                    match this.content {
+                        Content::Tidy(_) | Content::Orphans { .. } => this.apply(window, cx),
+                        Content::Loading => {}
+                        _ => this.close(cx),
+                    }
                 } else {
                     let list = this.scroll.0.borrow().base_handle.clone();
                     if (matches!(this.content, Content::Tidy(_)) && scroll_keys(event, &list))

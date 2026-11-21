@@ -10,7 +10,7 @@ use gpui::{
 use gpui_component::input::{InputEvent, InputState};
 
 use crate::dialog::{
-    TransferEvent, TransferServices, escape_closes, focus_on_open, footer_row, modal, notice,
+    TransferEvent, TransferServices, enter_confirms, escape_closes, footer_row, modal, notice,
     path_row, picker, scroll_keys, section, single_line,
 };
 use crate::import::{self, Imported, Preview, SkipReason, Source};
@@ -40,8 +40,8 @@ pub struct ImportDialog {
 impl EventEmitter<TransferEvent> for ImportDialog {}
 
 impl Focusable for ImportDialog {
-    fn focus_handle(&self, _: &gpui::App) -> FocusHandle {
-        self.focus.clone()
+    fn focus_handle(&self, cx: &gpui::App) -> FocusHandle {
+        self.source.read(cx).focus_handle(cx)
     }
 }
 
@@ -93,7 +93,7 @@ impl ImportDialog {
                 })
             })
             .into();
-        let dialog = ImportDialog {
+        ImportDialog {
             services,
             source,
             destination,
@@ -104,9 +104,22 @@ impl ImportDialog {
             focus: cx.focus_handle(),
             body_scroll: ScrollHandle::new(),
             _subscriptions: subscriptions,
-        };
-        focus_on_open(&dialog.focus, window);
-        dialog
+        }
+    }
+
+    fn confirm(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        match self.stage {
+            Stage::Form if self.can_import(cx) => self.start(window, cx),
+            Stage::Done(_) => {
+                self.generation += 1;
+                cx.emit(TransferEvent::Close);
+            }
+            Stage::Failed(_) => {
+                self.stage = Stage::Form;
+                cx.notify();
+            }
+            _ => {}
+        }
     }
 
     pub fn set_source(&mut self, path: &str, window: &mut Window, cx: &mut Context<Self>) {
@@ -405,9 +418,11 @@ impl Render for ImportDialog {
             .track_focus(&self.focus)
             .absolute()
             .inset_0()
-            .on_key_down(cx.listener(move |this, event, _, cx| {
+            .on_key_down(cx.listener(move |this, event, window, cx| {
                 if escape_closes(event) && !matches!(this.stage, Stage::Running) {
                     close(this, cx);
+                } else if enter_confirms(event) {
+                    this.confirm(window, cx);
                 } else if scroll_keys(event, &this.body_scroll) {
                     cx.notify();
                 }

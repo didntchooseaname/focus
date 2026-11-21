@@ -360,6 +360,7 @@ pub struct MergeDialog {
     pub trash: TrashKind,
     links: Option<Result<usize, String>>,
     focus: FocusHandle,
+    default_button: FocusHandle,
     _count: Option<Task<()>>,
 }
 
@@ -367,7 +368,7 @@ impl EventEmitter<DialogEvent> for MergeDialog {}
 
 impl Focusable for MergeDialog {
     fn focus_handle(&self, _: &gpui::App) -> FocusHandle {
-        self.focus.clone()
+        self.default_button.clone()
     }
 }
 
@@ -397,6 +398,7 @@ impl MergeDialog {
             trash,
             links: None,
             focus: cx.focus_handle(),
+            default_button: cx.focus_handle(),
             _count: Some(task),
         }
     }
@@ -484,12 +486,14 @@ impl Render for MergeDialog {
             .gap(size::S2)
             .child(
                 Button::new("merge-cancel", focus_i18n::t("ui-action-cancel"))
+                    .when(!ready, |button| button.track_focus(&self.default_button))
                     .on_click(cx.listener(|_, _, _, cx| cx.emit(DialogEvent::Close))),
             )
             .child(
                 Button::new("merge-confirm", focus_i18n::t("ui-action-merge"))
                     .kind(ButtonKind::Primary)
                     .disabled(!ready)
+                    .track_focus(&self.default_button)
                     .on_click(cx.listener(|this, _, _, cx| this.confirm(cx))),
             );
         let entity = cx.entity().downgrade();

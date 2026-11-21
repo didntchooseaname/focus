@@ -763,7 +763,7 @@ impl Shell {
                 match plan(&vault, request, &settings, clipboard, date, time) {
                     Ok(Writing::Confirm(plan)) => {
                         self.overlay = Overlay::ObsidianWrite(Confirmation { plan });
-                        window.focus(&self.focus);
+                        window.focus(&self.modal.primary);
                         cx.notify();
                     }
                     Ok(Writing::OpenOrCreate {
@@ -970,6 +970,7 @@ impl Shell {
                                         } else {
                                             ButtonKind::Primary
                                         })
+                                        .track_focus(&self.modal.primary)
                                         .on_click(cx.listener(|this, _, window, cx| {
                                             this.confirm_obsidian_write(window, cx)
                                         })),

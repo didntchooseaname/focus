@@ -347,7 +347,7 @@ impl Shell {
             Some(vault) if self.vault_root.as_deref() != Some(vault.as_path()) => {
                 if self.vault_root.is_some() {
                     self.overlay = Overlay::SwitchVault(VaultSwitch { to: vault, files });
-                    window.focus(&self.focus);
+                    window.focus(&self.modal.primary);
                     cx.notify();
                 } else {
                     self.open_paths.extend(files);
@@ -439,6 +439,7 @@ impl Shell {
                                 .child(
                                     Button::new("switch-open", focus_i18n::t("ui-switch-open"))
                                         .kind(ButtonKind::Primary)
+                                        .track_focus(&self.modal.primary)
                                         .on_click(cx.listener(|this, _, window, cx| {
                                             this.confirm_vault_switch(window, cx)
                                         })),

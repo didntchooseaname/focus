@@ -4,8 +4,8 @@ use std::sync::Arc;
 use focus_core::{AttachmentPolicy, Vault};
 use focus_kit::{Button, Field, Flow as _, Icon, IconButton, Tokens, Type, floating, size};
 use gpui::{
-    AnyElement, App, ClickEvent, Div, Entity, FocusHandle, InteractiveElement, IntoElement,
-    KeyDownEvent, ParentElement, PathPromptOptions, Pixels, ScrollHandle, SharedString,
+    AnyElement, App, ClickEvent, Div, Entity, InteractiveElement, IntoElement, KeyDownEvent,
+    ParentElement, PathPromptOptions, Pixels, ScrollHandle, SharedString,
     StatefulInteractiveElement as _, Styled, Window, div, point, px, relative,
 };
 use gpui_component::input::InputState;
@@ -183,6 +183,6 @@ pub(crate) fn escape_closes(event: &KeyDownEvent) -> bool {
     event.keystroke.key == "escape" && !event.keystroke.modifiers.modified()
 }
 
-pub(crate) fn focus_on_open(focus: &FocusHandle, window: &mut Window) {
-    window.focus(focus);
+pub(crate) fn enter_confirms(event: &KeyDownEvent) -> bool {
+    event.keystroke.key == "enter" && !event.keystroke.modifiers.modified()
 }

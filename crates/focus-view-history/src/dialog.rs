@@ -100,6 +100,7 @@ pub struct VersionsDialog {
     rendered: Option<Source>,
     restoring: bool,
     focus: FocusHandle,
+    list_focus: FocusHandle,
     list_scroll: UniformListScrollHandle,
     visible: std::ops::Range<usize>,
     diff_scroll: UniformListScrollHandle,
@@ -132,6 +133,7 @@ impl VersionsDialog {
             rendered: None,
             restoring: false,
             focus: cx.focus_handle(),
+            list_focus: cx.focus_handle().tab_stop(true),
             list_scroll: UniformListScrollHandle::new(),
             visible: 0..0,
             diff_scroll: UniformListScrollHandle::new(),
@@ -139,7 +141,7 @@ impl VersionsDialog {
             compare_task: None,
             restore_task: None,
         };
-        window.focus(&dialog.focus);
+        window.focus(&dialog.list_focus);
         dialog.reload(cx);
         dialog
     }
@@ -393,6 +395,7 @@ impl VersionsDialog {
         }
         match keystroke.key.as_str() {
             "escape" => cx.emit(VersionsEvent::Close),
+            "enter" => self.restore(cx),
             "up" => self.move_selection(-1, cx),
             "down" => self.move_selection(1, cx),
             "home" => self.move_selection(isize::MIN / 2, cx),
@@ -710,7 +713,9 @@ impl VersionsDialog {
     }
 
     fn list(&self, t: Tokens, cx: &mut Context<Self>) -> AnyElement {
+        focus_kit::keyboard::name_focus(&self.list_focus, "history-versions", cx);
         div()
+            .track_focus(&self.list_focus)
             .relative()
             .flex_none()
             .w(px(LIST_WIDTH))

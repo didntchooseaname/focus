@@ -93,6 +93,7 @@ impl Shell {
             Address::Direct => self.hand_over(target, cx),
             Address::Ask => {
                 self.overlay = Overlay::OpenAddress(target.to_string());
+                window.focus(&self.modal.primary);
                 cx.notify();
             }
             Address::Refused => self.notify_user(
@@ -196,6 +197,7 @@ impl Shell {
                                 .child(
                                     Button::new("address-open", focus_i18n::t("ui-address-open"))
                                         .kind(ButtonKind::Primary)
+                                        .track_focus(&self.modal.primary)
                                         .on_click(cx.listener(|this, _, window, cx| {
                                             this.confirm_address(window, cx)
                                         })),
