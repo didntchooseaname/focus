@@ -282,6 +282,13 @@ impl LastLayout {
     }
 }
 
+#[derive(Clone)]
+pub struct RightClickMenu(
+    pub std::rc::Rc<dyn Fn(Entity<InputState>, Point<Pixels>, bool, &mut Window, &mut App)>,
+);
+
+impl gpui::Global for RightClickMenu {}
+
 /// InputState to keep editing state of the [`super::Input`].
 pub struct InputState {
     pub(super) focus_handle: FocusHandle,
@@ -335,6 +342,7 @@ pub struct InputState {
     diagnostic_popover: Option<Entity<DiagnosticPopover>>,
     /// Completion/CodeAction context menu
     pub(super) context_menu: Option<ContextMenu>,
+    held_by_menu: bool,
     pub(super) mouse_context_menu: Entity<MouseContextMenu>,
     /// A flag to indicate if we are currently inserting a completion item.
     pub(super) completion_inserting: bool,
@@ -435,6 +443,7 @@ impl InputState {
             lsp: Lsp::default(),
             diagnostic_popover: None,
             context_menu: None,
+            held_by_menu: false,
             mouse_context_menu,
             completion_inserting: false,
             hover_popover: None,
@@ -795,6 +804,10 @@ impl InputState {
 
     /// Scroll offset of the editor content (negative when scrolled down).
     /// Selected text; empty without a selection. Readable without a window.
+    pub fn hold_for_menu(&mut self, held: bool) {
+        self.held_by_menu = held;
+    }
+
     pub fn selection_text(&self) -> String {
         let range: std::ops::Range<usize> = self.selected_range.into();
         if range.is_empty() { String::new() } else { self.text.slice(range).to_string() }
@@ -1351,6 +1364,16 @@ impl InputState {
 
         // Show Mouse context menu
         if event.button == MouseButton::Right {
+            if let Some(menu) = cx.try_global::<RightClickMenu>().map(|menu| menu.0.clone()) {
+                if !self.selected_range.contains(offset) {
+                    self.move_to(offset, None, cx);
+                }
+                let input = cx.entity();
+                let position = event.position;
+                let editable = !self.disabled;
+                window.defer(cx, move |window, cx| menu(input, position, editable, window, cx));
+                return;
+            }
             self.handle_right_click_menu(event, offset, window, cx);
             return;
         }
@@ -1837,7 +1860,7 @@ impl InputState {
     }
 
     fn on_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.is_context_menu_open(cx) {
+        if self.is_context_menu_open(cx) || self.held_by_menu {
             return;
         }
 
