@@ -80,7 +80,7 @@ shot compose-extract-menu-edit-$lang
 key escape
 wait 300
 lang en
-palette >Extract current selection
+palette >Extract into a note
 wait 300
 key enter
 wait 500
