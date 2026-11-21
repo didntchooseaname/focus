@@ -172,7 +172,7 @@ impl Element for Scrollbar {
         } else {
             t.ink_4
         };
-        window.paint_quad(fill(thumb, color).corner_radii(px(WIDTH / 2.)));
+        window.paint_quad(fill(thumb, color).corner_radii(crate::tokens::size::RADIUS));
         window.set_cursor_style(CursorStyle::Arrow, &state.hitbox);
 
         let track = bounds.size.height;

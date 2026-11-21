@@ -1,11 +1,11 @@
 use gpui::{
-    AnyElement, App, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Window, div,
-    prelude::FluentBuilder, px,
+    AnyElement, App, Div, IntoElement, ParentElement, RenderOnce, SharedString, Styled, Window,
+    div, prelude::FluentBuilder, px,
 };
 
 use crate::dir::Flow as _;
 use crate::icons::{Icon, icon};
-use crate::tokens::{ActiveTokens, size};
+use crate::tokens::{ActiveTokens, Tokens, size};
 use crate::typography::Type;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -13,6 +13,44 @@ pub enum DiffMark {
     Same,
     Added,
     Removed,
+}
+
+fn diff_color(t: &Tokens, mark: DiffMark) -> Option<gpui::Hsla> {
+    match mark {
+        DiffMark::Added => Some(t.ok),
+        DiffMark::Removed => Some(t.danger),
+        DiffMark::Same => None,
+    }
+}
+
+pub fn diff_row(t: &Tokens, mark: DiffMark) -> Div {
+    div()
+        .relative()
+        .flex()
+        .flex_row()
+        .when_some(diff_color(t, mark), |this, color| {
+            this.child(
+                div()
+                    .absolute()
+                    .left_0()
+                    .top_0()
+                    .bottom_0()
+                    .w(px(2.))
+                    .bg(color),
+            )
+        })
+}
+
+pub fn diff_marker(t: &Tokens, mark: DiffMark) -> Div {
+    let sign = match mark {
+        DiffMark::Added => "+",
+        DiffMark::Removed => "-",
+        DiffMark::Same => " ",
+    };
+    div()
+        .flex_none()
+        .text_color(diff_color(t, mark).unwrap_or(t.ink_3))
+        .child(sign)
 }
 
 #[derive(IntoElement)]
@@ -69,19 +107,11 @@ impl RenderOnce for DiffCard {
         let t = *cx.tokens();
         let rows =
             self.rows.into_iter().map(|(mark, text)| {
-                let (marker, color, tint) = match mark {
-                    DiffMark::Added => ("+", t.ok, Some(t.ok.opacity(0.12))),
-                    DiffMark::Removed => ("-", t.danger, Some(t.danger.opacity(0.12))),
-                    DiffMark::Same => (" ", t.ink_3, None),
-                };
-                div()
-                    .flex()
-                    .flex_row()
+                diff_row(&t, mark)
                     .gap(size::S1)
                     .px(size::S2)
                     .mono_sm()
-                    .when_some(tint, |this, tint| this.bg(tint))
-                    .child(div().flex_none().w(px(8.)).text_color(color).child(marker))
+                    .child(diff_marker(&t, mark).w(px(8.)))
                     .child(div().flex_1().min_w_0().text_color(t.ink_body).child(
                         if text.is_empty() {
                             SharedString::from(" ")

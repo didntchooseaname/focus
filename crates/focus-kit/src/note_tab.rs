@@ -21,6 +21,7 @@ pub struct NoteTab {
     dirty: bool,
     forced: Forced,
     close_label: SharedString,
+    close_shortcut: Option<SharedString>,
     on_click: Option<Handler>,
     on_close: Option<Handler>,
 }
@@ -38,6 +39,7 @@ impl NoteTab {
             dirty: false,
             forced: Forced::Live,
             close_label: close_label.into(),
+            close_shortcut: None,
             on_click: None,
             on_close: None,
         }
@@ -52,6 +54,10 @@ impl NoteTab {
     }
     pub fn forced(mut self, forced: Forced) -> Self {
         self.forced = forced;
+        self
+    }
+    pub fn close_shortcut(mut self, keys: impl Into<SharedString>) -> Self {
+        self.close_shortcut = Some(keys.into());
         self
     }
     pub fn on_click(
@@ -90,10 +96,13 @@ impl RenderOnce for NoteTab {
             .min_w(size::TAB_MIN)
             .max_w(size::TAB_MAX)
             .h(size::TAB_BAR)
-            .map(|this| dir.pad_end(dir.pad_start(this, size::S3), px(8.)))
+            .map(|this| dir.pad_end(dir.pad_start(this, size::S3), size::S1))
             .map(|this| dir.border_end(this, t.line))
             .border_color(t.line)
-            .when(self.forced.pressed(), |this| this.bg(t.card_2))
+            .when(self.forced.pressed(), |this| this.bg(t.card_3))
+            .when(self.forced == Forced::Live, |this| {
+                this.active(move |s| s.bg(t.card_3))
+            })
             .child(
                 crate::Dir::across(div().absolute())
                     .bottom_0()
@@ -127,13 +136,31 @@ impl RenderOnce for NoteTab {
                     .flex_none()
                     .items_center()
                     .justify_center()
-                    .size(px(20.))
+                    .relative()
+                    .size(size::ICON_BUTTON)
                     .rounded(size::RADIUS)
                     .text_color(t.ink_3)
                     .map(|this| {
                         if self.dirty && !hovered {
-                            this.child(div().size(size::DOT).rounded_full().bg(t.ink))
-                                .group_hover(GROUP, |s| s.invisible())
+                            this.child(
+                                div()
+                                    .size(size::DOT)
+                                    .rounded_full()
+                                    .bg(t.ink)
+                                    .group_hover(GROUP, |s| s.invisible()),
+                            )
+                            .child(
+                                div()
+                                    .absolute()
+                                    .inset_0()
+                                    .flow_row()
+                                    .items_center()
+                                    .justify_center()
+                                    .invisible()
+                                    .group_hover(GROUP, |s| s.visible())
+                                    .child(icon(Icon::CLOSE, size::ICON_DENSE)),
+                            )
+                            .hover(move |s| s.bg(t.card_2).text_color(t.ink))
                         } else {
                             this.child(icon(Icon::CLOSE, size::ICON_DENSE))
                                 .when(!close_visible, |this| {
@@ -144,9 +171,8 @@ impl RenderOnce for NoteTab {
                     })
                     .tooltip({
                         let label = self.close_label.clone();
-                        move |_, cx| {
-                            crate::tooltip::Tooltip::view(label.clone(), Some("Ctrl W".into()), cx)
-                        }
+                        let keys = self.close_shortcut.clone();
+                        move |_, cx| crate::tooltip::Tooltip::view(label.clone(), keys.clone(), cx)
                     })
                     .when_some(self.on_close, |this, handler| {
                         this.on_click(move |event, window, cx| {

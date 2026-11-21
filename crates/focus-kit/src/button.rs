@@ -130,9 +130,9 @@ impl RenderOnce for Button {
                 t.bg.opacity(0.),
                 t.danger,
                 t.danger,
-                t.card_2,
+                t.bg.opacity(0.),
                 t.danger,
-                t.danger,
+                t.ink_3,
                 t.card_3,
             ),
         };
@@ -169,7 +169,7 @@ impl RenderOnce for Button {
             .flex_none()
             .items_center()
             .justify_center()
-            .gap(px(6.))
+            .gap(size::S2)
             .h(height)
             .px(if self.label.is_some() {
                 size::S3

@@ -24,6 +24,7 @@ pub struct TreeRow {
     icon: Option<Icon>,
     trailing: Option<AnyElement>,
     active: bool,
+    muted: bool,
     focused: bool,
     forced: Forced,
     on_click: Option<Handler>,
@@ -40,6 +41,7 @@ impl TreeRow {
             icon: None,
             trailing: None,
             active: false,
+            muted: false,
             focused: false,
             forced: Forced::Live,
             on_click: None,
@@ -67,6 +69,10 @@ impl TreeRow {
     }
     pub fn active(mut self, active: bool) -> Self {
         self.active = active;
+        self
+    }
+    pub fn muted(mut self, muted: bool) -> Self {
+        self.muted = muted;
         self
     }
     pub fn focused(mut self, focused: bool) -> Self {
@@ -97,7 +103,9 @@ impl RenderOnce for TreeRow {
         } else {
             None
         };
-        let ink = if self.active || is_folder || self.forced.hover() {
+        let ink = if self.muted {
+            t.ink_3
+        } else if self.active || is_folder || self.forced.hover() {
             t.ink
         } else {
             t.ink_2
@@ -108,7 +116,7 @@ impl RenderOnce for TreeRow {
             .relative()
             .items_center()
             .w_full()
-            .h(size::ROW)
+            .h(size::list_row())
             .map(|this| dir.pad_end(dir.pad_start(this, LEAD), size::S3))
             .when_some(bg, |this, bg| this.bg(bg))
             .when(self.forced == Forced::Live && !self.active, |this| {
@@ -147,7 +155,7 @@ impl RenderOnce for TreeRow {
                     }),
             )
             .child(
-                dir.margin_start(div().flex_1().min_w_0().flow_row(), px(6.))
+                dir.margin_start(div().flex_1().min_w_0().flow_row(), size::S2)
                     .child(crate::ellipsis(self.name)),
             )
             .when_some(self.count, |this, count| {
@@ -155,7 +163,7 @@ impl RenderOnce for TreeRow {
                     dir.margin_start(div().flex_none(), size::S2)
                         .mono_sm()
                         .text_color(t.ink_4)
-                        .child(count.to_string()),
+                        .child(focus_i18n::format_number(i64::from(count))),
                 )
             })
             .when_some(self.trailing, |this, trailing| this.child(trailing))

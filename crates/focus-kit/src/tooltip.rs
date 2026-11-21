@@ -45,3 +45,18 @@ pub fn tooltip_body(
         .child(label)
         .when_some(shortcut, |this, keys| this.child(Kbd::new(keys)))
 }
+
+pub fn truncated(
+    id: impl Into<gpui::ElementId>,
+    text: impl Into<SharedString>,
+) -> gpui::Stateful<gpui::Div> {
+    use gpui::{InteractiveElement as _, StatefulInteractiveElement as _};
+    let text: SharedString = text.into();
+    let tip = text.clone();
+    div()
+        .id(id)
+        .flow_row()
+        .min_w_0()
+        .tooltip(move |_, cx| Tooltip::view(tip.clone(), None, cx))
+        .child(crate::ellipsis(text))
+}

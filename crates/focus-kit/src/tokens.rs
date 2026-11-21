@@ -142,6 +142,21 @@ pub mod size {
     pub const TAB_BAR: Pixels = px(36.);
     pub const SIDEBAR_HEADER: Pixels = px(36.);
     pub const ROW: Pixels = px(26.);
+    pub const ROW_COMPACT: Pixels = px(22.);
+
+    static COMPACT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+    pub fn set_compact(compact: bool) {
+        COMPACT.store(compact, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn list_row() -> Pixels {
+        if COMPACT.load(std::sync::atomic::Ordering::Relaxed) {
+            ROW_COMPACT
+        } else {
+            ROW
+        }
+    }
     pub const PALETTE_ROW: Pixels = px(34.);
     pub const CONTROL: Pixels = px(28.);
     pub const CONTROL_LG: Pixels = px(34.);
@@ -183,10 +198,7 @@ pub mod size {
 pub mod motion {
     use super::*;
 
-    pub const HOVER: Duration = Duration::from_millis(120);
-    pub const SIDEBAR: Duration = Duration::from_millis(160);
     pub const FADE: Duration = Duration::from_millis(100);
-    pub const TOOLTIP_DELAY: Duration = Duration::from_millis(400);
     pub const TOAST: Duration = Duration::from_secs(4);
 }
 
@@ -209,7 +221,7 @@ pub fn contrast(a: Hsla, b: Hsla) -> f32 {
 
 #[cfg(test)]
 mod tests {
-    use super::{Mode, Tokens, contrast};
+    use super::{Mode, Tokens, contrast, size};
 
     #[test]
     fn text_inks_reach_four_and_a_half() {
@@ -264,5 +276,14 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn the_list_row_follows_the_density() {
+        assert_eq!(size::list_row(), size::ROW);
+        size::set_compact(true);
+        assert_eq!(size::list_row(), size::ROW_COMPACT);
+        size::set_compact(false);
+        assert_eq!(size::list_row(), size::ROW);
     }
 }

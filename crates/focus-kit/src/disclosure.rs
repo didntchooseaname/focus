@@ -1,6 +1,6 @@
 use gpui::{
     App, ClickEvent, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce,
-    SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
+    SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
 };
 
 use crate::dir::{Dir, Flow as _};
@@ -67,7 +67,7 @@ impl RenderOnce for Disclosure {
             .flow_row()
             .items_center()
             .gap(size::S1)
-            .h(px(22.))
+            .h(size::S6)
             .min_w_0()
             .cursor_pointer()
             .text_color(t.ink_3)
