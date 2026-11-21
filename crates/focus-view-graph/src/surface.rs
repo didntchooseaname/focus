@@ -8,6 +8,9 @@ use gpui::{
     ScrollWheelEvent, Stateful, Styled, div, prelude::FluentBuilder, px,
 };
 
+pub(crate) const ZOOM_IN_KEY: &str = "+";
+pub(crate) const ZOOM_OUT_KEY: &str = "-";
+pub(crate) const FIT_KEY: &str = "0";
 const TOOLTIP_WIDTH: f32 = 320.0;
 const TOOLTIP_HEIGHT: f32 = 72.0;
 const TOOLTIP_OFFSET: f32 = 8.0;
@@ -86,9 +89,9 @@ fn on_key<V: GraphHost>(view: &mut V, event: &KeyDownEvent, cx: &mut Context<V>)
         "right" => core.pan_by([-STEP, 0.0]),
         "up" => core.pan_by([0.0, STEP]),
         "down" => core.pan_by([0.0, -STEP]),
-        "+" | "=" => core.zoom_by(1.25),
-        "-" => core.zoom_by(0.8),
-        "0" => core.fit(),
+        ZOOM_IN_KEY | "=" => core.zoom_by(1.25),
+        ZOOM_OUT_KEY => core.zoom_by(0.8),
+        FIT_KEY => core.fit(),
         "escape" => {
             core.selected = None;
             core.refresh_neighbors();

@@ -584,18 +584,21 @@ impl Render for GraphView {
                             Icon::MINUS,
                             focus_i18n::t("graph-zoom-out"),
                         )
+                        .shortcut(focus_i18n::keys_text(crate::surface::ZOOM_OUT_KEY))
                         .on_click(cx.listener(|this, _, _, cx| this.zoom(Some(0.8), cx))),
                         IconButton::new(
                             "graph-zoom-in",
                             Icon::PLUS,
                             focus_i18n::t("graph-zoom-in"),
                         )
+                        .shortcut(focus_i18n::keys_text(crate::surface::ZOOM_IN_KEY))
                         .on_click(cx.listener(|this, _, _, cx| this.zoom(Some(1.25), cx))),
                         IconButton::new(
                             "graph-zoom-fit",
                             Icon::MAXIMIZE,
                             focus_i18n::t("graph-zoom-fit"),
                         )
+                        .shortcut(focus_i18n::keys_text(crate::surface::FIT_KEY))
                         .on_click(cx.listener(|this, _, _, cx| this.zoom(None, cx))),
                     )
                     .bare(),
