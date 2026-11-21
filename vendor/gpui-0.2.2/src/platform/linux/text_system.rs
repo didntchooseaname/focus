@@ -50,9 +50,56 @@ struct LoadedFont {
     is_known_emoji_font: bool,
 }
 
+#[path = "font_weight.rs"]
+mod font_weight;
+use font_weight::nearest_weight;
+
 /// Family cosmic-text falls back to for emoji on Linux.
 const COLOUR_EMOJI: &str = "Noto Color Emoji";
 const MONOCHROME_EMOJI: &str = "Noto Emoji";
+
+/// Focus: the families cosmic-text falls back to for Chinese (outside a Japanese, Korean or
+/// traditional Chinese locale) and for Arabic, and the twin that stands in for the first.
+const CJK_FALLBACK: &str = "Noto Sans CJK SC";
+const CJK_TWIN: &str = "Source Han Sans SC";
+const ARABIC_FALLBACK: &str = "Noto Sans Arabic";
+
+fn has_family(face: &cosmic_text::fontdb::FaceInfo, family: &str) -> bool {
+    face.families.iter().any(|(name, _)| name == family)
+}
+
+/// Focus: cosmic-text takes a script fallback family only at the exact requested weight, so a
+/// Sora title at 600 skipped Noto Sans CJK SC (no 600 face) and fell on a serif CJK face.
+/// Each fallback family gets a face at every weight from 100 to 900: the face CSS font
+/// matching would pick for that weight. Source Han Sans SC answers for Noto Sans CJK SC when
+/// the latter is missing (DESIGN 10: Noto Sans CJK SC, then Source Han Sans SC).
+fn offer_fallbacks_at_every_weight(db: &mut cosmic_text::fontdb::Database) {
+    if !db.faces().any(|face| has_family(face, CJK_FALLBACK)) {
+        let twins: Vec<_> = db.faces().filter(|face| has_family(face, CJK_TWIN)).cloned().collect();
+        for mut face in twins {
+            face.families = vec![(CJK_FALLBACK.to_string(), cosmic_text::fontdb::Language::English_UnitedStates)];
+            db.push_face_info(face);
+        }
+    }
+    for family in [CJK_FALLBACK, ARABIC_FALLBACK] {
+        let faces: Vec<_> = db.faces().filter(|face| has_family(face, family)).cloned().collect();
+        let mut aliases = Vec::new();
+        for face in &faces {
+            let same_style: Vec<u16> = faces.iter().filter(|f| f.style == face.style).map(|f| f.weight.0).collect();
+            for weight in (100..=900).step_by(100) {
+                if same_style.contains(&weight) || aliases.iter().any(|(style, w)| *style == face.style && *w == weight) {
+                    continue;
+                }
+                if nearest_weight(weight, &same_style) == Some(face.weight.0) {
+                    aliases.push((face.style, weight));
+                    let mut alias = face.clone();
+                    alias.weight = cosmic_text::fontdb::Weight(weight);
+                    db.push_face_info(alias);
+                }
+            }
+        }
+    }
+}
 
 impl CosmicTextSystem {
     pub(crate) fn new() -> Self {
@@ -65,6 +112,7 @@ impl CosmicTextSystem {
         for id in colour {
             db.remove_face(id);
         }
+        offer_fallbacks_at_every_weight(db);
 
         Self(RwLock::new(CosmicTextSystemState {
             font_system,
@@ -228,6 +276,7 @@ impl CosmicTextSystemState {
                 db.push_face_info(face);
             }
         }
+        offer_fallbacks_at_every_weight(db);
         Ok(())
     }
 
