@@ -317,7 +317,15 @@ ops-copied = تم النسخ
 ops-credentials-column-domain = النطاق
 ops-credentials-column-kind = النوع
 ops-credentials-copy = نسخ السر
-ops-credentials-count = بيانات الاعتماد: { $count }
+ops-credentials-count =
+    { $count ->
+        [zero] لا بيانات اعتماد
+        [one] بيان اعتماد واحد
+        [two] بيانا اعتماد
+        [few] { $count } بيانات اعتماد
+        [many] { $count } بيان اعتماد
+       *[other] { $count } بيان اعتماد
+    }
 ops-credentials-duplicate = بيانات الاعتماد هذه مسجّلة مسبقًا.
 ops-credentials-empty = لا توجد بيانات اعتماد بعد. أضف واحدة أعلاه.
 ops-cvss-apply = تطبيق على الملاحظة المحددة

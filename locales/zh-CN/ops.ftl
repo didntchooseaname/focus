@@ -297,7 +297,10 @@ ops-copied = 已复制
 ops-credentials-column-domain = 域
 ops-credentials-column-kind = 类型
 ops-credentials-copy = 复制密钥
-ops-credentials-count = 凭据：{ $count }
+ops-credentials-count =
+    { $count ->
+       *[other] { $count } 条凭据
+    }
 ops-credentials-duplicate = 此凭据已记录。
 ops-credentials-empty = 还没有凭据。请在上方添加。
 ops-cvss-apply = 应用到所选发现

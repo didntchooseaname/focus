@@ -301,7 +301,11 @@ ops-copied = Copied
 ops-credentials-column-domain = Domain
 ops-credentials-column-kind = Type
 ops-credentials-copy = Copy the secret
-ops-credentials-count = Credentials: { $count }
+ops-credentials-count =
+    { $count ->
+        [one] { $count } credential
+       *[other] { $count } credentials
+    }
 ops-credentials-duplicate = This credential is already recorded.
 ops-credentials-empty = No credential yet. Add one above.
 ops-cvss-apply = Apply to the selected finding
