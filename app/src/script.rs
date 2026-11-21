@@ -7,7 +7,7 @@ use gpui::{AppContext as _, AsyncWindowContext, Keystroke, WeakEntity, Window};
 use crate::editor::ViewMode;
 use crate::kit::Gallery;
 use crate::settings::schema::{Section, Value};
-use crate::shell::{BottomTab, LeftTab, Overlay, RightTab, Screen, Shell};
+use crate::shell::{BottomTab, LeftTab, Overlay, Pane, RightTab, Screen, Shell};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Step {
@@ -35,6 +35,11 @@ pub enum Step {
     OpenPath(std::path::PathBuf),
     Listen,
     Tabs,
+    TabBar,
+    PinTab(usize),
+    DropTab(usize, usize),
+    TabClose(usize),
+    TabMenu(usize),
     Front,
     Focused,
     Split,
@@ -327,6 +332,28 @@ pub fn parse(text: &str) -> Result<Vec<(usize, Step)>, String> {
             ),
             "listen" => Step::Listen,
             "tabs" => Step::Tabs,
+            "tabbar" => Step::TabBar,
+            "pintab" => Step::PinTab(
+                rest.parse()
+                    .map_err(|_| fail("expected: the rank of the tab drawn, from 0"))?,
+            ),
+            "tabmenu" => Step::TabMenu(
+                rest.parse()
+                    .map_err(|_| fail("expected: the rank of the tab drawn, from 0"))?,
+            ),
+            "tabclose" => Step::TabClose(
+                rest.parse()
+                    .map_err(|_| fail("expected: the rank of the tab drawn, from 0"))?,
+            ),
+            "droptab" => match rest.split_whitespace().collect::<Vec<_>>()[..] {
+                [from, to] => Step::DropTab(
+                    from.parse()
+                        .map_err(|_| fail("expected: droptab <rank> <rank>"))?,
+                    to.parse()
+                        .map_err(|_| fail("expected: droptab <rank> <rank>"))?,
+                ),
+                _ => return Err(fail("expected: droptab <rank> <rank>")),
+            },
             "front" => Step::Front,
             "focused" => Step::Focused,
             "split" => Step::Split,
@@ -1373,26 +1400,96 @@ impl Shell {
                 );
             }
             Step::Focused => println!("focused: {}", self.focus_label(window, cx)),
-            Step::Tabs => {
-                let titles = |tabs: &[gpui::Entity<crate::editor::NoteEditor>]| {
-                    tabs.iter()
-                        .map(|tab| tab.read(cx).meta.title.to_string())
+            Step::Tabs | Step::TabBar => {
+                let all = matches!(step, Step::TabBar);
+                let titles = |tabs: &[gpui::Entity<crate::editor::NoteEditor>],
+                              panes: &[Pane],
+                              order: &crate::tab_order::TabOrder| {
+                    order
+                        .reconciled(&crate::tab_keys::present(tabs, panes))
+                        .items()
+                        .filter_map(|item| {
+                            let title = match item {
+                                crate::groups::TabItem::Note(entity) => tabs
+                                    .iter()
+                                    .find(|tab| tab.entity_id() == entity)?
+                                    .read(cx)
+                                    .meta
+                                    .title
+                                    .to_string(),
+                                crate::groups::TabItem::Pane(pane) if all => self.pane_label(pane),
+                                crate::groups::TabItem::Pane(_) => return None,
+                            };
+                            Some(if order.is_pinned(item) {
+                                format!("[p] {title}")
+                            } else {
+                                title
+                            })
+                        })
                         .collect::<Vec<_>>()
                         .join(" | ")
                 };
-                let focused = titles(&self.tabs);
+                let label = if all { "tabbar" } else { "tabs" };
+                let focused = titles(&self.tabs, &self.panes, &self.tab_order);
                 match &self.split {
-                    None => println!("tabs: {focused}"),
+                    None => println!("{label}: {focused}"),
                     Some(split) => {
-                        let other = titles(&split.other.tabs);
+                        let other =
+                            titles(&split.other.tabs, &split.other.panes, &split.other.order);
                         let (first, second) = if split.focused_second {
                             (other, focused)
                         } else {
                             (focused, other)
                         };
-                        println!("tabs: {first} || {second}");
+                        println!("{label}: {first} || {second}");
                     }
                 }
+            }
+            Step::PinTab(rank) => {
+                let item = self
+                    .drawn_item(*rank)
+                    .ok_or(format!("no tab of rank {rank}"))?;
+                self.toggle_pin(item, cx);
+            }
+            Step::TabMenu(rank) => {
+                let item = self
+                    .drawn_item(*rank)
+                    .ok_or(format!("no tab of rank {rank}"))?;
+                let start = if self.layout.left_open {
+                    self.layout.left_w
+                } else {
+                    gpui::px(0.)
+                };
+                let x = start + focus_kit::size::TAB_MIN * (*rank as f32 + 0.5);
+                let y = focus_kit::size::TITLE_BAR + focus_kit::size::TAB_BAR;
+                self.open_tab_menu(
+                    crate::groups::TabMenu {
+                        second: self.focused_second(),
+                        item,
+                        x,
+                        y,
+                    },
+                    window,
+                    cx,
+                );
+            }
+            Step::TabClose(rank) => {
+                let item = self
+                    .drawn_item(*rank)
+                    .ok_or(format!("no tab of rank {rank}"))?;
+                self.close_item(item, window, cx);
+            }
+            Step::DropTab(from, to) => {
+                let item = self
+                    .drawn_item(*from)
+                    .ok_or(format!("no tab of rank {from}"))?;
+                let target = self.drawn_item(*to).ok_or(format!("no tab of rank {to}"))?;
+                let dragged = crate::groups::DraggedTab {
+                    second: self.focused_second(),
+                    item,
+                    title: Default::default(),
+                };
+                self.drop_on_tab(&dragged, self.focused_second(), target, window, cx);
             }
             Step::Split => self.split_right(None, window, cx),
             Step::Group(second) => {
@@ -1403,9 +1500,17 @@ impl Shell {
                 self.split.as_ref().ok_or("the central area is not split")?;
                 self.focus_group(*second, window, cx);
                 let editor = self
-                    .tabs
-                    .get(*rank)
-                    .cloned()
+                    .drawn_order()
+                    .items()
+                    .filter_map(|item| match item {
+                        crate::groups::TabItem::Note(entity) => self
+                            .tabs
+                            .iter()
+                            .find(|tab| tab.entity_id() == entity)
+                            .cloned(),
+                        crate::groups::TabItem::Pane(_) => None,
+                    })
+                    .nth(*rank)
                     .ok_or(format!("no tab of rank {rank}"))?;
                 let dragged = crate::groups::DraggedTab {
                     second: *second,

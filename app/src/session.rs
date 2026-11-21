@@ -16,6 +16,7 @@ pub struct Store {
 pub struct Session {
     pub tabs: Vec<PathBuf>,
     pub views: Vec<Option<crate::editor::ViewMode>>,
+    pub pinned: Vec<bool>,
     pub active: Option<usize>,
     pub left: Option<(bool, f32)>,
     pub right: Option<(bool, f32)>,
@@ -30,7 +31,19 @@ pub struct Session {
 pub struct GroupSession {
     pub tabs: Vec<PathBuf>,
     pub views: Vec<Option<crate::editor::ViewMode>>,
+    pub pinned: Vec<bool>,
     pub active: Option<usize>,
+}
+
+fn pins_of(json: Option<&Json>) -> Vec<bool> {
+    json.and_then(Json::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .map(|item| item.as_bool() == Some(true))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn paths_of(json: Option<&Json>) -> Vec<PathBuf> {
@@ -162,6 +175,7 @@ impl Store {
             .map(|group| GroupSession {
                 tabs: paths_of(group.get("tabs")),
                 views: views_of(group.get("views")),
+                pinned: pins_of(group.get("pinned")),
                 active: group
                     .get("active")
                     .and_then(Json::as_u64)
@@ -179,6 +193,7 @@ impl Store {
                 .unwrap_or(false),
             tabs: paths_of(session.get("tabs")),
             views: views_of(session.get("views")),
+            pinned: pins_of(session.get("pinned")),
             active: session
                 .get("active")
                 .and_then(Json::as_u64)
@@ -213,6 +228,7 @@ impl Store {
             json!({
                 "tabs": tabs,
                 "views": session.views.iter().map(|view| view.map(name_of)).collect::<Vec<_>>(),
+                "pinned": session.pinned,
                 "active": session.active,
                 "left": panel(session.left),
                 "right": panel(session.right),
@@ -221,6 +237,7 @@ impl Store {
                 "second": session.second.as_ref().map(|group| json!({
                     "tabs": group.tabs.iter().map(|p| p.to_string_lossy().into_owned()).collect::<Vec<_>>(),
                     "views": group.views.iter().map(|view| view.map(name_of)).collect::<Vec<_>>(),
+                    "pinned": group.pinned,
                     "active": group.active,
                 })),
                 "share": session.share,
@@ -594,10 +611,12 @@ mod tests {
         let session = Session {
             tabs: vec![PathBuf::from("a.md")],
             views: vec![Some(ViewMode::Source)],
+            pinned: vec![true],
             active: Some(0),
             second: Some(GroupSession {
                 tabs: vec![PathBuf::from("a.md"), PathBuf::from("b.md")],
                 views: vec![Some(ViewMode::Reading), Some(ViewMode::Live)],
+                pinned: vec![false, true],
                 active: Some(1),
             }),
             share: Some(0.375),

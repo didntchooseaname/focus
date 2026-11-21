@@ -43,6 +43,7 @@ mod settings;
 mod shell;
 mod slash;
 mod tab_keys;
+mod tab_order;
 mod templates;
 mod transfer;
 mod update;

@@ -203,6 +203,7 @@ pub struct Shell {
     pub updates: crate::update::Updates,
     applied_history: Option<focus_core::HistoryConfig>,
     pub closed: Vec<crate::tab_keys::Closed>,
+    pub tab_order: crate::tab_order::TabOrder,
     pub right_strip: gpui::FocusHandle,
     pub bottom_strip: gpui::FocusHandle,
     pub wheel_zoom: std::rc::Rc<std::cell::Cell<f32>>,
@@ -349,6 +350,7 @@ impl Shell {
             updates: Default::default(),
             applied_history: None,
             closed: Vec::new(),
+            tab_order: Default::default(),
             right_strip: cx.focus_handle(),
             bottom_strip: cx.focus_handle(),
             wheel_zoom: Default::default(),
@@ -469,24 +471,48 @@ impl Shell {
     }
 
     pub fn session_now(&self, cx: &gpui::App) -> crate::session::Session {
-        let group = |tabs: &[Entity<NoteEditor>], active: Option<usize>| {
-            let kept: Vec<usize> = (0..tabs.len())
-                .filter(|&i| tabs[i].read(cx).loose.is_none())
+        let group = |tabs: &[Entity<NoteEditor>],
+                     panes: &[Pane],
+                     order: &crate::tab_order::TabOrder,
+                     active: Option<usize>| {
+            let order = order.reconciled(&crate::tab_keys::present(tabs, panes));
+            let kept: Vec<(usize, bool)> = order
+                .items()
+                .filter_map(|item| match item {
+                    crate::groups::TabItem::Note(entity) => {
+                        let i = tabs.iter().position(|tab| tab.entity_id() == entity)?;
+                        tabs[i]
+                            .read(cx)
+                            .loose
+                            .is_none()
+                            .then_some((i, order.is_pinned(item)))
+                    }
+                    crate::groups::TabItem::Pane(_) => None,
+                })
                 .collect();
             crate::session::GroupSession {
                 tabs: kept
                     .iter()
-                    .map(|&i| tabs[i].read(cx).meta.path.to_path_buf())
+                    .map(|&(i, _)| tabs[i].read(cx).meta.path.to_path_buf())
                     .collect(),
-                views: kept.iter().map(|&i| Some(tabs[i].read(cx).view)).collect(),
-                active: active.and_then(|active| kept.iter().position(|&i| i == active)),
+                views: kept
+                    .iter()
+                    .map(|&(i, _)| Some(tabs[i].read(cx).view))
+                    .collect(),
+                pinned: kept.iter().map(|&(_, pinned)| pinned).collect(),
+                active: active.and_then(|active| kept.iter().position(|&(i, _)| i == active)),
             }
         };
-        let focused = group(&self.tabs, self.active);
+        let focused = group(&self.tabs, &self.panes, &self.tab_order, self.active);
         let (first, second) = match &self.split {
             None => (focused, None),
             Some(split) => {
-                let other = group(&split.other.tabs, split.other.active);
+                let other = group(
+                    &split.other.tabs,
+                    &split.other.panes,
+                    &split.other.order,
+                    split.other.active,
+                );
                 if split.focused_second {
                     (other, Some(focused))
                 } else {
@@ -497,6 +523,7 @@ impl Shell {
         crate::session::Session {
             tabs: first.tabs,
             views: first.views,
+            pinned: first.pinned,
             active: first.active,
             share: self.split.as_ref().map(|split| split.share),
             focus_second: self.focused_second(),
@@ -521,6 +548,7 @@ impl Shell {
         let first = crate::session::GroupSession {
             tabs: session.tabs.clone(),
             views: session.views.clone(),
+            pinned: session.pinned.clone(),
             active: session.active,
         };
         self.restore_group(&first, &library, window, cx);
@@ -548,6 +576,7 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let mut pinned = Vec::new();
         for (index, path) in group.tabs.iter().enumerate() {
             let Some(id) = library.note_by_path(path) else {
                 continue;
@@ -558,6 +587,15 @@ impl Shell {
             {
                 editor.update(cx, |editor, cx| editor.set_view(*view, window, cx));
             }
+            if group.pinned.get(index) == Some(&true)
+                && let Some(editor) = self.active_editor()
+            {
+                pinned.push(crate::groups::TabItem::Note(editor.entity_id()));
+            }
+        }
+        self.sync_order();
+        for item in pinned {
+            self.tab_order.pin(item);
         }
         if let Some(active) = group.active.filter(|a| *a < self.tabs.len()) {
             self.activate(active, window, cx);
@@ -612,6 +650,7 @@ impl Shell {
         }
         self.split = None;
         self.tabs.clear();
+        self.tab_order = Default::default();
         self.active = None;
         self.history.clear();
         self.history_pos = 0;
@@ -661,6 +700,7 @@ impl Shell {
         self.restore = Some(session);
         self.split = None;
         self.tabs.clear();
+        self.tab_order = Default::default();
         self.active = None;
         self.library = None;
         self.vault_views = None;
@@ -1231,20 +1271,32 @@ impl Shell {
                 }
             },
         ));
-        let replace = !new_tab && self.active_editor().is_some_and(|e| !e.read(cx).dirty);
+        let replace = !new_tab
+            && !self.active_note_pinned()
+            && self.active_editor().is_some_and(|e| !e.read(cx).dirty);
+        self.sync_order();
+        let anchor = self
+            .active
+            .and_then(|active| self.tabs.get(active))
+            .map(|tab| crate::groups::TabItem::Note(tab.entity_id()));
+        let item = crate::groups::TabItem::Note(editor.entity_id());
         let index = match (replace, self.active) {
             (true, Some(active)) => {
                 let replaced = self.tabs[active].clone();
                 self.hand_lead(&replaced, cx);
                 self.tabs[active] = editor.clone();
+                self.tab_order
+                    .replace(crate::groups::TabItem::Note(replaced.entity_id()), item);
                 active
             }
             (_, Some(active)) => {
                 self.tabs.insert(active + 1, editor.clone());
+                self.tab_order.insert_after(anchor, item);
                 active + 1
             }
             (_, None) => {
                 self.tabs.push(editor.clone());
+                self.tab_order.insert_after(None, item);
                 self.tabs.len() - 1
             }
         };

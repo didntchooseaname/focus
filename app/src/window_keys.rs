@@ -69,6 +69,7 @@ impl Shell {
         )
         .on_action(cx.listener(|this, _: &SaveNow, _, cx| this.save_now(cx)))
         .on_action(cx.listener(|this, _: &ReopenTab, window, cx| this.reopen_tab(window, cx)))
+        .on_action(cx.listener(|this, _: &TogglePinTab, _, cx| this.toggle_front_pin(cx)))
         .on_action(
             cx.listener(|this, _: &GoToTab1, window, cx| this.go_to_tab(Some(0), window, cx)),
         )

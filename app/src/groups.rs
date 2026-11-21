@@ -20,6 +20,7 @@ pub struct Group {
     pub history_pos: usize,
     pub panes: Vec<Pane>,
     pub active_pane: Option<usize>,
+    pub order: crate::tab_order::TabOrder,
 }
 
 impl Group {
@@ -71,7 +72,7 @@ impl Render for TabGhost {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct TabMenu {
     pub second: bool,
-    pub index: usize,
+    pub item: TabItem,
     pub x: Pixels,
     pub y: Pixels,
 }
@@ -92,6 +93,7 @@ impl Shell {
         std::mem::swap(&mut self.history_pos, &mut other.history_pos);
         std::mem::swap(&mut self.panes, &mut other.panes);
         std::mem::swap(&mut self.active_pane, &mut other.active_pane);
+        std::mem::swap(&mut self.tab_order, &mut other.order);
         split.focused_second = !split.focused_second;
     }
 
@@ -260,6 +262,8 @@ impl Shell {
             return;
         }
         self.focus_group(dragged.second, window, cx);
+        self.sync_order();
+        let pinned = self.tab_order.is_pinned(dragged.item);
         let carried = match dragged.item {
             TabItem::Note(entity) => {
                 let Some(index) = self.tabs.iter().position(|t| t.entity_id() == entity) else {
@@ -291,6 +295,8 @@ impl Shell {
             }
         };
         self.focus_group(to_second, window, cx);
+        self.sync_order();
+        let anchor = self.front_item();
         match (dragged.item, carried) {
             (TabItem::Note(_), Some(editor)) => {
                 let id = editor.read(cx).id;
@@ -305,10 +311,17 @@ impl Shell {
                         None => self.tabs.len(),
                     };
                     self.tabs.insert(index, editor);
+                    self.place_tab(dragged.item, anchor, pinned);
                     self.activate(index, window, cx);
                 }
             }
-            (TabItem::Pane(pane), _) => self.show_pane(pane, window, cx),
+            (TabItem::Pane(pane), _) => {
+                if !self.panes.contains(&pane) {
+                    self.panes.push(pane);
+                    self.place_tab(dragged.item, anchor, pinned);
+                }
+                self.show_pane(pane, window, cx)
+            }
             _ => {}
         }
         self.drop_empty_group(window, cx);
@@ -351,29 +364,53 @@ impl Shell {
         menu: TabMenu,
         cx: &gpui::App,
     ) -> Vec<(TabCommand, focus_kit::MenuEntry)> {
-        let tabs = match &self.split {
-            Some(split) if self.focused_second() != menu.second => &split.other.tabs,
-            _ => &self.tabs,
+        let (tabs, order) = match &self.split {
+            Some(split) if self.focused_second() != menu.second => {
+                (&split.other.tabs, &split.other.order)
+            }
+            _ => (&self.tabs, &self.tab_order),
         };
-        let note = tabs.get(menu.index).map(|tab| tab.read(cx).id);
+        let index = match menu.item {
+            TabItem::Note(entity) => tabs.iter().position(|tab| tab.entity_id() == entity),
+            TabItem::Pane(_) => None,
+        };
+        let pinned = order.is_pinned(menu.item);
+        let note = index
+            .and_then(|index| tabs.get(index))
+            .map(|tab| tab.read(cx).id);
         let in_vault = note
             .and_then(|note| self.library.as_ref()?.note(note))
             .is_some();
-        let mut entries = vec![(
-            TabCommand::Split,
-            focus_kit::MenuEntry::new("tab-menu-split", focus_i18n::t("ui-cmd-split-right"))
-                .shortcut(crate::actions::shortcut("ui-cmd-split-right")),
-        )];
+        let mut entries = Vec::new();
+        if let Some(index) = index {
+            entries.push((
+                TabCommand::Split(index),
+                focus_kit::MenuEntry::new("tab-menu-split", focus_i18n::t("ui-cmd-split-right"))
+                    .shortcut(crate::actions::shortcut("ui-cmd-split-right")),
+            ));
+        }
+        entries.push((
+            TabCommand::Pin,
+            focus_kit::MenuEntry::new(
+                "tab-menu-pin",
+                focus_i18n::t(if pinned { "ui-tab-unpin" } else { "ui-tab-pin" }),
+            )
+            .shortcut(crate::actions::shortcut("ui-cmd-pin-tab")),
+        ));
         if in_vault && let Some(note) = note {
             entries.push((
                 TabCommand::Versions(note),
                 focus_kit::MenuEntry::new("tab-menu-versions", focus_i18n::t("ui-menu-versions")),
             ));
         }
+        let close = focus_kit::MenuEntry::new("tab-menu-close", focus_i18n::t("ui-cmd-close-tab"));
         entries.push((
             TabCommand::Close,
-            focus_kit::MenuEntry::new("tab-menu-close", focus_i18n::t("ui-cmd-close-tab"))
-                .shortcut(crate::actions::shortcut("ui-cmd-close-tab")),
+            if pinned {
+                close
+            } else {
+                close.shortcut(crate::actions::shortcut("ui-cmd-close-tab"))
+            },
         ));
         entries
     }
@@ -387,14 +424,18 @@ impl Shell {
     ) {
         self.close_overlay(window, cx);
         match command {
-            TabCommand::Split => {
+            TabCommand::Split(index) => {
                 self.focus_group(menu.second, window, cx);
-                self.split_right(Some(menu.index), window, cx);
+                self.split_right(Some(index), window, cx);
+            }
+            TabCommand::Pin => {
+                self.focus_group(menu.second, window, cx);
+                self.toggle_pin(menu.item, cx);
             }
             TabCommand::Versions(note) => self.show_versions(note, window, cx),
             TabCommand::Close => {
                 self.focus_group(menu.second, window, cx);
-                self.close_tab(menu.index, window, cx);
+                self.close_item(menu.item, window, cx);
             }
         }
     }
@@ -433,7 +474,8 @@ impl Shell {
 
 #[derive(Clone, Copy)]
 pub(crate) enum TabCommand {
-    Split,
+    Split(usize),
+    Pin,
     Versions(focus_core::NoteId),
     Close,
 }

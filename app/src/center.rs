@@ -4,7 +4,8 @@ use focus_kit::{
 };
 use gpui::{
     AnyElement, Context, Entity, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    Pixels, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
+    Pixels, SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
+    px,
 };
 
 use crate::editor::{Load, NoteEditor, ViewMode};
@@ -27,6 +28,7 @@ struct GroupView {
     active: Option<usize>,
     panes: Vec<Pane>,
     active_pane: Option<usize>,
+    order: crate::tab_order::TabOrder,
 }
 
 impl GroupView {
@@ -52,6 +54,10 @@ impl Shell {
                 active: split.other.active,
                 panes: split.other.panes.clone(),
                 active_pane: split.other.active_pane,
+                order: split.other.order.reconciled(&crate::tab_keys::present(
+                    &split.other.tabs,
+                    &split.other.panes,
+                )),
             },
             _ => GroupView {
                 second,
@@ -60,6 +66,7 @@ impl Shell {
                 active: self.active,
                 panes: self.panes.clone(),
                 active_pane: self.active_pane,
+                order: self.drawn_order(),
             },
         }
     }
@@ -415,11 +422,17 @@ impl Shell {
         let (second, focused) = (view.second, view.focused);
         let front = view.active.filter(|_| view.active_pane.is_none());
         let slot = usize::from(second);
-        let shown = view
-            .active_pane
-            .map(|pane| view.tabs.len() + pane)
-            .or(view.active)
-            .map(|item| (item, view.tabs.len() + view.panes.len()));
+        let front_item = match (view.active_pane, view.active) {
+            (Some(pane), _) => view.panes.get(pane).map(|pane| TabItem::Pane(*pane)),
+            (None, Some(note)) => view
+                .tabs
+                .get(note)
+                .map(|tab| TabItem::Note(tab.entity_id())),
+            (None, None) => None,
+        };
+        let shown = front_item
+            .and_then(|item| view.order.position(item))
+            .map(|drawn| (drawn, view.tabs.len() + view.panes.len()));
         if shown != self.tab_front[slot] {
             self.tab_front[slot] = shown;
             if let Some((item, _)) = shown {
@@ -432,6 +445,7 @@ impl Shell {
             title: title.into(),
         };
         let draggable = |id: (&'static str, usize), dragged: DraggedTab| {
+            let target = dragged.item;
             div()
                 .id(id)
                 .flex()
@@ -441,8 +455,25 @@ impl Shell {
                 .on_drag(dragged, |dragged, _, _, cx| {
                     Shell::tab_ghost(dragged.title.clone(), cx)
                 })
+                .on_drop(cx.listener(move |this, dropped: &DraggedTab, window, cx| {
+                    this.drop_on_tab(dropped, second, target, window, cx)
+                }))
         };
-        div()
+        let unpin_label = focus_i18n::t("ui-tab-unpin");
+        let unpin_keys = Some(crate::actions::shortcut("ui-cmd-pin-tab"))
+            .filter(|keys| !keys.is_empty())
+            .map(SharedString::from);
+        let pinned = |tab: NoteTab, item: TabItem| {
+            if !view.order.is_pinned(item) {
+                return tab;
+            }
+            tab.pinned(unpin_label.clone(), unpin_keys.clone())
+                .on_unpin(cx.listener(move |this, _, window, cx| {
+                    this.focus_group(second, window, cx);
+                    this.toggle_pin(item, cx)
+                }))
+        };
+        let bar = div()
             .id(if second { "note-tabs-2" } else { "note-tabs" })
             .relative()
             .flow_row()
@@ -470,8 +501,12 @@ impl Shell {
                     this.drop_files(&rest, window, cx);
                     cx.stop_propagation();
                 }),
-            )
-            .children(view.tabs.iter().enumerate().map(|(i, editor)| {
+            );
+        let mut notes: Vec<Option<AnyElement>> = view
+            .tabs
+            .iter()
+            .enumerate()
+            .map(|(i, editor)| {
                 let entity = editor.entity_id();
                 let editor = editor.read(cx);
                 let title = match editor.loose {
@@ -510,47 +545,47 @@ impl Shell {
                     this.focus_group(second, window, cx);
                     this.close_tab(i, window, cx)
                 }));
-                draggable(
-                    (if second { "tab-drag-2" } else { "tab-drag" }, i),
-                    carried(TabItem::Note(entity), title),
+                let tab = pinned(tab, TabItem::Note(entity));
+                Some(
+                    draggable(
+                        (if second { "tab-drag-2" } else { "tab-drag" }, i),
+                        carried(TabItem::Note(entity), title),
+                    )
+                    .tooltip(move |_, cx| focus_kit::tooltip::Tooltip::view(tip.clone(), None, cx))
+                    .on_mouse_up(
+                        MouseButton::Middle,
+                        cx.listener(move |this, _, window, cx| {
+                            this.focus_group(second, window, cx);
+                            this.close_unpinned(TabItem::Note(entity), window, cx)
+                        }),
+                    )
+                    .on_mouse_down(
+                        MouseButton::Right,
+                        cx.listener(move |this, event: &gpui::MouseDownEvent, window, cx| {
+                            this.open_tab_menu(
+                                TabMenu {
+                                    second,
+                                    item: TabItem::Note(entity),
+                                    x: event.position.x,
+                                    y: event.position.y,
+                                },
+                                window,
+                                cx,
+                            )
+                        }),
+                    )
+                    .child(tab)
+                    .into_any_element(),
                 )
-                .tooltip(move |_, cx| focus_kit::tooltip::Tooltip::view(tip.clone(), None, cx))
-                .on_mouse_up(
-                    MouseButton::Middle,
-                    cx.listener(move |this, _, window, cx| {
-                        this.focus_group(second, window, cx);
-                        this.close_tab(i, window, cx)
-                    }),
-                )
-                .on_mouse_down(
-                    MouseButton::Right,
-                    cx.listener(move |this, event: &gpui::MouseDownEvent, window, cx| {
-                        this.open_tab_menu(
-                            TabMenu {
-                                second,
-                                index: i,
-                                x: event.position.x,
-                                y: event.position.y,
-                            },
-                            window,
-                            cx,
-                        )
-                    }),
-                )
-                .child(tab)
-            }))
-            .children(view.panes.iter().enumerate().map(|(i, pane)| {
+            })
+            .collect();
+        let mut panes: Vec<Option<AnyElement>> = view
+            .panes
+            .iter()
+            .enumerate()
+            .map(|(i, pane)| {
                 let pane = *pane;
-                let label = match pane {
-                    Pane::Graph => focus_i18n::t("graph-title"),
-                    Pane::Base(id) => self
-                        .base_page(id)
-                        .and_then(|page| page.path.file_stem())
-                        .map(|stem| stem.to_string_lossy().into_owned())
-                        .unwrap_or_default(),
-                    Pane::Ops(screen) => screen.label(),
-                    Pane::File(id) => self.file_tab_label(id),
-                };
+                let label = self.pane_label(pane);
                 let front_pane = view.active_pane == Some(i);
                 let tab = NoteTab::new(
                     (if second { "pane-2" } else { "pane" }, i),
@@ -574,34 +609,66 @@ impl Shell {
                         this.close_pane(index, window, cx)
                     }
                 }));
+                let tab = pinned(tab, TabItem::Pane(pane));
                 let tip: gpui::SharedString = label.clone().into();
-                draggable(
-                    (if second { "pane-drag-2" } else { "pane-drag" }, i),
-                    carried(TabItem::Pane(pane), label),
+                Some(
+                    draggable(
+                        (if second { "pane-drag-2" } else { "pane-drag" }, i),
+                        carried(TabItem::Pane(pane), label),
+                    )
+                    .tooltip(move |_, cx| focus_kit::tooltip::Tooltip::view(tip.clone(), None, cx))
+                    .on_mouse_up(
+                        MouseButton::Middle,
+                        cx.listener(move |this, _, window, cx| {
+                            this.focus_group(second, window, cx);
+                            this.close_unpinned(TabItem::Pane(pane), window, cx)
+                        }),
+                    )
+                    .on_mouse_down(
+                        MouseButton::Right,
+                        cx.listener(move |this, event: &gpui::MouseDownEvent, window, cx| {
+                            this.open_tab_menu(
+                                TabMenu {
+                                    second,
+                                    item: TabItem::Pane(pane),
+                                    x: event.position.x,
+                                    y: event.position.y,
+                                },
+                                window,
+                                cx,
+                            )
+                        }),
+                    )
+                    .child(tab)
+                    .into_any_element(),
                 )
-                .tooltip(move |_, cx| focus_kit::tooltip::Tooltip::view(tip.clone(), None, cx))
-                .on_mouse_up(
-                    MouseButton::Middle,
-                    cx.listener(move |this, _, window, cx| {
-                        this.focus_group(second, window, cx);
-                        if let Some(index) = this.panes.iter().position(|p| *p == pane) {
-                            this.close_pane(index, window, cx)
-                        }
-                    }),
-                )
-                .child(tab)
-            }))
-            .child(
-                div().flex_1().h_full().relative().child(
-                    div()
-                        .absolute()
-                        .start_at(px(0.))
-                        .end_at(px(0.))
-                        .bottom_0()
-                        .h(px(1.))
-                        .bg(t.line),
-                ),
-            )
+            })
+            .collect();
+        let drawn: Vec<AnyElement> = view
+            .order
+            .items()
+            .filter_map(|item| match item {
+                TabItem::Note(entity) => {
+                    let i = view.tabs.iter().position(|tab| tab.entity_id() == entity)?;
+                    notes.get_mut(i)?.take()
+                }
+                TabItem::Pane(pane) => {
+                    let i = view.panes.iter().position(|p| *p == pane)?;
+                    panes.get_mut(i)?.take()
+                }
+            })
+            .collect();
+        bar.children(drawn).child(
+            div().flex_1().h_full().relative().child(
+                div()
+                    .absolute()
+                    .start_at(px(0.))
+                    .end_at(px(0.))
+                    .bottom_0()
+                    .h(px(1.))
+                    .bg(t.line),
+            ),
+        )
     }
 
     fn render_reading(

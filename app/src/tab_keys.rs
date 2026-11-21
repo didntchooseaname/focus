@@ -2,7 +2,9 @@ use std::path::PathBuf;
 
 use gpui::{Context, Window};
 
+use crate::groups::TabItem;
 use crate::shell::{Pane, Shell};
+use crate::tab_order::TabOrder;
 
 const REOPEN_DEPTH: usize = 20;
 
@@ -34,12 +36,140 @@ fn rank_of(count: usize, front: Option<usize>, delta: isize) -> Option<usize> {
     Some((from + delta).rem_euclid(count as isize) as usize)
 }
 
+pub fn present(tabs: &[gpui::Entity<crate::editor::NoteEditor>], panes: &[Pane]) -> Vec<TabItem> {
+    tabs.iter()
+        .map(|tab| TabItem::Note(tab.entity_id()))
+        .chain(panes.iter().map(|pane| TabItem::Pane(*pane)))
+        .collect()
+}
+
 impl Shell {
+    pub fn sync_order(&mut self) {
+        let present = present(&self.tabs, &self.panes);
+        self.tab_order.reconcile(&present);
+    }
+
+    pub fn drawn_order(&self) -> TabOrder {
+        self.tab_order.reconciled(&present(&self.tabs, &self.panes))
+    }
+
+    fn item_ref(&self, item: TabItem) -> Option<TabRef> {
+        match item {
+            TabItem::Note(entity) => self
+                .tabs
+                .iter()
+                .position(|tab| tab.entity_id() == entity)
+                .map(TabRef::Note),
+            TabItem::Pane(pane) => self.panes.iter().position(|p| *p == pane).map(TabRef::Pane),
+        }
+    }
+
     fn tab_order(&self) -> Vec<TabRef> {
-        (0..self.tabs.len())
-            .map(TabRef::Note)
-            .chain((0..self.panes.len()).map(TabRef::Pane))
+        self.drawn_order()
+            .items()
+            .filter_map(|item| self.item_ref(item))
             .collect()
+    }
+
+    pub fn drawn_item(&self, rank: usize) -> Option<TabItem> {
+        self.drawn_order().items().nth(rank)
+    }
+
+    pub fn pane_label(&self, pane: Pane) -> String {
+        match pane {
+            Pane::Graph => focus_i18n::t("graph-title"),
+            Pane::Base(id) => self
+                .base_page(id)
+                .and_then(|page| page.path.file_stem())
+                .map(|stem| stem.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            Pane::Ops(screen) => screen.label(),
+            Pane::File(id) => self.file_tab_label(id),
+        }
+    }
+
+    pub fn front_item(&self) -> Option<TabItem> {
+        match (self.active_pane, self.active) {
+            (Some(pane), _) => self.panes.get(pane).map(|pane| TabItem::Pane(*pane)),
+            (None, Some(note)) => self
+                .tabs
+                .get(note)
+                .map(|tab| TabItem::Note(tab.entity_id())),
+            (None, None) => None,
+        }
+    }
+
+    pub fn active_note_pinned(&self) -> bool {
+        self.active
+            .and_then(|note| self.tabs.get(note))
+            .is_some_and(|tab| self.tab_order.is_pinned(TabItem::Note(tab.entity_id())))
+    }
+
+    pub fn place_tab(&mut self, item: TabItem, anchor: Option<TabItem>, pinned: bool) {
+        self.sync_order();
+        if pinned {
+            self.tab_order.insert_pinned(item);
+        } else {
+            self.tab_order.insert_after(anchor, item);
+        }
+    }
+
+    pub fn toggle_pin(&mut self, item: TabItem, cx: &mut Context<Self>) {
+        self.sync_order();
+        if self.tab_order.is_pinned(item) {
+            self.tab_order.unpin(item);
+        } else if self.tab_order.contains(item) {
+            self.tab_order.pin(item);
+        }
+        self.schedule_save(cx);
+        cx.notify();
+    }
+
+    pub fn toggle_front_pin(&mut self, cx: &mut Context<Self>) {
+        if let Some(item) = self.front_item() {
+            self.toggle_pin(item, cx);
+        }
+    }
+
+    pub fn close_item(&mut self, item: TabItem, window: &mut Window, cx: &mut Context<Self>) {
+        match self.item_ref(item) {
+            Some(TabRef::Note(index)) => self.close_tab(index, window, cx),
+            Some(TabRef::Pane(index)) => self.close_pane(index, window, cx),
+            None => {}
+        }
+    }
+
+    pub fn close_unpinned(&mut self, item: TabItem, window: &mut Window, cx: &mut Context<Self>) {
+        if self.tab_order.is_pinned(item) {
+            let keys = crate::actions::shortcut("ui-cmd-close-tab");
+            self.notify_user(
+                focus_kit::Tone::Ok,
+                focus_i18n::t_args("ui-tab-pinned-stays", &[("keys", keys.as_str().into())]),
+                cx,
+            );
+            return;
+        }
+        self.close_item(item, window, cx);
+    }
+
+    pub fn drop_on_tab(
+        &mut self,
+        dragged: &crate::groups::DraggedTab,
+        second: bool,
+        target: TabItem,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if dragged.second != second {
+            self.move_tab(dragged, second, window, cx);
+            return;
+        }
+        self.focus_group(second, window, cx);
+        self.sync_order();
+        if self.tab_order.reorder(dragged.item, target) {
+            self.schedule_save(cx);
+            cx.notify();
+        }
     }
 
     fn front_tab(&self) -> Option<TabRef> {
@@ -81,10 +211,8 @@ impl Shell {
     }
 
     pub fn close_front_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        match self.front_tab() {
-            Some(TabRef::Note(index)) => self.close_tab(index, window, cx),
-            Some(TabRef::Pane(index)) => self.close_pane(index, window, cx),
-            None => {}
+        if let Some(item) = self.front_item() {
+            self.close_unpinned(item, window, cx);
         }
     }
 

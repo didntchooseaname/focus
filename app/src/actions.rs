@@ -96,6 +96,7 @@ actions!(
         PrevRegion,
         EditorMenu,
         PastePlain,
+        TogglePinTab,
     ]
 );
 
@@ -164,6 +165,7 @@ pub const COMMANDS: &[Command] = &[
     command!("ui-cmd-save", "ctrl-s", SaveNow, true),
     command!("ui-cmd-close-tab", "ctrl-w", CloseTab, true),
     command!("ui-cmd-reopen-tab", "ctrl-shift-t", ReopenTab, true),
+    command!("ui-cmd-pin-tab", "", TogglePinTab, true),
     command!("ui-cmd-next-tab", "ctrl-tab", NextTab, true),
     command!("ui-cmd-next-tab", "ctrl-pagedown", NextTab, true),
     command!("ui-cmd-prev-tab", "ctrl-shift-tab", PrevTab, true),
