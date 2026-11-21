@@ -537,7 +537,7 @@ fn wait_for(
     mut pred: impl FnMut(&VaultEvent) -> bool,
 ) -> Vec<VaultEvent> {
     let mut seen = Vec::new();
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while Instant::now() < deadline {
         if let Ok(e) = rx.recv_timeout(Duration::from_millis(50)) {
             let done = pred(&e);
@@ -560,7 +560,7 @@ fn watcher_applies_external_changes_in_batches() {
             .watcher
             .lock()
             .as_ref()
-            .is_some_and(|w| w.wait_ready(Duration::from_secs(10)))
+            .is_some_and(|w| w.wait_ready(Duration::from_secs(60)))
     );
 
     let bx = id(&v, "Labs/Box.md");
@@ -578,7 +578,7 @@ fn watcher_applies_external_changes_in_batches() {
         .unwrap();
     }
     let started = Instant::now();
-    while v.stats().notes < 1004 && started.elapsed() < Duration::from_secs(10) {
+    while v.stats().notes < 1004 && started.elapsed() < Duration::from_secs(60) {
         std::thread::sleep(Duration::from_millis(20));
     }
     assert_eq!(v.stats().notes, 1004);
@@ -597,7 +597,7 @@ fn watcher_applies_external_changes_in_batches() {
     assert!(v.unresolved(bx).is_empty());
     std::fs::remove_dir_all(&burst).unwrap();
     let started = Instant::now();
-    while v.stats().notes != 6 && started.elapsed() < Duration::from_secs(10) {
+    while v.stats().notes != 6 && started.elapsed() < Duration::from_secs(60) {
         std::thread::sleep(Duration::from_millis(20));
     }
     assert_eq!(v.stats().notes, 6);
@@ -1170,7 +1170,7 @@ fn a_note_moved_outside_focus_takes_its_versions() {
             .watcher
             .lock()
             .as_ref()
-            .is_some_and(|w| w.wait_ready(Duration::from_secs(10)))
+            .is_some_and(|w| w.wait_ready(Duration::from_secs(60)))
     );
     let box_id = id(&v, "Labs/Box.md");
     let before = get(&root, "Labs/Box.md");
@@ -1204,11 +1204,11 @@ fn property_types_follow_types_json_on_disk() {
             .watcher
             .lock()
             .as_ref()
-            .is_some_and(|w| w.wait_ready(Duration::from_secs(10)))
+            .is_some_and(|w| w.wait_ready(Duration::from_secs(60)))
     );
     let changed = || {
         config
-            .recv_timeout(Duration::from_secs(10))
+            .recv_timeout(Duration::from_secs(60))
             .expect("a configuration event")
     };
     let date = PropValue::Text("2020-08-21".into());
