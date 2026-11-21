@@ -282,12 +282,16 @@ pub(crate) fn plan(i: &Inputs) -> Plan {
             continue;
         }
         let top = d.at[1] + d.radius + 2.0;
+        let width = (i.label_width)(d.index);
+        let Some(center) = label_center(d.at[0], width, i.size[0]) else {
+            continue;
+        };
         let rect = |width: f32| {
             let half = width / 2.0 + PLATE_PAD + LABEL_GAP / 2.0;
             [
-                d.at[0] - half,
+                center - half,
                 top - LABEL_GAP / 2.0,
-                d.at[0] + half,
+                center + half,
                 top + LABEL_HEIGHT + LABEL_GAP / 2.0,
             ]
         };
@@ -305,11 +309,11 @@ pub(crate) fn plan(i: &Inputs) -> Plan {
         {
             continue;
         }
-        if placed.try_place(rect((i.label_width)(d.index))) {
+        if placed.try_place(rect(width)) {
             hot_labels += neighbour as usize;
             out.labels.push(LabelDraw {
                 index: d.index,
-                at: [d.at[0], top],
+                at: [center, top],
                 hot: d.emphasis == Emphasis::Hot,
                 dim: d.emphasis == Emphasis::Dim,
                 opacity: d.opacity,
@@ -317,6 +321,11 @@ pub(crate) fn plan(i: &Inputs) -> Plan {
         }
     }
     out
+}
+
+fn label_center(x: f32, width: f32, room: f32) -> Option<f32> {
+    let half = width / 2.0 + PLATE_PAD;
+    (2.0 * half <= room).then(|| x.clamp(half, room - half))
 }
 
 #[derive(Default)]
@@ -357,6 +366,15 @@ impl Placer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_label_stays_inside_the_view() {
+        let half = 50.0 + PLATE_PAD;
+        assert_eq!(label_center(10.0, 100.0, 300.0), Some(half));
+        assert_eq!(label_center(295.0, 100.0, 300.0), Some(300.0 - half));
+        assert_eq!(label_center(150.0, 100.0, 300.0), Some(150.0));
+        assert_eq!(label_center(150.0, 400.0, 300.0), None);
+    }
     use focus_graph::{Edge, EdgeKind, Node};
     use std::sync::Arc;
 
