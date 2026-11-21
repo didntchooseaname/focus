@@ -53,6 +53,7 @@ impl Shell {
             || m.platform
             || matches!(self.overlay, Overlay::None)
             || self.modal.scope.contains_focused(window, cx)
+            || focus_kit::field_menu::holds_focus(window, cx)
         {
             return false;
         }

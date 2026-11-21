@@ -111,6 +111,8 @@ pub struct Command {
     pub ai: bool,
 }
 
+use crate::crumbs::OpenCrumbMenu;
+
 macro_rules! command {
     ($label:expr, $keys:expr, $action:ident, $palette:expr) => {
         Command {
@@ -199,6 +201,7 @@ pub const COMMANDS: &[Command] = &[
     command!("ui-cmd-quit", "ctrl-q", Quit, true),
     command!("ui-cmd-graph", "ctrl-g", OpenGraph, true),
     command!("ui-cmd-graph-vault", "", OpenVaultGraph, true),
+    command!("ui-cmd-crumb-menu", "", OpenCrumbMenu, true),
     command!("ui-cmd-ask-ai", "ctrl-shift-a", AskAi, true, ai),
     command!("ui-cmd-ops-dashboard", "", OpsDashboard, true, ops),
     command!("ui-cmd-ops-hosts", "", OpsHosts, true, ops),
